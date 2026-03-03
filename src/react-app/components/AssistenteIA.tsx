@@ -41,16 +41,22 @@ export default function AssistenteIA({ contexto = "home" }) {
   const handleScanGmail = async () => {
     setProcessando(true);
     setHistorico(p => [...p, { tipo: "user", conteudo: "🔍 Verificando notas no meu Gmail...", timestamp: new Date() }]);
+    
     const res = await escanearNotasNoGmail();
-    if (res.success && res.notas?.length > 0) {
+    
+    // CORREÇÃO: Garante que "notas" é sempre um array e evita o erro TS2532 na Vercel
+    const notas = res?.notas || []; 
+
+    if (res?.success && notas.length > 0) {
       setHistorico(p => [...p, { 
         tipo: "assistant", 
-        conteudo: `Encontrei ${res.notas.length} notas pendentes! A última é de **${res.notas[0].fornecedor}**. Deseja que eu faça a leitura profunda do PDF?`, 
-        dados: res.notas[0] 
+        conteudo: `Encontrei ${notas.length} notas pendentes! A última é de **${notas[0].fornecedor}**. Deseja que eu faça a leitura profunda do PDF?`, 
+        dados: notas[0] 
       }]);
     } else {
       setHistorico(p => [...p, { tipo: "assistant", conteudo: "Tudo limpo! Não encontrei notas novas no seu e-mail por enquanto." }]);
     }
+    
     setProcessando(false);
   };
 
@@ -90,7 +96,8 @@ export default function AssistenteIA({ contexto = "home" }) {
           <div className="h-[380px] overflow-y-auto p-6 space-y-4 bg-gray-50/50 custom-scrollbar" ref={scrollRef}>
             {historico.length === 0 && (
               <div className="text-center py-4 space-y-4">
-                <p className="text-xs font-bold text-gray-400 uppercase italic">Como posso ajudar sua Pizzaria hoje?</p>
+                {/* CORREÇÃO: "Pizzaria" alterado para "Empresa" */}
+                <p className="text-xs font-bold text-gray-400 uppercase italic">Como posso ajudar sua Empresa hoje?</p>
                 <div className="flex flex-col gap-2">
                   {sugestoes.map((s, i) => (
                     <button key={i} onClick={s.acao} className="p-3 bg-white border border-gray-100 rounded-2xl text-[10px] font-black uppercase italic text-gray-700 hover:border-orange-500 transition-all shadow-sm">

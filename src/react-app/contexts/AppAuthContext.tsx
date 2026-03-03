@@ -5,8 +5,9 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from "
 export type LocalUser = {
   id: string;
   name: string;
-  role?: string;
+  /** Email do usuário local (usado em algumas rotas como /app/empresas). */
   email?: string;
+  role?: string;
   nome_empresa?: string;
 };
 
@@ -27,10 +28,22 @@ export function AppAuthProvider({ children }: { children: React.ReactNode }) {
       if (raw) {
         setLocalUser(JSON.parse(raw) as LocalUser);
       } else {
-        setLocalUser({ id: "local", name: "Gestor", role: "admin", nome_empresa: "Pappi Gestor" });
+        setLocalUser({
+          id: "local",
+          name: "Gestor",
+          email: "admin@local",
+          role: "admin",
+          nome_empresa: "Pappi Gestor",
+        });
       }
     } catch {
-      setLocalUser({ id: "local", name: "Gestor", role: "admin", nome_empresa: "Pappi Gestor" });
+      setLocalUser({
+        id: "local",
+        name: "Gestor",
+        email: "admin@local",
+        role: "admin",
+        nome_empresa: "Pappi Gestor",
+      });
     }
   }, []);
 

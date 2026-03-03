@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
 export type LocalUser = {
   id: string;
@@ -15,10 +15,10 @@ type AppAuthContextValue = {
 
 const AppAuthContext = createContext<AppAuthContextValue | null>(null);
 
-export function AppAuthProvider({ children }: { children: React.ReactNode }) {
+export function AppAuthProvider({ children }: { children: ReactNode }) {
   const [localUser, setLocalUser] = useState<LocalUser | null>(null);
 
-  // ✅ Minimal auth stub: reads a cached user from localStorage.
+  // lê do localStorage (client-only)
   useEffect(() => {
     try {
       const raw = localStorage.getItem("localUser");
@@ -43,11 +43,13 @@ export function AppAuthProvider({ children }: { children: React.ReactNode }) {
   return <AppAuthContext.Provider value={value}>{children}</AppAuthContext.Provider>;
 }
 
-export function useAppAuth() {
+export function useAppAuth(): AppAuthContextValue {
   const ctx = useContext(AppAuthContext);
   if (!ctx) {
-    // Don't throw to avoid breaking pages if provider wasn't mounted yet.
-    return { localUser: null, setLocalUser: () => {} } as AppAuthContextValue;
+    return {
+      localUser: null,
+      setLocalUser: () => {},
+    };
   }
   return ctx;
 }

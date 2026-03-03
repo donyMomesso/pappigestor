@@ -5,13 +5,12 @@ import { useRouter } from "next/navigation";
 
 // SAINDO de src/app (..) e ENTRANDO em src/react-app
 import { useAppAuth } from "../react-app/contexts/AppAuthContext";
-
 import { 
   ArrowRight, Sparkles, Loader2, CheckCircle2, 
   Zap, BrainCircuit, ShieldCheck, 
   Target, Users, BarChart3, XCircle
 } from "lucide-react";
-import Link from "next/link";
+import Link from "next/link"; 
 
 // --- COMPONENTES DE APOIO (UI) ---
 

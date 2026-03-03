@@ -7,7 +7,8 @@ import { useAppAuth } from "@/react-app/contexts/AppAuthContext";
 import { Home, ShoppingCart, DollarSign, Package, LayoutDashboard, LogOut, Sparkles } from "lucide-react";
 
 export default function AppLayout({ children }: { children: ReactNode }) {
-  const { localUser, signOut } = useAppAuth();
+  // CORREÇÃO: Trocamos 'signOut' por 'logout'
+  const { localUser, logout } = useAppAuth();
   const pathname = usePathname();
   const LOGO_URL = "https://019c7b56-2054-7d0b-9c55-e7a603c40ba8.mochausercontent.com/1771799343659.png";
 
@@ -53,7 +54,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               <div className="absolute right-0 mt-4 w-60 bg-white rounded-[30px] shadow-2xl border border-gray-50 opacity-0 group-hover:opacity-100 transition-all pointer-events-none group-hover:pointer-events-auto p-4 translate-y-2 group-hover:translate-y-0 z-50">
                  <p className="px-2 text-[9px] font-black uppercase text-gray-400 italic tracking-widest mb-3">Opções da Unidade</p>
                  <Link href="/app/configuracoes" className="block px-4 py-3 text-[10px] font-black uppercase italic text-gray-600 hover:bg-orange-50 rounded-xl transition-all">Ajustes da Empresa</Link>
-                 <button onClick={() => signOut()} className="w-full flex items-center gap-3 px-4 py-3 mt-1 text-[10px] font-black uppercase italic text-red-500 hover:bg-red-50 rounded-xl transition-all">
+                 
+                 {/* CORREÇÃO: Trocamos 'signOut()' por 'logout()' */}
+                 <button onClick={() => logout()} className="w-full flex items-center gap-3 px-4 py-3 mt-1 text-[10px] font-black uppercase italic text-red-500 hover:bg-red-50 rounded-xl transition-all">
                   <LogOut size={14} /> Sair do Sistema
                 </button>
               </div>

@@ -42,19 +42,23 @@ export default function AssistenteIA({ contexto = "home" }) {
     setProcessando(true);
     setHistorico(p => [...p, { tipo: "user", conteudo: "🔍 Verificando notas no meu Gmail...", timestamp: new Date() }]);
     
-    const res = await escanearNotasNoGmail();
-    
-    // CORREÇÃO: Garante que "notas" é sempre um array e evita o erro TS2532 na Vercel
-    const notas = res?.notas || []; 
+    try {
+      const res = await escanearNotasNoGmail();
+      
+      // FORÇA A TIPAGEM PARA O TYPESCRIPT: Isso impede que a Vercel acuse "undefined"
+      const notasSeguras = (res?.notas ?? []) as any[];
 
-    if (res?.success && notas.length > 0) {
-      setHistorico(p => [...p, { 
-        tipo: "assistant", 
-        conteudo: `Encontrei ${notas.length} notas pendentes! A última é de **${notas[0].fornecedor}**. Deseja que eu faça a leitura profunda do PDF?`, 
-        dados: notas[0] 
-      }]);
-    } else {
-      setHistorico(p => [...p, { tipo: "assistant", conteudo: "Tudo limpo! Não encontrei notas novas no seu e-mail por enquanto." }]);
+      if (res?.success && notasSeguras.length > 0) {
+        setHistorico(p => [...p, { 
+          tipo: "assistant", 
+          conteudo: `Encontrei ${notasSeguras.length} notas pendentes! A última é de **${notasSeguras[0].fornecedor || "Desconhecido"}**. Deseja que eu faça a leitura profunda do PDF?`, 
+          dados: notasSeguras[0] 
+        }]);
+      } else {
+        setHistorico(p => [...p, { tipo: "assistant", conteudo: "Tudo limpo! Não encontrei notas novas no seu e-mail por enquanto." }]);
+      }
+    } catch (error) {
+       setHistorico(p => [...p, { tipo: "assistant", conteudo: "Ops, ocorreu um erro ao acessar o e-mail. Tente novamente." }]);
     }
     
     setProcessando(false);
@@ -96,7 +100,6 @@ export default function AssistenteIA({ contexto = "home" }) {
           <div className="h-[380px] overflow-y-auto p-6 space-y-4 bg-gray-50/50 custom-scrollbar" ref={scrollRef}>
             {historico.length === 0 && (
               <div className="text-center py-4 space-y-4">
-                {/* CORREÇÃO: "Pizzaria" alterado para "Empresa" */}
                 <p className="text-xs font-bold text-gray-400 uppercase italic">Como posso ajudar sua Empresa hoje?</p>
                 <div className="flex flex-col gap-2">
                   {sugestoes.map((s, i) => (

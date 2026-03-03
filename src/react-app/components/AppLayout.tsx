@@ -94,7 +94,7 @@ function DropdownMenu({ group, hasPermission, hasFeature }: { group: NavGroup; h
 
 export default function AppLayout({ children }: AppLayoutProps) {
  const auth = useAppAuth() as any; 
-const { localUser, hasPermission, hasFeature } = auth;
+const { localUser, hasPermission, hasFeature, logout } = auth; // <-- ADICIONADO O LOGOUT
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);

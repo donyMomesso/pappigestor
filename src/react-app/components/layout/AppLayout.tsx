@@ -20,7 +20,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           {/* Logo + Nome Dinâmico da Empresa do Cliente */}
           <div className="flex items-center gap-4">
             <Link href="/app" className="p-2 bg-gradient-to-br from-orange-500 to-pink-500 rounded-2xl shadow-lg shadow-orange-200">
-                <img src={LOGO_URL} alt="Logo" className="h-8 w-8 brightness-0 invert" />
+           <img src="/logo.png" alt="Logo" className="h-8 w-8 object-contain brightness-0 invert" />
             </Link>
             <div>
               <span className="text-xl font-black italic uppercase tracking-tighter bg-gradient-to-r from-orange-600 to-pink-600 bg-clip-text text-transparent leading-none block">

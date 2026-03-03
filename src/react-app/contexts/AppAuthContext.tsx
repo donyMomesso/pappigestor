@@ -4,7 +4,10 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from "
 
 export type LocalUser = {
   id: string;
-  name: string;
+
+  // alguns lugares usam "nome", outros "name"
+  name?: string;
+  nome?: string;
 
   // Identidade / login
   email?: string;
@@ -16,7 +19,7 @@ export type LocalUser = {
 
   // Permissões
   role?: string;
-  nivel_acesso?: string; // ✅ corrigindo o recebimento/page.tsx
+  nivel_acesso?: string;
 };
 type AppAuthContextValue = {
   localUser: LocalUser | null;

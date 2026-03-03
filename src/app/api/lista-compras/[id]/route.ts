@@ -1,26 +1,35 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { getDb, getPizzariaId } from "../../_db";
 
 export const runtime = "nodejs";
 
-export async function PATCH(req: Request, ctx: { params: { id: string } }) {
-  try {
-    const pId = getPizzariaId(new Headers(req.headers));
-    const db = getDb(pId);
-    const id = ctx.params.id;
-    const body = await req.json();
-    const item = db.itens.find((i) => i.id === id);
-    if (!item) return NextResponse.json({ error: "Item não encontrado" }, { status: 404 });
+type StatusSolicitacao = "pendente" | "em_cotacao" | "aprovado" | "cancelado";
 
-    if (typeof body.status_solicitacao === "string") {
-      const s = body.status_solicitacao;
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+): Promise<Response> {
+  try {
+    const { id } = await params;
+
+    const pId = getPizzariaId(new Headers(request.headers));
+    const db = getDb(pId);
+
+    const body = await request.json();
+
+    const item = db.itens.find((i: any) => i.id === id);
+    if (!item) {
+      return NextResponse.json({ error: "Item não encontrado" }, { status: 404 });
+    }
+
+    if (typeof body?.status_solicitacao === "string") {
+      const s = body.status_solicitacao as StatusSolicitacao;
       if (["pendente", "em_cotacao", "aprovado", "cancelado"].includes(s)) {
-        // @ts-expect-error narrow
         item.status_solicitacao = s;
       }
     }
 
-    if (typeof body.quantidade_solicitada !== "undefined") {
+    if (typeof body?.quantidade_solicitada !== "undefined") {
       const qtd = Number(body.quantidade_solicitada);
       if (Number.isFinite(qtd) && qtd > 0) item.quantidade_solicitada = qtd;
     }
@@ -31,13 +40,21 @@ export async function PATCH(req: Request, ctx: { params: { id: string } }) {
   }
 }
 
-export async function DELETE(req: Request, ctx: { params: { id: string } }) {
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+): Promise<Response> {
   try {
-    const pId = getPizzariaId(new Headers(req.headers));
+    const { id } = await params;
+
+    const pId = getPizzariaId(new Headers(request.headers));
     const db = getDb(pId);
-    const id = ctx.params.id;
-    const idx = db.itens.findIndex((i) => i.id === id);
-    if (idx === -1) return NextResponse.json({ error: "Item não encontrado" }, { status: 404 });
+
+    const idx = db.itens.findIndex((i: any) => i.id === id);
+    if (idx === -1) {
+      return NextResponse.json({ error: "Item não encontrado" }, { status: 404 });
+    }
+
     db.itens.splice(idx, 1);
     return NextResponse.json({ ok: true });
   } catch (e: any) {

@@ -762,13 +762,12 @@ export default function ComprasPage() {
                         </SelectTrigger>
                         <SelectContent className="rounded-[24px] bg-white border border-gray-100 shadow-xl z-50">
                           {fornecedores.map((f) => (
-                            <SelectItem
-                              key={f.id}
-                              value={f.nome_fantasia || f.razao_social}
-                              className="rounded-xl cursor-pointer hover:bg-orange-50"
-                            >
-                              {f.nome_fantasia || f.razao_social}
-                            </SelectItem>
+                          <SelectItem
+  key={f.id}
+  value={f.nome_fantasia || f.razao_social}
+>
+  {f.nome_fantasia || f.razao_social}
+</SelectItem>
                           ))}
                           <SelectItem value="__outro__" className="text-orange-600 font-black italic rounded-xl cursor-pointer hover:bg-orange-50">
                             + Digitar Outro

@@ -83,6 +83,7 @@ export default function LandingPage() {
   const [isMounting, setIsMounting] = useState(true);
 
   useEffect(() => {
+    // Redireciona apenas se houver um usuário real logado
     if (localUser && localUser.id !== "local") {
       router.push("/app");
     } else {
@@ -188,6 +189,7 @@ export default function LandingPage() {
       {/* PREÇOS */}
       <section className="py-32 px-6 max-w-6xl mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-end">
+          {/* Grátis */}
           <div className="bg-zinc-900/30 border border-zinc-800 p-10 rounded-[40px] flex flex-col h-full opacity-60">
             <h3 className="text-zinc-500 font-bold uppercase text-xs mb-4">Pappi Start</h3>
             <div className="text-3xl font-black italic mb-8 text-white">GRÁTIS</div>
@@ -204,6 +206,7 @@ export default function LandingPage() {
             </Link>
           </div>
 
+          {/* Pro IA */}
           <div className="bg-orange-600 p-[2px] rounded-[42px] shadow-[0_0_80px_rgba(234,88,12,0.2)] transform md:scale-110 z-20">
             <div className="bg-black rounded-[40px] p-10 flex flex-col h-full relative overflow-hidden">
               <div className="absolute top-0 right-0 bg-orange-500 text-white px-6 py-2 rounded-bl-3xl font-black italic text-[9px] uppercase tracking-widest">
@@ -228,6 +231,7 @@ export default function LandingPage() {
             </div>
           </div>
 
+          {/* Gestor */}
           <div className="bg-zinc-900/30 border border-zinc-800 p-10 rounded-[40px] flex flex-col h-full">
             <h3 className="text-zinc-400 font-bold uppercase text-xs mb-4">Pappi Gestor</h3>
             <div className="flex items-baseline gap-1 my-4">
@@ -256,4 +260,4 @@ export default function LandingPage() {
       </footer>
     </div>
   );
-}
+}     

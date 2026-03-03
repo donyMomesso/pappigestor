@@ -1,14 +1,12 @@
-"use client"; // Esta linha é a chave!
+"use client";
 
-import { AuthProvider as MochaProvider } from "@getmocha/users-service/react";
 import { AppAuthProvider } from "@/react-app/contexts/AppAuthContext";
+import React from "react";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <MochaProvider>
-      <AppAuthProvider>
-        {children}
-      </AppAuthProvider>
-    </MochaProvider>
+    <AppAuthProvider>
+      {children}
+    </AppAuthProvider>
   );
 }

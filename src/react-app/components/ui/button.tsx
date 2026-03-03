@@ -2,12 +2,12 @@
 
 import React from "react";
 
-type Variant = "default" | "outline" | "ghost" | "link";
+type Variant = "default" | "outline" | "ghost" | "link" | "destructive";
 
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
-  size?: "default" | "sm" | "lg" | "icon"; // ✅ adicionamos sm e lg
+  size?: "default" | "sm" | "lg" | "icon";
 }
 
 const base =
@@ -18,12 +18,13 @@ const variants: Record<Variant, string> = {
   outline: "border border-gray-200 bg-white text-gray-700 hover:bg-gray-50",
   ghost: "bg-transparent text-gray-700 hover:bg-gray-100",
   link: "bg-transparent text-gray-700 underline-offset-4 hover:underline",
+  destructive: "bg-red-600 text-white hover:bg-red-700", // ✅ novo
 };
 
 const sizes = {
   default: "h-10 px-4 py-2",
-  sm: "h-9 px-3 rounded-md text-xs",  // ✅ novo
-  lg: "h-11 px-8 rounded-md text-base", // ✅ novo
+  sm: "h-9 px-3 rounded-md text-xs",
+  lg: "h-11 px-8 rounded-md text-base",
   icon: "h-10 w-10",
 };
 

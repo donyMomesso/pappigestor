@@ -3,7 +3,7 @@
 import React, { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useAppAuth } from "@/react-app/contexts/AppAuthContext";
+import { useAppAuth } from "../../react-app/contexts/AppAuthContext";
 import {
   Home,
   ShoppingCart,

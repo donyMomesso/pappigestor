@@ -3,10 +3,11 @@
 import React, { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useAppAuth } from "../../react-app/contexts/AppAuthContext";
+import { useAppAuth } from "@/react-app/contexts/AppAuthContext";
 import {
   Home,
   ShoppingCart,
+  DollarSign,
   Package,
   LogOut,
   Sparkles,
@@ -14,9 +15,6 @@ import {
   Menu,
   X,
   Settings,
-  ClipboardList,
-  Store,
-  Users,
 } from "lucide-react";
 
 type InboxCountResponse = { count: number };
@@ -28,21 +26,6 @@ type NavItemProps = {
   label: string;
   badge?: number;
   onClick?: () => void;
-};
-
-type NavDropdownItem = {
-  href: string;
-  label: string;
-  desc?: string;
-  icon?: ReactNode;
-};
-
-type NavDropdownProps = {
-  label: string;
-  icon: ReactNode;
-  active: boolean;
-  items: NavDropdownItem[];
-  onAnyNavigate?: () => void;
 };
 
 interface ProtectedLayoutProps {
@@ -58,10 +41,10 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
-  // ✅ CORRIGIDO PARA .jpg
-  const LOGO_URL = "/logo.jpg";
+  const LOGO_URL =
+    "https://019c7b56-2054-7d0b-9c55-e7a603c40ba8.mochausercontent.com/1771799343659.png";
 
-  // FAILSAFE: não derruba caso Provider não esteja acima
+  // ✅ FAILSAFE: não derruba caso Provider não esteja acima
   let auth: any = null;
   try {
     auth = useAppAuth();
@@ -88,21 +71,16 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
     return n ? n.charAt(0).toUpperCase() : "P";
   }, [localUser]);
 
-  // ✅ Verificação de permissão para menus Admin
-  const role = String(localUser?.nivel_acesso || "");
-  const isAdmin =
-    role === "admin" ||
-    role === "master" ||
-    role === "super_admin" ||
-    role === "admin_empresa";
-
+  // ✅ Proteção real: se tiver provider mas não tiver usuário, redireciona
+  // (troque "/login" por "/" se você quiser cair na landing)
   useEffect(() => {
-    if (!auth) return;
+    if (!auth) return; // ainda carregando provider
     if (!localUser && pathname?.startsWith("/app")) {
       router.replace("/login");
     }
   }, [auth, localUser, pathname, router]);
 
+  // ✅ Fecha menu ao clicar fora e com ESC
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
       if (!menuOpen) return;
@@ -123,6 +101,7 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
     };
   }, [menuOpen]);
 
+  // ✅ Inbox count com “anti-spam” e refresh
   useEffect(() => {
     let alive = true;
     let consecutiveFails = 0;
@@ -132,7 +111,7 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
         const res = await fetch("/api/ia/inbox-count", { cache: "no-store" });
         if (!res.ok) {
           consecutiveFails++;
-          if (consecutiveFails >= 3) return;
+          if (consecutiveFails >= 3) return; // para de insistir
           return;
         }
         const data = (await res.json()) as InboxCountResponse;
@@ -154,7 +133,6 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
 
   const isActive = (href: string) => {
     if (href === "/app") return pathname === "/app";
-    if (href === "/app/compras") return pathname === "/app/compras";
     return pathname?.startsWith(href);
   };
 
@@ -162,10 +140,12 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
     try {
       await signOut?.();
     } finally {
+      // garante retorno pro público se o signOut não redirecionar
       router.replace("/");
     }
   };
 
+  // ✅ Estado enquanto provider ainda não montou (ou está carregando)
   if (!auth) {
     return (
       <div className="min-h-screen bg-gray-50/30">
@@ -173,11 +153,7 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
           <div className="max-w-[1600px] mx-auto px-6 md:px-8 h-20 flex items-center justify-between">
             <div className="flex items-center gap-4 md:gap-6">
               <div className="p-2.5 bg-gradient-to-br from-orange-500 to-pink-500 rounded-[20px] shadow-lg shadow-orange-200/50">
-                <img
-                  src={LOGO_URL}
-                  alt="Logo"
-                  className="h-6 w-6 brightness-0 invert object-contain"
-                />
+                <img src={LOGO_URL} alt="Logo" className="h-6 w-6 brightness-0 invert" />
               </div>
               <div className="flex flex-col">
                 <span className="text-xl font-black italic uppercase tracking-tighter bg-gradient-to-r from-orange-600 to-pink-600 bg-clip-text text-transparent leading-none">
@@ -188,11 +164,13 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
                 </span>
               </div>
             </div>
+
             <div className="text-[10px] uppercase tracking-[0.2em] font-black text-gray-400 italic">
               Carregando...
             </div>
           </div>
         </header>
+
         <main className="max-w-[1600px] mx-auto p-6 md:p-8 animate-in fade-in duration-700">
           {children}
         </main>
@@ -204,20 +182,14 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
     <div className="min-h-screen bg-gray-50/30">
       <header className="bg-white/70 backdrop-blur-2xl border-b border-gray-100 sticky top-0 z-50">
         <div className="max-w-[1600px] mx-auto px-6 md:px-8 h-20 flex items-center justify-between">
+          {/* Logo + Nome */}
           <div className="flex items-center gap-4 md:gap-6">
             <Link
               href="/app"
-              className="p-2.5 bg-gradient-to-br from-orange-500 to-pink-500 rounded-[20px] shadow-lg shadow-orange-200/50 transition-transform hover:scale-105 active:scale-95 flex-shrink-0 overflow-hidden"
+              className="p-2.5 bg-gradient-to-br from-orange-500 to-pink-500 rounded-[20px] shadow-lg shadow-orange-200/50 transition-transform hover:scale-105 active:scale-95"
               onClick={() => setMobileOpen(false)}
             >
-              <img
-                src={LOGO_URL}
-                alt="Logo"
-                className="h-6 w-6 object-cover mix-blend-multiply"
-                onError={(e) => {
-                  e.currentTarget.style.display = "none";
-                }}
-              />
+              <img src={LOGO_URL} alt="Logo" className="h-6 w-6 brightness-0 invert" />
             </Link>
 
             <div className="flex flex-col">
@@ -232,12 +204,7 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
 
           {/* Menu Desktop */}
           <nav className="hidden lg:flex items-center gap-1 bg-gray-100/40 p-1.5 rounded-[28px] border border-gray-100 shadow-inner">
-            <NavItem
-              href="/app"
-              active={isActive("/app")}
-              icon={<Home size={18} />}
-              label="Início"
-            />
+            <NavItem href="/app" active={isActive("/app")} icon={<Home size={18} />} label="Dashboard" />
             <NavItem
               href="/app/caixa-entrada"
               active={isActive("/app/caixa-entrada")}
@@ -245,65 +212,18 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
               label="Inbox"
               badge={inboxCount}
             />
-            <NavItem
-              href="/app/lista-compras"
-              active={isActive("/app/lista-compras")}
-              icon={<ClipboardList size={18} />}
-              label="Lista"
-            />
-            <NavItem
-              href="/app/compras"
-              active={isActive("/app/compras")}
-              icon={<ShoppingCart size={18} />}
-              label="Compras"
-            />
-            <NavItem
-              href="/app/fornecedores"
-              active={isActive("/app/fornecedores")}
-              icon={<Store size={18} />}
-              label="Parceiros"
-            />
-
-            {/* ✅ ESTOQUE COM DROPDOWN */}
-            <NavDropdown
-              label="Estoque"
-              icon={<Package size={18} />}
-              active={isActive("/app/estoque")}
-              items={[
-                {
-                  href: "/app/estoque",
-                  label: "Visão Geral",
-                  desc: "Saldo, alertas e atalhos",
-                },
-                {
-                  href: "/app/estoque/cadastro",
-                  label: "Cadastro",
-                  desc: "Criar itens, categorias e unidades",
-                },
-                {
-                  href: "/app/estoque/recebimento",
-                  label: "Recebimento",
-                  desc: "Entrada por nota / espelho",
-                },
-                {
-                  href: "/app/estoque/itens",
-                  label: "Itens",
-                  desc: "Lista completa e edição",
-                },
-                {
-                  href: "/app/estoque/movimentacoes",
-                  label: "Movimentações",
-                  desc: "Histórico, ajustes e auditoria",
-                },
-              ]}
-              onAnyNavigate={() => setMobileOpen(false)}
-            />
+            <NavItem href="/app/compras" active={isActive("/app/compras")} icon={<ShoppingCart size={18} />} label="Compras" />
+            <NavItem href="/app/financeiro" active={isActive("/app/financeiro")} icon={<DollarSign size={18} />} label="Financeiro" />
+            <NavItem href="/app/estoque" active={isActive("/app/estoque")} icon={<Package size={18} />} label="Estoque" />
           </nav>
 
+          {/* Ações */}
           <div className="flex items-center gap-3 md:gap-4">
+            {/* Mobile hamburger */}
             <button
               className="lg:hidden w-11 h-11 rounded-[18px] bg-white border border-gray-100 shadow-sm flex items-center justify-center"
               onClick={() => setMobileOpen((v) => !v)}
+              aria-label="Abrir menu"
             >
               {mobileOpen ? <X size={18} /> : <Menu size={18} />}
             </button>
@@ -313,7 +233,7 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
                 {nomeUser}
               </p>
               <p className="text-[9px] uppercase font-black text-orange-600 italic mt-1 tracking-widest leading-none">
-                {isAdmin ? "Acesso Admin" : "Acesso Operador"}
+                Acesso Pro
               </p>
             </div>
 
@@ -321,12 +241,13 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
               <button
                 onClick={() => setMenuOpen((v) => !v)}
                 className="w-12 h-12 rounded-[18px] bg-gray-900 shadow-xl flex items-center justify-center text-white font-black italic text-lg hover:scale-105 transition-all border-4 border-white ring-1 ring-gray-100"
+                aria-label="Menu do usuário"
               >
                 {initialLetter}
               </button>
 
               {menuOpen && (
-                <div className="absolute right-0 mt-3 w-64 bg-white rounded-[28px] shadow-2xl border border-gray-100 p-3 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="absolute right-0 mt-3 w-64 bg-white rounded-[28px] shadow-2xl border border-gray-100 p-3 z-50">
                   <p className="px-4 py-2 text-[9px] font-black uppercase text-gray-400 italic tracking-[0.2em] border-b border-gray-50 mb-2">
                     Sua Conta
                   </p>
@@ -337,25 +258,10 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
                       setMenuOpen(false);
                       setMobileOpen(false);
                     }}
-                    className="flex items-center gap-3 px-4 py-3 text-xs font-bold italic uppercase text-gray-600 hover:bg-gray-50 hover:text-orange-600 rounded-xl transition-all"
+                    className="flex items-center gap-3 px-4 py-3 text-xs font-bold italic uppercase text-gray-600 hover:bg-gray-50 rounded-xl transition-all"
                   >
-                    <Settings size={16} /> Dados da Empresa
+                    <Settings size={16} /> Configurações
                   </Link>
-
-                  {isAdmin && (
-                    <Link
-                      href="/app/usuarios"
-                      onClick={() => {
-                        setMenuOpen(false);
-                        setMobileOpen(false);
-                      }}
-                      className="flex items-center gap-3 px-4 py-3 text-xs font-bold italic uppercase text-gray-600 hover:bg-gray-50 hover:text-orange-600 rounded-xl transition-all"
-                    >
-                      <Users size={16} /> Controle de Usuários
-                    </Link>
-                  )}
-
-                  <div className="my-2 border-t border-gray-50"></div>
 
                   <button
                     onClick={doSignOut}
@@ -371,15 +277,9 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
 
         {/* Menu Mobile */}
         {mobileOpen && (
-          <div className="lg:hidden border-t border-gray-100 bg-white/70 backdrop-blur-2xl shadow-xl absolute w-full pb-4">
+          <div className="lg:hidden border-t border-gray-100 bg-white/70 backdrop-blur-2xl">
             <div className="max-w-[1600px] mx-auto px-6 py-4 flex flex-col gap-2">
-              <NavItem
-                href="/app"
-                active={isActive("/app")}
-                icon={<Home size={18} />}
-                label="Início"
-                onClick={() => setMobileOpen(false)}
-              />
+              <NavItem href="/app" active={isActive("/app")} icon={<Home size={18} />} label="Dashboard" onClick={() => setMobileOpen(false)} />
               <NavItem
                 href="/app/caixa-entrada"
                 active={isActive("/app/caixa-entrada")}
@@ -388,57 +288,9 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
                 badge={inboxCount}
                 onClick={() => setMobileOpen(false)}
               />
-              <NavItem
-                href="/app/lista-compras"
-                active={isActive("/app/lista-compras")}
-                icon={<ClipboardList size={18} />}
-                label="Lista de Compras"
-                onClick={() => setMobileOpen(false)}
-              />
-              <NavItem
-                href="/app/compras"
-                active={isActive("/app/compras")}
-                icon={<ShoppingCart size={18} />}
-                label="Central de Compras"
-                onClick={() => setMobileOpen(false)}
-              />
-              <NavItem
-                href="/app/fornecedores"
-                active={isActive("/app/fornecedores")}
-                icon={<Store size={18} />}
-                label="Fornecedores"
-                onClick={() => setMobileOpen(false)}
-              />
-              <NavItem
-                href="/app/estoque"
-                active={isActive("/app/estoque")}
-                icon={<Package size={18} />}
-                label="Estoque"
-                onClick={() => setMobileOpen(false)}
-              />
-
-              {/* ✅ MENUS ADMINISTRATIVOS NO MOBILE */}
-              <div className="mt-4 pt-4 border-t border-gray-200/50 flex flex-col gap-2">
-                <p className="px-4 py-1 text-[9px] font-black uppercase text-gray-400 italic tracking-[0.2em]">
-                  Administração
-                </p>
-                <NavItem
-                  href="/app/configuracoes"
-                  active={isActive("/app/configuracoes")}
-                  icon={<Settings size={18} />}
-                  label="Dados da Empresa"
-                  onClick={() => setMobileOpen(false)}
-                />
-                {isAdmin && (
-                  <NavItem
-                    href="/app/usuarios"
-                    active={isActive("/app/usuarios")}
-                    icon={<Users size={18} />}
-                    label="Usuários"
-                    onClick={() => setMobileOpen(false)}
-                  />
-                )}
-              </div>
+              <NavItem href="/app/compras" active={isActive("/app/compras")} icon={<ShoppingCart size={18} />} label="Compras" onClick={() => setMobileOpen(false)} />
+              <NavItem href="/app/financeiro" active={isActive("/app/financeiro")} icon={<DollarSign size={18} />} label="Financeiro" onClick={() => setMobileOpen(false)} />
+              <NavItem href="/app/estoque" active={isActive("/app/estoque")} icon={<Package size={18} />} label="Estoque" onClick={() => setMobileOpen(false)} />
             </div>
           </div>
         )}
@@ -471,9 +323,7 @@ function NavItem({ href, active, icon, label, badge = 0, onClick }: NavItemProps
       }`}
     >
       <span className={active ? "text-orange-600" : "text-gray-400"}>{icon}</span>
-      <span className="text-[10px] uppercase tracking-[0.2em] font-black leading-none">
-        {label}
-      </span>
+      <span className="text-[10px] uppercase tracking-[0.2em] font-black leading-none">{label}</span>
 
       {badge > 0 && (
         <span className="absolute -top-1 -right-1 flex h-5 min-w-5 px-1 items-center justify-center rounded-full bg-red-500 text-[9px] font-black text-white ring-4 ring-gray-50 shadow-lg">
@@ -481,80 +331,5 @@ function NavItem({ href, active, icon, label, badge = 0, onClick }: NavItemProps
         </span>
       )}
     </Link>
-  );
-}
-
-function NavDropdown({ label, icon, active, items, onAnyNavigate }: NavDropdownProps) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    const onDown = (e: MouseEvent) => {
-      if (!open) return;
-      if (!ref.current) return;
-      if (!ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-
-  return (
-    <div className="relative" ref={ref}>
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className={`relative flex items-center gap-3 px-6 py-3 rounded-[22px] transition-all duration-300 ${
-          active
-            ? "bg-white text-orange-600 font-black italic shadow-md shadow-orange-100/50 border border-orange-50"
-            : "text-gray-400 hover:text-gray-700 hover:bg-white/60"
-        }`}
-      >
-        <span className={active ? "text-orange-600" : "text-gray-400"}>{icon}</span>
-        <span className="text-[10px] uppercase tracking-[0.2em] font-black leading-none">
-          {label}
-        </span>
-        <span className="ml-1 text-[10px] opacity-70">▾</span>
-      </button>
-
-      {open && (
-        <div className="absolute left-0 mt-3 w-[360px] bg-white rounded-[24px] shadow-2xl border border-gray-100 p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-          <div className="px-4 py-2 text-[9px] font-black uppercase text-gray-400 italic tracking-[0.2em]">
-            {label} • Ações
-          </div>
-
-          <div className="grid gap-1 p-2">
-            {items.map((it) => (
-              <Link
-                key={it.href}
-                href={it.href}
-                onClick={() => {
-                  setOpen(false);
-                  onAnyNavigate?.();
-                }}
-                className="flex items-start gap-3 px-3 py-3 rounded-xl hover:bg-gray-50 transition"
-              >
-                <div className="mt-0.5 text-gray-500">{it.icon ?? "•"}</div>
-                <div className="flex-1">
-                  <div className="text-xs font-black italic text-gray-900 uppercase tracking-tight">
-                    {it.label}
-                  </div>
-                  {it.desc && (
-                    <div className="text-[11px] text-gray-500 leading-snug mt-0.5">
-                      {it.desc}
-                    </div>
-                  )}
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
   );
 }

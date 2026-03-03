@@ -3,14 +3,12 @@
 import { useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { 
-  Lock, 
   Mail, 
   Sparkles, 
   ArrowRight, 
   ShieldCheck, 
   Zap,
-  Building2,
-  Chrome
+  Building2
 } from "lucide-react";
 
 export default function LoginPage() {
@@ -49,12 +47,11 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        // ADICIONADO: Permissões para Gmail e Perfil
         scopes: 'openid email profile https://www.googleapis.com/auth/gmail.readonly',
         redirectTo: window.location.origin + "/auth/callback",
         queryParams: {
-          access_type: 'offline', // Necessário para a IA trabalhar em background
-          prompt: 'consent',     // Força a exibição da tela de permissão do Gmail
+          access_type: 'offline', 
+          prompt: 'consent',     
         },
       },
     });
@@ -65,11 +62,16 @@ export default function LoginPage() {
     }
   };
 
-  const LOGO_URL = "https://019c7b56-2054-7d0b-9c55-e7a603c40ba8.mochausercontent.com/1771799343659.png";
+  const LOGO_URL = "/logo.png"; // Alterado para buscar a logo da sua pasta public se tiver
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]">
-      <div className="max-w-4xl w-full grid grid-cols-1 md:grid-cols-2 bg-white rounded-[40px] shadow-2xl overflow-hidden border border-white">
+    // AQUI MUDEI O FUNDO PARA O SEU BANNER
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6 bg-[url('/banner.png')] bg-cover bg-center">
+      
+      {/* Adicionei um filtro escuro caso a imagem seja muito clara para dar contraste ao modal */}
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm z-0"></div>
+
+      <div className="max-w-4xl w-full grid grid-cols-1 md:grid-cols-2 bg-white rounded-[40px] shadow-2xl overflow-hidden border border-white relative z-10">
         
         {/* Lado Esquerdo: Branding Agressivo */}
         <div className="bg-gradient-to-br from-orange-500 to-pink-600 p-12 text-white flex flex-col justify-between relative overflow-hidden">

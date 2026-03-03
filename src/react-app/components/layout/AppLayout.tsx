@@ -10,7 +10,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   // CORREÇÃO: Trocamos 'signOut' por 'logout'
   const { localUser, logout } = useAppAuth();
   const pathname = usePathname();
-  const LOGO_URL = "https://019c7b56-2054-7d0b-9c55-e7a603c40ba8.mochausercontent.com/1771799343659.png";
+  const bannerUrl = "/banner.png";
 
   return (
     <div className="min-h-screen bg-white">

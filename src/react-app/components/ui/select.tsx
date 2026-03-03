@@ -6,15 +6,37 @@ import { Check, ChevronDown, ChevronUp } from "lucide-react";
 
 import { cn } from "@/react-app/lib/utils";
 
-const Select = React.forwardRef<
-  React.ElementRef<typeof SelectPrimitive.Root>,
-  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Root> & {
-    /** Mantém `required` sem quebrar o TS (Radix não implementa required nativo) */
-    required?: boolean;
-    /** Opcional: permite validação de form nativa via <input hidden name=...> */
-    name?: string;
-  }
->(({ required, name, value, defaultValue, ...props }, _ref) => {
+const SelectPrimitiveRoot = SelectPrimitive.Root;
+
+type SelectRootProps = React.ComponentPropsWithoutRef<typeof SelectPrimitiveRoot> & {
+  required?: boolean;
+  name?: string;
+};
+
+function Select({ required, name, value, defaultValue, ...props }: SelectRootProps) {
+  const currentValue =
+    (value as string | undefined) ??
+    (defaultValue as string | undefined) ??
+    "";
+
+  return (
+    <>
+      {name ? (
+        <input
+          tabIndex={-1}
+          aria-hidden="true"
+          className="sr-only"
+          name={name}
+          value={currentValue}
+          required={!!required}
+          readOnly
+        />
+      ) : null}
+
+      <SelectPrimitive.Root value={value} defaultValue={defaultValue} {...props} />
+    </>
+  );
+}
   // Para suportar required + forms, criamos um input hidden sincronizado
   // Sem remover nada do seu uso atual.
   const currentValue =

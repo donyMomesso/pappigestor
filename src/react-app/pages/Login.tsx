@@ -1,45 +1,27 @@
 "use client";
 
 import React, { useEffect } from "react";
-// O import correto para Next.js quando você usa rotas tradicionais no cliente:
 import { useNavigate } from "react-router-dom"; 
 import { useAppAuth } from "../contexts/AppAuthContext";
-import { Button } from "../components/ui/button";
-import { 
-  Loader2, 
-  UserPlus, 
-  LogIn,
-  ArrowRight,
-  CheckCircle2,
-  Zap,
-  BrainCircuit,
-  ShieldCheck,
-  Target,
-  Users,
-  BarChart3,
-  XCircle,
-  Sparkles
-} from "lucide-react";
-import Link from "next/link";
+import { Button } from "../components/ui/button"; 
+import { Loader2, UserPlus, LogIn } from "lucide-react";
 
-// Logo oficial que você definiu
 const LOGO_URL = "https://019c7b56-2054-7d0b-9c55-e7a603c40ba8.mochausercontent.com/1771799343659.png";
 
 export default function LoginPage() {
+  // Chamada correta do hook para evitar erros de "Cannot find name"
   const { localUser, setLocalUser } = useAppAuth();
   const navigate = useNavigate();
 
-  // Redireciona se já estiver logado
+  // Redireciona se o usuário já estiver logado
   useEffect(() => {
     if (localUser && localUser.id !== "local") {
       navigate("/app");
     }
   }, [localUser, navigate]);
 
-  // Função Simples de Login (Simulando a entrada para o seu App)
   const handleGoogleLogin = () => {
-    // Aqui no futuro conectaremos o Supabase Auth. 
-    // Por enquanto, vamos destravar o acesso ao App:
+    // Simulação de login para o Pappi Gestor
     const mockUser = { id: "user_123", name: "Dony Momesso", role: "admin" };
     setLocalUser(mockUser);
     navigate("/app");
@@ -50,7 +32,6 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         <div className="bg-zinc-900 border border-zinc-800 rounded-[32px] p-8 space-y-8 shadow-2xl">
           
-          {/* Logo e Cabeçalho */}
           <div className="flex flex-col items-center gap-6">
             <img
               src={LOGO_URL}
@@ -61,13 +42,12 @@ export default function LoginPage() {
               <h1 className="text-2xl font-black uppercase italic text-white tracking-tighter">
                 Pappi<span className="text-orange-500">Gestor</span>
               </h1>
-              <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest mt-2">
+              <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-[0.2em] mt-2">
                 Inteligência Comercial
               </p>
             </div>
           </div>
 
-          {/* Botão de Login Estilizado conforme a Landing Page */}
           <Button
             onClick={handleGoogleLogin}
             className="w-full h-16 text-sm font-black uppercase italic tracking-widest bg-orange-600 hover:bg-orange-500 rounded-2xl transition-all flex gap-3"
@@ -76,8 +56,12 @@ export default function LoginPage() {
           </Button>
 
           <div className="relative">
-            <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-zinc-800"></span></div>
-            <div className="relative flex justify-center text-xs uppercase"><span className="bg-zinc-900 px-2 text-zinc-600 font-bold">Ou</span></div>
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-zinc-800"></span>
+            </div>
+            <div className="relative flex justify-center text-[10px] uppercase">
+              <span className="bg-zinc-900 px-2 text-zinc-600 font-bold">Ou</span>
+            </div>
           </div>
 
           <Button 

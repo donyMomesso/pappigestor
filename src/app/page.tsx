@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+
+// SAINDO de src/app (..) e ENTRANDO em src/react-app
 import { useAppAuth } from "../react-app/contexts/AppAuthContext";
+
 import { 
   ArrowRight, Sparkles, Loader2, CheckCircle2, 
   Zap, BrainCircuit, ShieldCheck, 

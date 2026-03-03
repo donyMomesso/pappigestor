@@ -6,9 +6,11 @@ import { Check, ChevronDown, ChevronUp } from "lucide-react";
 
 import { cn } from "@/react-app/lib/utils";
 
-const SelectPrimitiveRoot = SelectPrimitive.Root;
+// ----------------------------------------------------
+// Root wrapper: aceita required + name (sem quebrar TS)
+// ----------------------------------------------------
 
-type SelectRootProps = React.ComponentPropsWithoutRef<typeof SelectPrimitiveRoot> & {
+type SelectRootProps = React.ComponentPropsWithoutRef<typeof SelectPrimitive.Root> & {
   required?: boolean;
   name?: string;
 };
@@ -37,35 +39,10 @@ function Select({ required, name, value, defaultValue, ...props }: SelectRootPro
     </>
   );
 }
-  // Para suportar required + forms, criamos um input hidden sincronizado
-  // Sem remover nada do seu uso atual.
-  const currentValue =
-    (value as string | undefined) ??
-    (defaultValue as string | undefined) ??
-    "";
 
-  return (
-    <>
-      {name ? (
-        <input
-          tabIndex={-1}
-          aria-hidden="true"
-          className="sr-only"
-          name={name}
-          value={currentValue}
-          required={!!required}
-          readOnly
-        />
-      ) : null}
-
-      <SelectPrimitive.Root value={value} defaultValue={defaultValue} {...props} />
-    </>
-  );
-});
 Select.displayName = "Select";
 
 const SelectGroup = SelectPrimitive.Group;
-
 const SelectValue = SelectPrimitive.Value;
 
 const SelectTrigger = React.forwardRef<
@@ -134,7 +111,11 @@ const SelectContent = React.forwardRef<
     >
       <SelectScrollUpButton />
       <SelectPrimitive.Viewport
-        className={cn("p-1", position === "popper" && "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]")}
+        className={cn(
+          "p-1",
+          position === "popper" &&
+            "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]"
+        )}
       >
         {children}
       </SelectPrimitive.Viewport>

@@ -6,13 +6,18 @@ export type LocalUser = {
   id: string;
   name: string;
 
-  // ✅ usados em páginas do app
+  // Identidade / login
   email?: string;
-  empresa_id?: string;
-  nome_empresa?: string;
-  role?: string;
-};
 
+  // Empresa
+  empresa_id?: string;
+  company_id?: string;
+  nome_empresa?: string;
+
+  // Permissões
+  role?: string;
+  nivel_acesso?: string; // ✅ corrigindo o recebimento/page.tsx
+};
 type AppAuthContextValue = {
   localUser: LocalUser | null;
   setLocalUser: (u: LocalUser | null) => void;

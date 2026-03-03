@@ -5,10 +5,12 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from "
 export type LocalUser = {
   id: string;
   name: string;
-  /** Email do usuário local (usado em algumas rotas como /app/empresas). */
+
+  // ✅ usados em páginas do app
   email?: string;
-  role?: string;
+  empresa_id?: string;
   nome_empresa?: string;
+  role?: string;
 };
 
 type AppAuthContextValue = {

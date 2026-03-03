@@ -1,12 +1,9 @@
-import { createServerClient } from "@supabase/ssr";
+// src/lib/supabaseServer.ts
 import { cookies } from "next/headers";
+import { createServerClient } from "@supabase/ssr";
 
-/**
- * Supabase server client for Next.js Route Handlers (App Router).
- * Uses request cookies automatically (Next.js cookies() API).
- */
-export function getSupabaseServerClient() {
-  const cookieStore = cookies();
+export async function createClient() {
+  const cookieStore = await cookies();
 
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

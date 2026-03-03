@@ -1,5 +1,5 @@
+import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router";
-import { AuthProvider } from "@getmocha/users-service/react";
 import { AppAuthProvider } from "@/react-app/contexts/AppAuthContext";
 import ProtectedRoute from "@/react-app/components/ProtectedRoute";
 import AppLayout from "@/react-app/components/AppLayout";
@@ -32,7 +32,13 @@ import OpenFinancePage from "@/react-app/pages/OpenFinance";
 import RankingFornecedoresPage from "@/react-app/pages/RankingFornecedores";
 import CompraMercadoPage from "@/react-app/pages/CompraMercado";
 
-function ProtectedLayout({ children, allowedRoles }: { children: React.ReactNode; allowedRoles?: string[] }) {
+function ProtectedLayout({
+  children,
+  allowedRoles,
+}: {
+  children: React.ReactNode;
+  allowedRoles?: string[];
+}) {
   return (
     <ProtectedRoute allowedRoles={allowedRoles}>
       <AppLayout>{children}</AppLayout>
@@ -42,218 +48,308 @@ function ProtectedLayout({ children, allowedRoles }: { children: React.ReactNode
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppAuthProvider>
-        <Router>
-          <Routes>
-            {/* Auth routes */}
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/cadastro" element={<CadastroPage />} />
-            <Route path="/auth/callback" element={<AuthCallbackPage />} />
-            <Route path="/convite/:token" element={<AceitarConvitePage />} />
+    <AppAuthProvider>
+      <Router>
+        <Routes>
+          {/* Auth routes */}
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/cadastro" element={<CadastroPage />} />
+          <Route path="/auth/callback" element={<AuthCallbackPage />} />
+          <Route path="/convite/:token" element={<AceitarConvitePage />} />
 
-            {/* Assinatura - para usuários com trial expirado */}
-            <Route
-              path="/assinatura"
-              element={
-                <ProtectedRoute skipSubscriptionCheck>
-                  <AppLayout>
-                    <ConfiguracoesPage />
-                  </AppLayout>
-                </ProtectedRoute>
-              }
-            />
-
-            {/* Protected routes */}
-            <Route
-              path="/"
-              element={
-                <ProtectedLayout>
-                  <HomePage />
-                </ProtectedLayout>
-              }
-            />
-            <Route
-              path="/comprador"
-              element={
-                <ProtectedLayout allowedRoles={["comprador", "admin_empresa", "super_admin"]}>
-                  <CompradorPage />
-                </ProtectedLayout>
-              }
-            />
-            <Route
-              path="/recebimento"
-              element={
-                <ProtectedLayout allowedRoles={["operador", "comprador", "admin_empresa", "super_admin"]}>
-                  <RecebimentoPage />
-                </ProtectedLayout>
-              }
-            />
-            <Route
-              path="/financeiro"
-              element={
-                <ProtectedLayout allowedRoles={["financeiro", "admin_empresa", "super_admin"]}>
-                  <FinanceiroPage />
-                </ProtectedLayout>
-              }
-            />
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedLayout allowedRoles={["financeiro", "admin_empresa", "super_admin"]}>
-                  <DashboardPage />
-                </ProtectedLayout>
-              }
-            />
-
-            <Route
-              path="/usuarios"
-              element={
-                <ProtectedLayout allowedRoles={["admin_empresa", "super_admin"]}>
-                  <UsuariosPage />
-                </ProtectedLayout>
-              }
-            />
-            <Route
-              path="/empresas"
-              element={
-                <ProtectedLayout allowedRoles={["super_admin"]}>
-                  <EmpresasPage />
-                </ProtectedLayout>
-              }
-            />
-
-            <Route
-              path="/fornecedores"
-              element={
-                <ProtectedLayout allowedRoles={["comprador", "admin_empresa", "super_admin"]}>
-                  <FornecedoresPage />
-                </ProtectedLayout>
-              }
-            />
-            <Route
-              path="/produtos"
-              element={
-                <ProtectedLayout allowedRoles={["operador", "comprador", "admin_empresa", "super_admin"]}>
-                  <ProdutosPage />
-                </ProtectedLayout>
-              }
-            />
-            <Route
-              path="/estoque"
-              element={
-                <ProtectedLayout allowedRoles={["operador", "comprador", "admin_empresa", "super_admin"]}>
-                  <EstoquePage />
-                </ProtectedLayout>
-              }
-            />
-            <Route
-              path="/lista-compras"
-              element={
-                <ProtectedLayout allowedRoles={["operador", "comprador", "admin_empresa", "super_admin"]}>
-                  <ListaComprasPage />
-                </ProtectedLayout>
-              }
-            />
-            <Route
-              path="/compra-mercado"
-              element={
-                <ProtectedLayout allowedRoles={["operador", "comprador", "admin_empresa", "super_admin"]}>
-                  <CompraMercadoPage />
-                </ProtectedLayout>
-              }
-            />
-            <Route
-              path="/cotacao"
-              element={
-                <ProtectedLayout allowedRoles={["comprador", "admin_empresa", "super_admin"]}>
-                  <CotacaoPage />
-                </ProtectedLayout>
-              }
-            />
-            <Route
-              path="/ranking-fornecedores"
-              element={
-                <ProtectedLayout allowedRoles={["comprador", "financeiro", "admin_empresa", "super_admin"]}>
-                  <RankingFornecedoresPage />
-                </ProtectedLayout>
-              }
-            />
-            <Route
-              path="/produtos-master"
-              element={
-                <ProtectedLayout allowedRoles={["comprador", "admin_empresa", "super_admin"]}>
-                  <ProdutosMasterPage />
-                </ProtectedLayout>
-              }
-            />
-            <Route
-              path="/assessor-ia"
-              element={
-                <ProtectedLayout allowedRoles={["financeiro", "comprador", "admin_empresa", "super_admin"]}>
-                  <AssessorIAPage />
-                </ProtectedLayout>
-              }
-            />
-            <Route
-              path="/boletos-dda"
-              element={
-                <ProtectedLayout allowedRoles={["financeiro", "admin_empresa", "super_admin"]}>
-                  <BoletosDDAPage />
-                </ProtectedLayout>
-              }
-            />
-            {/* onboarding-dda redirect - agora está em Configurações */}
-            <Route
-              path="/onboarding-dda"
-              element={<Navigate to="/configuracoes?tab=dda" replace />}
-            />
-            <Route
-              path="/configuracoes"
-              element={
-                <ProtectedLayout allowedRoles={["admin_empresa", "super_admin"]}>
+          {/* Assinatura - para usuários com trial expirado */}
+          <Route
+            path="/assinatura"
+            element={
+              <ProtectedRoute skipSubscriptionCheck>
+                <AppLayout>
                   <ConfiguracoesPage />
-                </ProtectedLayout>
-              }
-            />
-            <Route
-              path="/catalogo-global"
-              element={
-                <ProtectedLayout allowedRoles={["admin_empresa", "super_admin"]}>
-                  <CatalogoGlobalPage />
-                </ProtectedLayout>
-              }
-            />
-            <Route
-              path="/caixa-entrada"
-              element={
-                <ProtectedLayout allowedRoles={["comprador", "financeiro", "admin_empresa", "super_admin"]}>
-                  <CaixaEntradaPage />
-                </ProtectedLayout>
-              }
-            />
-            <Route
-              path="/aprovacoes"
-              element={
-                <ProtectedLayout allowedRoles={["admin_empresa", "super_admin"]}>
-                  <AprovacoesPage />
-                </ProtectedLayout>
-              }
-            />
-            <Route
-              path="/open-finance"
-              element={
-                <ProtectedLayout allowedRoles={["financeiro", "admin_empresa", "super_admin"]}>
-                  <OpenFinancePage />
-                </ProtectedLayout>
-              }
-            />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
 
-            {/* Catch all */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Router>
-      </AppAuthProvider>
-    </AuthProvider>
+          {/* Protected routes */}
+          <Route
+            path="/"
+            element={
+              <ProtectedLayout>
+                <HomePage />
+              </ProtectedLayout>
+            }
+          />
+
+          <Route
+            path="/comprador"
+            element={
+              <ProtectedLayout
+                allowedRoles={["comprador", "admin_empresa", "super_admin"]}
+              >
+                <CompradorPage />
+              </ProtectedLayout>
+            }
+          />
+
+          <Route
+            path="/recebimento"
+            element={
+              <ProtectedLayout
+                allowedRoles={[
+                  "operador",
+                  "comprador",
+                  "admin_empresa",
+                  "super_admin",
+                ]}
+              >
+                <RecebimentoPage />
+              </ProtectedLayout>
+            }
+          />
+
+          <Route
+            path="/financeiro"
+            element={
+              <ProtectedLayout
+                allowedRoles={["financeiro", "admin_empresa", "super_admin"]}
+              >
+                <FinanceiroPage />
+              </ProtectedLayout>
+            }
+          />
+
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedLayout
+                allowedRoles={["financeiro", "admin_empresa", "super_admin"]}
+              >
+                <DashboardPage />
+              </ProtectedLayout>
+            }
+          />
+
+          <Route
+            path="/usuarios"
+            element={
+              <ProtectedLayout allowedRoles={["admin_empresa", "super_admin"]}>
+                <UsuariosPage />
+              </ProtectedLayout>
+            }
+          />
+
+          <Route
+            path="/empresas"
+            element={
+              <ProtectedLayout allowedRoles={["super_admin"]}>
+                <EmpresasPage />
+              </ProtectedLayout>
+            }
+          />
+
+          <Route
+            path="/fornecedores"
+            element={
+              <ProtectedLayout
+                allowedRoles={["comprador", "admin_empresa", "super_admin"]}
+              >
+                <FornecedoresPage />
+              </ProtectedLayout>
+            }
+          />
+
+          <Route
+            path="/produtos"
+            element={
+              <ProtectedLayout
+                allowedRoles={[
+                  "operador",
+                  "comprador",
+                  "admin_empresa",
+                  "super_admin",
+                ]}
+              >
+                <ProdutosPage />
+              </ProtectedLayout>
+            }
+          />
+
+          <Route
+            path="/estoque"
+            element={
+              <ProtectedLayout
+                allowedRoles={[
+                  "operador",
+                  "comprador",
+                  "admin_empresa",
+                  "super_admin",
+                ]}
+              >
+                <EstoquePage />
+              </ProtectedLayout>
+            }
+          />
+
+          <Route
+            path="/lista-compras"
+            element={
+              <ProtectedLayout
+                allowedRoles={[
+                  "operador",
+                  "comprador",
+                  "admin_empresa",
+                  "super_admin",
+                ]}
+              >
+                <ListaComprasPage />
+              </ProtectedLayout>
+            }
+          />
+
+          <Route
+            path="/compra-mercado"
+            element={
+              <ProtectedLayout
+                allowedRoles={[
+                  "operador",
+                  "comprador",
+                  "admin_empresa",
+                  "super_admin",
+                ]}
+              >
+                <CompraMercadoPage />
+              </ProtectedLayout>
+            }
+          />
+
+          <Route
+            path="/cotacao"
+            element={
+              <ProtectedLayout
+                allowedRoles={["comprador", "admin_empresa", "super_admin"]}
+              >
+                <CotacaoPage />
+              </ProtectedLayout>
+            }
+          />
+
+          <Route
+            path="/ranking-fornecedores"
+            element={
+              <ProtectedLayout
+                allowedRoles={[
+                  "comprador",
+                  "financeiro",
+                  "admin_empresa",
+                  "super_admin",
+                ]}
+              >
+                <RankingFornecedoresPage />
+              </ProtectedLayout>
+            }
+          />
+
+          <Route
+            path="/produtos-master"
+            element={
+              <ProtectedLayout
+                allowedRoles={["comprador", "admin_empresa", "super_admin"]}
+              >
+                <ProdutosMasterPage />
+              </ProtectedLayout>
+            }
+          />
+
+          <Route
+            path="/assessor-ia"
+            element={
+              <ProtectedLayout
+                allowedRoles={[
+                  "financeiro",
+                  "comprador",
+                  "admin_empresa",
+                  "super_admin",
+                ]}
+              >
+                <AssessorIAPage />
+              </ProtectedLayout>
+            }
+          />
+
+          <Route
+            path="/boletos-dda"
+            element={
+              <ProtectedLayout
+                allowedRoles={["financeiro", "admin_empresa", "super_admin"]}
+              >
+                <BoletosDDAPage />
+              </ProtectedLayout>
+            }
+          />
+
+          {/* onboarding-dda redirect - agora está em Configurações */}
+          <Route
+            path="/onboarding-dda"
+            element={<Navigate to="/configuracoes?tab=dda" replace />}
+          />
+
+          <Route
+            path="/configuracoes"
+            element={
+              <ProtectedLayout allowedRoles={["admin_empresa", "super_admin"]}>
+                <ConfiguracoesPage />
+              </ProtectedLayout>
+            }
+          />
+
+          <Route
+            path="/catalogo-global"
+            element={
+              <ProtectedLayout allowedRoles={["admin_empresa", "super_admin"]}>
+                <CatalogoGlobalPage />
+              </ProtectedLayout>
+            }
+          />
+
+          <Route
+            path="/caixa-entrada"
+            element={
+              <ProtectedLayout
+                allowedRoles={[
+                  "comprador",
+                  "financeiro",
+                  "admin_empresa",
+                  "super_admin",
+                ]}
+              >
+                <CaixaEntradaPage />
+              </ProtectedLayout>
+            }
+          />
+
+          <Route
+            path="/aprovacoes"
+            element={
+              <ProtectedLayout allowedRoles={["admin_empresa", "super_admin"]}>
+                <AprovacoesPage />
+              </ProtectedLayout>
+            }
+          />
+
+          <Route
+            path="/open-finance"
+            element={
+              <ProtectedLayout
+                allowedRoles={["financeiro", "admin_empresa", "super_admin"]}
+              >
+                <OpenFinancePage />
+              </ProtectedLayout>
+            }
+          />
+
+          {/* Catch all */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Router>
+    </AppAuthProvider>
   );
 }

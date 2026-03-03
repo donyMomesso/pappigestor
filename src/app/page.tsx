@@ -3,12 +3,18 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAppAuth } from "@/react-app/contexts/AppAuthContext";
-import { 
-  ArrowRight, Loader2, CheckCircle2, 
-  Zap, BrainCircuit, ShieldCheck, 
-  Target, Users, BarChart3, XCircle
+import {
+  ArrowRight,
+  Loader2,
+  CheckCircle2,
+  Zap,
+  BrainCircuit,
+  ShieldCheck,
+  Target,
+  Users,
+  BarChart3,
+  XCircle
 } from "lucide-react";
-import Link from "next/link";
 
 // --- COMPONENTES INTERNOS ---
 

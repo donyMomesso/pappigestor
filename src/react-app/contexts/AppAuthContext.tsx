@@ -6,6 +6,7 @@ export type LocalUser = {
   id: string;
   name: string;
   role?: string;
+  email?: string;
   nome_empresa?: string;
 };
 

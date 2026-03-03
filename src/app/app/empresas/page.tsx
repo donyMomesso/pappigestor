@@ -26,7 +26,7 @@ export default function EmpresasPage() {
       try {
         setLoading(true);
 
-        const email = localUser?.email;
+       const email = localUser?.email || "";
         if (!email) {
           setEmpresas([]);
           return;

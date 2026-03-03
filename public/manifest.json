@@ -1,0 +1,58 @@
+{
+  "name": "Pappi Gestor Inteligente",
+  "short_name": "Pappi Gestor",
+  "description": "Sistema completo de gestão para pizzarias: controle de compras, estoque, financeiro, cotações e muito mais.",
+  "start_url": "/app",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["tabbed", "window-controls-overlay", "standalone", "minimal-ui"],
+  "background_color": "#ffffff",
+  "theme_color": "#ea580c",
+  "orientation": "any",
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Nova Compra",
+      "short_name": "Compra",
+      "description": "Registrar nova compra",
+      "url": "/app/compras",
+      "icons": [{ "src": "/icon.png", "sizes": "512x512", "type": "image/png" }]
+    },
+    {
+      "name": "Financeiro",
+      "short_name": "Financeiro",
+      "description": "Ver boletos e pagamentos",
+      "url": "/app/financeiro",
+      "icons": [{ "src": "/icon.png", "sizes": "512x512", "type": "image/png" }]
+    },
+    {
+      "name": "Estoque",
+      "short_name": "Estoque",
+      "description": "Gerenciar estoque",
+      "url": "/app/estoque",
+      "icons": [{ "src": "/icon.png", "sizes": "512x512", "type": "image/png" }]
+    }
+  ],
+  "widgets": [
+    {
+      "name": "Resumo Financeiro",
+      "short_name": "Financeiro",
+      "description": "Visão rápida de boletos e pagamentos pendentes",
+      "tag": "financeiro",
+      "ms_ac_template": "/widget-financeiro.json",
+      "data": "/api/widget-data",
+      "type": "application/json",
+      "auth": false,
+      "update": 900,
+      "icons": [{ "src": "/icon.png", "sizes": "512x512" }]
+    }
+  ]
+}

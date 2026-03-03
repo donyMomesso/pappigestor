@@ -1,0 +1,76 @@
+{
+  "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+  "type": "AdaptiveCard",
+  "version": "1.5",
+  "body": [
+    {
+      "type": "TextBlock",
+      "text": "Pappi Gestor",
+      "weight": "Bolder",
+      "size": "Medium",
+      "wrap": true
+    },
+    {
+      "type": "TextBlock",
+      "text": "Resumo Financeiro",
+      "size": "Small",
+      "color": "Accent",
+      "wrap": true
+    },
+    {
+      "type": "ColumnSet",
+      "columns": [
+        {
+          "type": "Column",
+          "width": "stretch",
+          "items": [
+            {
+              "type": "TextBlock",
+              "text": "A Pagar",
+              "size": "Small",
+              "color": "Default"
+            },
+            {
+              "type": "TextBlock",
+              "text": "${aPagar}",
+              "weight": "Bolder",
+              "size": "Large",
+              "color": "Attention"
+            }
+          ]
+        },
+        {
+          "type": "Column",
+          "width": "stretch",
+          "items": [
+            {
+              "type": "TextBlock",
+              "text": "Vencidos",
+              "size": "Small",
+              "color": "Default"
+            },
+            {
+              "type": "TextBlock",
+              "text": "${vencidos}",
+              "weight": "Bolder",
+              "size": "Large",
+              "color": "Warning"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "type": "Action.OpenUrl",
+      "title": "Ver Financeiro",
+      "url": "/app/financeiro"
+    },
+    {
+      "type": "Action.OpenUrl",
+      "title": "Nova Compra",
+      "url": "/app/compras"
+    }
+  ]
+}

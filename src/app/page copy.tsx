@@ -1,0 +1,187 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAppAuth } from "@/react-app/contexts/AppAuthContext";
+import { 
+  ArrowRight, Sparkles, TrendingUp, ShieldCheck, 
+  Crown, Loader2, Rocket, CheckCircle2, AlertTriangle, 
+  Zap, Camera, BrainCircuit, XCircle, Scan
+} from "lucide-react";
+
+export default function LandingPage() {
+  const { localUser, isLoading } = useAppAuth();
+  const router = useRouter();
+  const [showSales, setShowSales] = useState(false);
+
+  useEffect(() => {
+    if (!isLoading && localUser && localUser.plano !== "Grátis") {
+      router.push("/app");
+    }
+  }, [localUser, isLoading, router]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#050505] flex items-center justify-center">
+        <Loader2 className="animate-spin text-orange-500 w-12 h-12" />
+      </div>
+    );
+  }
+
+  // ============================================================================
+  // TELA 1: LOBBY DA DOR (Foco em Sobrevivência)
+  // ============================================================================
+  if (localUser && localUser.plano === "Grátis" && !showSales) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col justify-center items-center p-6 relative overflow-hidden">
+        
+        {/* O Robô Assistente - Autoridade Visual */}
+        <div className="absolute right-[-5%] bottom-[-5%] w-[450px] h-[450px] opacity-15 pointer-events-none grayscale">
+           <img src="/6d134029-46d6-4abe-b566-c64376e05dac.jpg" alt="IA Chef" className="w-full h-full object-contain" />
+        </div>
+
+        <div className="relative z-10 max-w-2xl w-full bg-black/40 backdrop-blur-3xl border border-white/5 p-8 md:p-14 rounded-[45px] text-center shadow-2xl animate-in fade-in zoom-in-95 duration-700">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 mb-8 animate-pulse">
+            <AlertTriangle size={14} />
+            <span className="text-[9px] font-black uppercase tracking-[0.3em] italic">Risco de Perda de Margem Detectado</span>
+          </div>
+          
+          <h2 className="text-4xl md:text-5xl font-black italic uppercase tracking-tighter mb-6 leading-none">
+            VOCÊ ESTÁ <span className="text-orange-500">PAGANDO</span> PARA TRABALHAR?
+          </h2>
+          
+          <p className="text-gray-400 font-bold italic text-sm mb-12 max-w-lg mx-auto leading-relaxed">
+            No plano **Pappi Start**, você ainda faz o trabalho que a IA deveria fazer. Enquanto você digita, o lucro escorre. O **Pappi Pro IA** já corrigiu os bugs de recebimento e agora importa tudo direto da sua lista de compras automaticamente.
+          </p>
+
+          <div className="space-y-4">
+            <button 
+              onClick={() => setShowSales(true)}
+              className="w-full h-20 bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-pink-600 text-white rounded-[25px] flex items-center justify-center gap-4 text-sm font-black uppercase italic tracking-[0.2em] shadow-2xl shadow-orange-500/30 transition-all hover:scale-[1.02]"
+            >
+              <Zap className="fill-white" size={20} /> Destravar Meu Lucro Agora <ArrowRight size={20} />
+            </button>
+
+            <Link href="/app" className="block p-4 text-[10px] font-black uppercase tracking-[0.3em] text-gray-600 hover:text-white transition-colors italic">
+              Continuar no operacional manual (Plano Start)
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ============================================================================
+  // TELA 2: PÁGINA DE VENDAS (Solução Tecnológica)
+  // ============================================================================
+  return (
+    <div className="min-h-screen bg-[#050505] text-white overflow-x-hidden pb-20 selection:bg-orange-500">
+      
+      <nav className="relative z-50 p-6 md:px-12 flex justify-between items-center bg-black/50 backdrop-blur-md border-b border-white/5">
+        <div className="flex items-center gap-3">
+          <span className="text-2xl font-black italic uppercase tracking-tighter text-orange-500">Pappi</span>
+        </div>
+        {localUser && (
+           <button onClick={() => setShowSales(false)} className="text-[10px] font-black uppercase italic text-gray-500 hover:text-orange-500 transition-colors tracking-widest">Voltar ao Lobby</button>
+        )}
+      </nav>
+
+      <main className="relative z-10 max-w-7xl mx-auto px-6 pt-16">
+        <div className="text-center mb-20">
+           <h1 className="text-5xl md:text-7xl font-black italic uppercase tracking-tighter leading-none mb-6">
+             ESTE É O SEU <span className="text-orange-500 text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-pink-500">UPGRADE DE ELITE.</span>
+           </h1>
+           <p className="text-gray-400 font-bold italic uppercase tracking-widest text-xs">A tecnologia que trabalha enquanto você foca na expansão.</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-end">
+          
+          {/* PLANO 1: START (O Mínimo Viável) */}
+          <div className="bg-white/5 border border-white/10 p-8 rounded-[40px] flex flex-col h-full opacity-60 hover:opacity-100 transition-all">
+            <h3 className="text-xl font-black italic uppercase tracking-tighter text-gray-400">Pappi Start</h3>
+            <div className="text-3xl font-black italic my-4">GRÁTIS</div>
+            <p className="text-[10px] font-bold text-gray-500 uppercase italic mb-8">Sobrevivência operacional.</p>
+            
+            <ul className="space-y-4 mb-10 flex-1">
+              <FeatureItem text="Gestão de Compras Manual" />
+              <FeatureItem text="Cadastro de Produtos" />
+              <li className="flex items-center gap-2 text-[10px] font-bold text-red-500/50 italic uppercase"><XCircle size={14}/> Sem Automação IA</li>
+              <li className="flex items-center gap-2 text-[10px] font-bold text-red-500/50 italic uppercase"><XCircle size={14}/> Sem DDA Bancário</li>
+            </ul>
+            <Link href="/app" className="w-full py-4 border border-white/10 rounded-2xl text-[10px] font-black uppercase text-center hover:bg-white/5 transition-all">Manter o Básico</Link>
+          </div>
+
+          {/* PLANO 2: PRO IA (O NOVO CÉREBRO) */}
+          <div className="bg-gradient-to-b from-orange-600 to-orange-800 p-1 rounded-[42px] shadow-[0_0_50px_rgba(234,88,12,0.3)] transform md:scale-110 z-20">
+            <div className="bg-[#0a0a0a] rounded-[40px] p-8 md:p-10 flex flex-col h-full relative overflow-hidden">
+              <div className="absolute top-0 right-0 bg-orange-500 text-white px-6 py-2 rounded-bl-3xl font-black italic text-[10px] uppercase tracking-widest">
+                MAIS VENDIDO
+              </div>
+              
+              <h3 className="text-2xl font-black italic uppercase tracking-tighter text-orange-500">Pappi Pro IA</h3>
+              <div className="flex items-baseline gap-1 my-4">
+                <span className="text-5xl font-black italic tracking-tighter text-white">R$ 99</span>
+                <span className="text-xs font-bold text-gray-500 uppercase">/mês</span>
+              </div>
+
+              <ul className="space-y-4 mb-12 flex-1">
+                <FeatureItem text="Assistente IA Completo" active />
+                <FeatureItem text="Scanner HD com Zoom 2x" active />
+                <FeatureItem text="Leitura de QR Code NFC-e" active />
+                <FeatureItem text="Importação Lista de Compras" active />
+                <FeatureItem text="DDA Bancário Automático" active />
+              </ul>
+
+              <button className="w-full py-5 bg-gradient-to-r from-orange-600 to-pink-600 text-white rounded-[25px] text-[11px] font-black uppercase tracking-[0.2em] italic shadow-xl hover:scale-105 transition-all">
+                Assinar e Automatizar
+              </button>
+            </div>
+          </div>
+
+          {/* PLANO 3: GESTOR (A Organização) */}
+          <div className="bg-white/5 border border-white/10 p-8 rounded-[40px] flex flex-col h-full hover:border-orange-500/30 transition-all">
+            <h3 className="text-xl font-black italic uppercase tracking-tighter text-gray-200">Pappi Gestor</h3>
+            <div className="flex items-baseline gap-1 my-4">
+              <span className="text-4xl font-black italic tracking-tighter">R$ 49</span>
+              <span className="text-xs font-bold text-gray-500 uppercase">/mês</span>
+            </div>
+            <p className="text-[10px] font-bold text-gray-500 uppercase italic mb-8">Digitalização da sua unidade.</p>
+            
+            <ul className="space-y-4 mb-10 flex-1">
+              <FeatureItem text="Gestão Financeira Sem IA" />
+              <FeatureItem text="Controle de Estoque Real" />
+              <FeatureItem text="Cadastro de Fornecedores" />
+              <FeatureItem text="Relatórios Básicos" />
+            </ul>
+            <button className="w-full py-4 bg-white/10 rounded-2xl text-[10px] font-black uppercase hover:bg-orange-500 transition-all">Escolher Gestor</button>
+          </div>
+
+        </div>
+
+        {/* PROVA SOCIAL E TECNOLOGIA (#67 e #64) */}
+        <div className="mt-20 p-12 bg-gradient-to-r from-gray-900 to-black rounded-[50px] border border-white/5 flex flex-col md:flex-row items-center gap-10">
+           <div className="w-48 h-48 bg-orange-500/10 rounded-[40px] p-4 flex items-center justify-center border border-orange-500/20 shadow-2xl relative">
+              <img src="/6d134029-46d6-4abe-b566-c64376e05dac.jpg" className="w-full h-full object-contain" alt="Robô" />
+              <div className="absolute -bottom-2 -right-2 bg-pink-600 p-2 rounded-lg"><Scan size={20} /></div>
+           </div>
+           <div className="flex-1 text-center md:text-left">
+              <h4 className="text-2xl font-black italic uppercase tracking-tighter text-white mb-4">"O seu novo Scanner HD está pronto."</h4>
+              <p className="text-gray-400 font-bold italic text-sm leading-relaxed">
+                Nós unificamos a Caixa de Entrada com o Assessor IA. Agora, com resolução HD e zoom de 2x, o sistema lê QR Codes e associa compras automaticamente com sua lista de compras. **É o fim dos erros de digitação e do dinheiro perdido.**
+              </p>
+           </div>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+function FeatureItem({ text, active = false }: { text: string, active?: boolean }) {
+  return (
+    <li className={`flex items-center gap-3 text-[11px] font-black uppercase italic tracking-wider ${active ? 'text-white' : 'text-gray-400'}`}>
+       <CheckCircle2 size={16} className={active ? 'text-orange-500' : 'text-gray-600'} />
+       {text}
+    </li>
+  );
+}

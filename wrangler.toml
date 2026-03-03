@@ -1,0 +1,9 @@
+name = "pappi-worker"
+main = "src/worker/index.ts"
+compatibility_date = "2026-02-27"
+compatibility_flags = [ "nodejs_compat" ]
+
+[[d1_databases]]
+binding = "DB" # Mudamos aqui para bater com o seu código
+database_name = "pappi-pizza-db"
+database_id = "d3bd59b3-cfda-4d62-b6a1-3956d025bd93"

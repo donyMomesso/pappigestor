@@ -6,6 +6,7 @@ export type LocalUser = {
   id: string;
   name: string;
   role?: string;
+  nome_empresa?: string; // ✅
 };
 
 type AppAuthContextValue = {

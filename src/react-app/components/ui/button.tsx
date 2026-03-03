@@ -4,9 +4,10 @@ import React from "react";
 
 type Variant = "default" | "outline" | "ghost" | "link";
 
-export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+export interface ButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
-  size?: "default" | "icon";
+  size?: "default" | "sm" | "lg" | "icon"; // ✅ adicionamos sm e lg
 }
 
 const base =
@@ -21,6 +22,8 @@ const variants: Record<Variant, string> = {
 
 const sizes = {
   default: "h-10 px-4 py-2",
+  sm: "h-9 px-3 rounded-md text-xs",  // ✅ novo
+  lg: "h-11 px-8 rounded-md text-base", // ✅ novo
   icon: "h-10 w-10",
 };
 

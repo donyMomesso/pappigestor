@@ -1,81 +1,95 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useMemo,
+} from "react";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export type LocalUser = {
   id: string;
-
-  // alguns lugares usam "nome", outros "name"
-  name?: string;
-  nome?: string;
-
-  // Identidade / login
-  email?: string;
-
-  // Empresa
-  empresa_id?: string;
-  company_id?: string;
-  nome_empresa?: string;
-
-  // Permissões
+  name: string;
   role?: string;
-  nivel_acesso?: string;
+  email?: string;
+  nome_empresa?: string;
 };
-type AppAuthContextValue = {
+
+type AuthContextType = {
   localUser: LocalUser | null;
-  setLocalUser: (u: LocalUser | null) => void;
+  loading: boolean;
+  logout: () => Promise<void>;
 };
 
-const AppAuthContext = createContext<AppAuthContextValue | null>(null);
+const AppAuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AppAuthProvider({ children }: { children: React.ReactNode }) {
+export function AppAuthProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const [localUser, setLocalUser] = useState<LocalUser | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // ✅ Minimal auth stub: reads a cached user from localStorage.
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem("localUser");
-      if (raw) {
-        setLocalUser(JSON.parse(raw) as LocalUser);
-      } else {
-        setLocalUser({
-          id: "local",
-          name: "Gestor",
-          email: "admin@local",
-          role: "admin",
-          nome_empresa: "Pappi Gestor",
-        });
+    const loadUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) {
+        setLocalUser(null);
+        setLoading(false);
+        return;
       }
-    } catch {
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("user_id", user.id)
+        .single();
+
       setLocalUser({
-        id: "local",
-        name: "Gestor",
-        email: "admin@local",
-        role: "admin",
-        nome_empresa: "Pappi Gestor",
+        id: user.id,
+        nome: profile?.nome,
+        email: user.email,
+        empresa_id: profile?.empresa_id,
+        nivel_acesso: profile?.nivel_acesso,
       });
-    }
+
+      setLoading(false);
+    };
+
+    loadUser();
   }, []);
 
-  useEffect(() => {
-    try {
-      if (localUser) localStorage.setItem("localUser", JSON.stringify(localUser));
-      else localStorage.removeItem("localUser");
-    } catch {
-      // ignore
-    }
-  }, [localUser]);
+  const logout = async () => {
+    await supabase.auth.signOut();
+    setLocalUser(null);
+    window.location.href = "/login";
+  };
 
-  const value = useMemo(() => ({ localUser, setLocalUser }), [localUser]);
+  const value = useMemo(
+    () => ({ localUser, loading, logout }),
+    [localUser, loading]
+  );
 
-  return <AppAuthContext.Provider value={value}>{children}</AppAuthContext.Provider>;
+  return (
+    <AppAuthContext.Provider value={value}>
+      {children}
+    </AppAuthContext.Provider>
+  );
 }
 
 export function useAppAuth() {
-  const ctx = useContext(AppAuthContext);
-  if (!ctx) {
-    // Don't throw to avoid breaking pages if provider wasn't mounted yet.
-    return { localUser: null, setLocalUser: () => {} } as AppAuthContextValue;
+  const context = useContext(AppAuthContext);
+  if (!context) {
+    throw new Error("useAppAuth must be used within AppAuthProvider");
   }
-  return ctx;
+  return context;
 }

@@ -1,5 +1,5 @@
 import * as React from "react"
-import { Switch as SwitchPrimitive } from "radix-ui"
+import { Switch as SwitchPrimitive } from "@radix-ui/react-select"
 
 import { cn } from "@/react-app/lib/utils"
 

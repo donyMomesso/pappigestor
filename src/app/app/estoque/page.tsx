@@ -24,11 +24,9 @@ import {
   Package,
   Loader2,
   Search,
-  ClipboardCheck,
   Plus,
   Minus,
   Save,
-  ShoppingCart,
   ArrowLeft,
   Boxes,
   BrainCircuit,
@@ -68,13 +66,6 @@ const CATEGORIAS = [
 ];
 const UNIDADES = ["un", "kg", "g", "L", "ml", "cx", "pct", "fd", "pc", "sc"];
 
-interface Produto {
-  id: number;
-  nome_produto: string;
-  categoria_produto: string;
-  unidade_medida: string;
-}
-
 interface EstoqueItem {
   id: number;
   produto_id: number;
@@ -83,8 +74,6 @@ interface EstoqueItem {
   produto_nome?: string;
   categoria_produto?: string;
   unidade_medida?: string;
-  data_validade?: string;
-  lote?: string;
 }
 
 export default function EstoquePage() {
@@ -171,7 +160,7 @@ export default function EstoquePage() {
         headers: getHeaders(),
       });
       if (res.ok) {
-        fetchData(); // Atualiza a tela após apagar
+        fetchData(); 
       } else {
         alert("Erro ao excluir do banco de dados.");
       }
@@ -180,16 +169,18 @@ export default function EstoquePage() {
     }
   };
 
+  // ✅ CORREÇÃO: Função de Lançamento Perfeita e com dupla gravação (Catálogo + Estoque)
   const handleAddEstoque = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!getHeaders()["x-pizzaria-id"]) return alert("Unidade não identificada.");
+    if (!getHeaders()["x-pizzaria-id"]) return alert("Erro: Unidade não identificada. Faça login novamente.");
+    if (!addForm.nome_produto.trim()) return alert("O nome do produto é obrigatório!");
 
-    // Trava de Duplicidade
     const jaExiste = estoques.some(item => item.produto_nome?.trim().toLowerCase() === addForm.nome_produto.trim().toLowerCase());
-    if (jaExiste) return alert(`O produto "${addForm.nome_produto}" já está no seu estoque! Use o botão de editar.`);
+    if (jaExiste) return alert(`O produto "${addForm.nome_produto}" já está no seu estoque! Use o botão do lápis para editar a quantidade.`);
 
     setSavingAdd(true);
     try {
+      // 1. Cria ou reaproveita o produto no Catálogo
       const resProd = await fetch("/api/produtos", {
         method: "POST",
         headers: getHeaders(),
@@ -199,27 +190,36 @@ export default function EstoquePage() {
           unidade_medida: addForm.unidade_medida 
         })
       });
-      if (!resProd.ok) throw new Error("Erro no catálogo.");
-      const prodData = await resProd.json() as { id: number };
+      
+      const prodData = await resProd.json();
+      if (!resProd.ok || !prodData.id) throw new Error("Erro ao criar produto no catálogo.");
 
+      // 2. Insere a quantidade na tabela de Estoque referenciando o Produto ID
       const resEst = await fetch("/api/estoque", {
         method: "POST",
         headers: getHeaders(),
         body: JSON.stringify({ 
           produto_id: prodData.id, 
-          quantidade_atual: parseFloat(addForm.quantidade_atual) || 0, 
-          estoque_minimo: parseFloat(addForm.estoque_minimo) || 0 
+          quantidade_atual: addForm.quantidade_atual ? parseFloat(addForm.quantidade_atual.replace(',', '.')) : 0, 
+          estoque_minimo: addForm.estoque_minimo ? parseFloat(addForm.estoque_minimo.replace(',', '.')) : 0 
         })
       });
 
       if (resEst.ok) {
+        alert("Item adicionado ao estoque com sucesso!");
         setAddForm({ nome_produto: "", categoria_produto: "Insumos", unidade_medida: "un", quantidade_atual: "", estoque_minimo: "" });
         setSugestoes([]);
         setIsAddDialogOpen(false);
-        fetchData();
+        fetchData(); // Recarrega a tela
+      } else {
+        const errData = await resEst.json();
+        alert(errData.error || "Falha ao gravar no estoque físico.");
       }
-    } catch (err) { alert("Falha ao salvar produto."); } 
-    finally { setSavingAdd(false); }
+    } catch (err) { 
+      alert("Falha ao salvar produto. Verifique sua conexão."); 
+    } finally { 
+      setSavingAdd(false); 
+    }
   };
 
   const handleNomeChange = (value: string) => {
@@ -293,11 +293,15 @@ export default function EstoquePage() {
              <p className="text-3xl font-black italic">{estoques.length}</p>
           </Card>
           <Card className={`rounded-[25px] border p-5 transition-all ${estoqueBaixoCount > 0 ? "border-red-200 bg-red-50 text-red-600 shadow-md shadow-red-100" : "bg-white text-gray-900 shadow-sm"}`}>
-            <p className="text-[9px] font-black uppercase tracking-widest mb-1">Alerta de Stock</p>
+            <p className="text-[9px] font-black uppercase tracking-widest mb-1 flex items-center gap-1">
+              <AlertTriangle size={12}/> Alerta de Stock
+            </p>
             <p className="text-3xl font-black">{estoqueBaixoCount}</p>
           </Card>
           <Card className="rounded-[25px] border bg-green-50 text-green-600 p-5 border-green-100 shadow-sm">
-            <p className="text-[9px] font-black uppercase tracking-widest mb-1">Stock OK</p>
+            <p className="text-[9px] font-black uppercase tracking-widest mb-1 flex items-center gap-1">
+              <Package size={12}/> Stock OK
+            </p>
             <p className="text-3xl font-black">{estoques.length - estoqueBaixoCount}</p>
           </Card>
         </div>
@@ -306,10 +310,10 @@ export default function EstoquePage() {
         <div className="flex gap-3 bg-white p-1.5 rounded-2xl border border-gray-100 shadow-sm">
           <div className="flex-1 flex items-center bg-gray-50 rounded-xl px-3">
             <Search className="text-gray-400" size={18} />
-            <Input className="border-0 bg-transparent font-bold h-10 text-sm focus-visible:ring-0" placeholder="Procurar produto..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+            <Input className="border-0 bg-transparent font-bold h-10 text-sm focus-visible:ring-0" placeholder="Procurar produto no estoque..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
           </div>
           <Select value={filterStatus} onValueChange={setFilterStatus}>
-            <SelectTrigger className="w-32 border-0 bg-gray-50 h-10 rounded-xl text-[10px] font-black uppercase">
+            <SelectTrigger className="w-32 border-0 bg-gray-50 h-10 rounded-xl text-[10px] font-black uppercase focus:ring-0">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent className="rounded-xl">
@@ -352,6 +356,13 @@ export default function EstoquePage() {
               </div>
             </div>
           ))}
+          {filteredEstoques.length === 0 && !isLoading && (
+            <div className="text-center py-12 bg-white rounded-2xl border border-dashed border-gray-200">
+              <Boxes size={48} className="mx-auto text-gray-300 mb-3" />
+              <p className="text-gray-500 font-bold uppercase text-sm">Nenhum produto encontrado</p>
+              <p className="text-gray-400 text-xs mt-1">Cadastre novos itens para organizar seu estoque.</p>
+            </div>
+          )}
         </div>
 
         {/* MODAL AUDITORIA / EDITAR */}
@@ -418,23 +429,23 @@ export default function EstoquePage() {
                  <div className="space-y-1.5">
                     <Label className="text-[9px] font-black uppercase text-gray-400 italic ml-1">Categoria</Label>
                     <Select value={addForm.categoria_produto} onValueChange={(v) => setAddForm({...addForm, categoria_produto: v})}>
-                      <SelectTrigger className="h-10 rounded-xl font-bold bg-gray-50 border-0 text-xs"><SelectValue/></SelectTrigger>
+                      <SelectTrigger className="h-10 rounded-xl font-bold bg-gray-50 border-0 text-xs focus:ring-0"><SelectValue/></SelectTrigger>
                       <SelectContent className="rounded-xl">{CATEGORIAS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                     </Select>
                  </div>
                  <div className="space-y-1.5">
                     <Label className="text-[9px] font-black uppercase text-gray-400 italic ml-1">Unidade</Label>
                     <Select value={addForm.unidade_medida} onValueChange={(v) => setAddForm({...addForm, unidade_medida: v})}>
-                      <SelectTrigger className="h-10 rounded-xl font-bold bg-gray-50 border-0 text-xs"><SelectValue/></SelectTrigger>
+                      <SelectTrigger className="h-10 rounded-xl font-bold bg-gray-50 border-0 text-xs focus:ring-0"><SelectValue/></SelectTrigger>
                       <SelectContent className="rounded-xl">{UNIDADES.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
                     </Select>
                  </div>
               </div>
               <div className="grid grid-cols-2 gap-3 bg-blue-50/50 p-3 rounded-2xl border border-blue-100/30">
-                <div><Label className="text-[8px] font-black uppercase text-blue-800 ml-1">Qtd Inicial</Label><Input type="number" step="0.01" value={addForm.quantidade_atual} onChange={(e) => setAddForm({ ...addForm, quantidade_atual: e.target.value })} className="h-10 rounded-lg text-center font-black bg-white border-0 text-sm" /></div>
-                <div><Label className="text-[8px] font-black uppercase text-red-500 ml-1">Stock Mínimo</Label><Input type="number" step="0.01" value={addForm.estoque_minimo} onChange={(e) => setAddForm({ ...addForm, estoque_minimo: e.target.value })} className="h-10 rounded-lg text-center font-black bg-white border-0 text-sm" /></div>
+                <div><Label className="text-[8px] font-black uppercase text-blue-800 ml-1">Qtd Inicial</Label><Input type="number" step="0.01" value={addForm.quantidade_atual} onChange={(e) => setAddForm({ ...addForm, quantidade_atual: e.target.value })} className="h-10 rounded-lg text-center font-black bg-white border-0 text-sm focus-visible:ring-1 focus-visible:ring-blue-300" placeholder="0" /></div>
+                <div><Label className="text-[8px] font-black uppercase text-red-500 ml-1">Stock Mínimo</Label><Input type="number" step="0.01" value={addForm.estoque_minimo} onChange={(e) => setAddForm({ ...addForm, estoque_minimo: e.target.value })} className="h-10 rounded-lg text-center font-black bg-white border-0 text-sm focus-visible:ring-1 focus-visible:ring-red-300" placeholder="0" /></div>
               </div>
-              <Button type="submit" disabled={savingAdd} className="w-full h-12 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-black uppercase text-[10px] tracking-[0.2em] shadow-lg">
+              <Button type="submit" disabled={savingAdd} className="w-full h-12 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-black uppercase text-[10px] tracking-[0.2em] shadow-lg hover:scale-105 transition-transform">
                 {savingAdd ? <Loader2 className="animate-spin"/> : <><PackagePlus size={16} className="mr-2"/> Lançar Produto</>}
               </Button>
             </form>

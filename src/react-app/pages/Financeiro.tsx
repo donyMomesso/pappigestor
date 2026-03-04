@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'; // <-- CORREÇÃO: Adicionado o 'React' aqui
 import { Button } from '@/react-app/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/react-app/components/ui/card';
 import { Input } from '@/react-app/components/ui/input';
@@ -10,18 +10,72 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/react-app/components/ui/dialog';
-import { Calculator, FileText, Check, Clock, AlertTriangle, CreditCard, Image, MessageSquare, Send, ShieldAlert, Loader2, Building2, RefreshCw, Plus, Calendar, Filter, Download, FileSpreadsheet } from 'lucide-react';
+import { 
+  Calculator, FileText, Check, Clock, AlertTriangle, CreditCard, Image, 
+  MessageSquare, Send, ShieldAlert, Loader2, Building2, RefreshCw, 
+  Plus, Calendar, Filter, Download, FileSpreadsheet 
+} from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/react-app/components/ui/tabs';
-import type { Lancamento } from '@/shared/types';
-import { calcularStatus, CATEGORIAS } from '@/shared/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/react-app/components/ui/select';
 import { Textarea } from '@/react-app/components/ui/textarea';
 import { useAppAuth } from '@/react-app/contexts/AppAuthContext';
 
-type StatusFilter = 'todos' | 'Aguardando Boleto' | 'A Pagar' | 'Atrasado' | 'Pago';
+// ============================================================================
+// TIPAGENS MOVIDAS PARA DENTRO DO FICHEIRO PARA EVITAR ERRO TS2307
+// ============================================================================
+
+export interface Lancamento {
+  id: number;
+  pizzaria_id: string;
+  data_pedido: string;
+  fornecedor: string;
+  categoria: string;
+  valor_previsto: number;
+  is_boleto_recebido: boolean;
+  valor_real: number | null;
+  vencimento_real: string | null;
+  status_pagamento: 'pendente' | 'pago';
+  data_pagamento: string | null;
+  anexo_url: string | null;
+  comprovante_url: string | null;
+  observacao: string | null;
+  is_manual: boolean;
+  criado_em: string;
+}
+
+export const CATEGORIAS = [
+  'Insumos e Ingredientes',
+  'Embalagens',
+  'Bebidas',
+  'Materiais de Limpeza',
+  'Equipamentos',
+  'Serviços Terceirizados',
+  'Impostos e Taxas',
+  'Marketing e Publicidade',
+  'Folha de Pagamento',
+  'Aluguel e Condomínio',
+  'Energia Elétrica',
+  'Água',
+  'Internet e Telefone',
+  'Manutenção',
+  'Outros'
+];
+
+type StatusLancamento = 'Aguardando Boleto' | 'A Pagar' | 'Atrasado' | 'Pago';
+
+export function calcularStatus(lancamento: Lancamento): StatusLancamento {
+  if (lancamento.status_pagamento === 'pago' || lancamento.data_pagamento) return 'Pago';
+  if (!lancamento.is_boleto_recebido) return 'Aguardando Boleto';
+  if (lancamento.vencimento_real && new Date(lancamento.vencimento_real) < new Date(new Date().setHours(0, 0, 0, 0))) {
+    return 'Atrasado';
+  }
+  return 'A Pagar';
+}
+
+type StatusFilter = 'todos' | StatusLancamento;
 
 interface Fornecedor {
   id: number;
@@ -45,6 +99,10 @@ interface BoletoDDA {
   status_pagamento: string;
   data_pagamento: string | null;
 }
+
+// ============================================================================
+// COMPONENTE PRINCIPAL
+// ============================================================================
 
 export default function FinanceiroPage() {
   const { localUser } = useAppAuth();
@@ -99,10 +157,11 @@ export default function FinanceiroPage() {
 
   const fetchData = async () => {
     try {
+      const pId = localStorage.getItem("pId") || localStorage.getItem("pizzariaId") || "";
       const [lancRes, fornRes, empRes] = await Promise.all([
-        fetch('/api/lancamentos'),
-        fetch('/api/fornecedores'),
-        fetch('/api/empresa-config'),
+        fetch('/api/lancamentos', { headers: { "x-pizzaria-id": pId } }),
+        fetch('/api/fornecedores', { headers: { "x-pizzaria-id": pId } }),
+        fetch('/api/empresa-config', { headers: { "x-pizzaria-id": pId } }),
       ]);
       
       if (lancRes.ok) setLancamentos(await lancRes.json());
@@ -117,9 +176,10 @@ export default function FinanceiroPage() {
 
   const fetchBoletosDDA = async () => {
     setLoadingDDA(true);
+    const pId = localStorage.getItem("pId") || localStorage.getItem("pizzariaId") || "";
     try {
       const statusParam = ddaFilter !== 'todos' ? `?status=${ddaFilter}` : '';
-      const res = await fetch(`/api/boletos-dda${statusParam}`);
+      const res = await fetch(`/api/boletos-dda${statusParam}`, { headers: { "x-pizzaria-id": pId } });
       if (res.ok) {
         setBoletosDDA(await res.json());
       }
@@ -137,10 +197,14 @@ export default function FinanceiroPage() {
     }
 
     setSavingManual(true);
+    const pId = localStorage.getItem("pId") || localStorage.getItem("pizzariaId") || "";
     try {
       const response = await fetch('/api/lancamentos', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          "x-pizzaria-id": pId
+        },
         body: JSON.stringify({
           data_pedido: new Date().toISOString().split('T')[0],
           fornecedor: manualForm.fornecedor,
@@ -179,10 +243,14 @@ export default function FinanceiroPage() {
   const handlePagarDDA = async (boleto: BoletoDDA) => {
     if (!confirm(`Confirmar pagamento de ${formatCurrency(boleto.valor)} para ${boleto.fornecedor_nome}?`)) return;
     
+    const pId = localStorage.getItem("pId") || localStorage.getItem("pizzariaId") || "";
     try {
       await fetch(`/api/boletos-dda/${boleto.id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          "x-pizzaria-id": pId
+        },
         body: JSON.stringify({
           status_pagamento: 'pago',
           data_pagamento: new Date().toISOString().split('T')[0]
@@ -214,11 +282,15 @@ export default function FinanceiroPage() {
   const handleSaveBoleto = async () => {
     if (!selectedLancamento) return;
     setSaving(true);
+    const pId = localStorage.getItem("pId") || localStorage.getItem("pizzariaId") || "";
 
     try {
       await fetch(`/api/lancamentos/${selectedLancamento.id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          "x-pizzaria-id": pId
+        },
         body: JSON.stringify({
           is_boleto_recebido: true,
           valor_real: parseFloat(formData.valor_real),
@@ -245,6 +317,7 @@ export default function FinanceiroPage() {
 
   const handleUploadComprovante = async (file: File) => {
     setUploadingComprovante(true);
+    const pId = localStorage.getItem("pId") || localStorage.getItem("pizzariaId") || "";
     try {
       const formData = new FormData();
       formData.append('file', file);
@@ -252,6 +325,7 @@ export default function FinanceiroPage() {
       
       const res = await fetch('/api/upload', {
         method: 'POST',
+        headers: { "x-pizzaria-id": pId },
         body: formData,
       });
       
@@ -269,11 +343,15 @@ export default function FinanceiroPage() {
   const handlePagar = async () => {
     if (!payingLancamento) return;
     setSaving(true);
+    const pId = localStorage.getItem("pId") || localStorage.getItem("pizzariaId") || "";
 
     try {
       await fetch(`/api/lancamentos/${payingLancamento.id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          "x-pizzaria-id": pId
+        },
         body: JSON.stringify({
           data_pagamento: new Date().toISOString().split('T')[0],
           comprovante_url: comprovanteUrl
@@ -336,18 +414,21 @@ export default function FinanceiroPage() {
 
   const getStatusBadge = (lancamento: Lancamento) => {
     const status = calcularStatus(lancamento);
-    const styles = {
+    // CORREÇÃO DO ERRO TS2503 - Trocado de JSX.Element para React.ReactNode
+    const styles: Record<StatusLancamento, string> = {
       'Aguardando Boleto': 'bg-gray-100 text-gray-700 border-gray-200',
       'A Pagar': 'bg-blue-100 text-blue-700 border-blue-200',
       'Atrasado': 'bg-red-100 text-red-700 border-red-200',
       'Pago': 'bg-green-100 text-green-700 border-green-200'
     };
-    const icons = {
+    
+    const icons: Record<StatusLancamento, React.ReactNode> = {
       'Aguardando Boleto': <FileText className="w-3 h-3" />,
       'A Pagar': <Clock className="w-3 h-3" />,
       'Atrasado': <AlertTriangle className="w-3 h-3" />,
       'Pago': <Check className="w-3 h-3" />
     };
+    
     return (
       <Badge variant="outline" className={`${styles[status]} flex items-center gap-1`}>
         {icons[status]}
@@ -674,7 +755,7 @@ export default function FinanceiroPage() {
                   <SelectValue placeholder="Selecione a categoria" />
                 </SelectTrigger>
                 <SelectContent>
-                  {CATEGORIAS.map((cat) => (
+                  {CATEGORIAS.map((cat: string) => (
                     <SelectItem key={cat} value={cat}>
                       {cat}
                     </SelectItem>

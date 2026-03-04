@@ -383,7 +383,8 @@ export default function HomePage() {
               Olá, {localUser?.nome?.split(' ')[0]}! 👋
             </h1>
             <p className="text-white/80 text-sm mt-0.5">
-              {NIVEL_LABELS[localUser?.nivel_acesso || ''] || localUser?.nivel_acesso} • {localUser?.empresa_nome}
+             {NIVEL_LABELS[localUser?.nivel_acesso || ""] || localUser?.nivel_acesso}
+{(localUser as any)?.empresa_nome ? ` • ${(localUser as any).empresa_nome}` : ""}
             </p>
           </div>
           <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center text-lg font-bold shadow-lg">

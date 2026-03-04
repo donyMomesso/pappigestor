@@ -1,5 +1,7 @@
 "use client";
 
+import type { LocalUser } from "@/hooks/useAppAuth";
+
 import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom"; 
 import { useAppAuth } from "../contexts/AppAuthContext";
@@ -21,9 +23,19 @@ export default function LoginPage() {
   }, [localUser, navigate]);
 
   const handleGoogleLogin = () => {
-    // Simulação de login para o Pappi Gestor
-    const mockUser = { id: "user_123", name: "Dony Momesso", role: "admin" };
-    setLocalUser(mockUser);
+
+const mockUser: LocalUser = {
+  id: "user_123",
+  nome: "Dony Momesso",
+  email: "dony@local.dev",
+  nivel_acesso: "admin_empresa",
+  empresa_id: "local_company",
+  empresa_nome: "Pappi Gestor (Local)",
+  features: [],
+};
+
+setLocalUser(mockUser);
+
     navigate("/app");
   };
 

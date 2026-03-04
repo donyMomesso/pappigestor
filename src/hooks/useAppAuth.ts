@@ -16,7 +16,7 @@ export type LocalUser = {
   email: string;
   nivel_acesso: NivelAcesso;
   empresa_id: string;
-  empresa_nome: string;
+  empresa_nome?: string;
   features: string[];
 };
 

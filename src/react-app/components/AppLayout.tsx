@@ -2,6 +2,7 @@
 
 import { ReactNode, useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "react-router";
+import { useAuth } from "@getmocha/users-service/react";
 import { useAppAuth } from "@/react-app/contexts/AppAuthContext";
 import {
   ShoppingCart, Package, DollarSign, BarChart3, Users, Building2, LogOut,
@@ -93,8 +94,9 @@ function DropdownMenu({ group, hasPermission, hasFeature }: { group: NavGroup; h
 }
 
 export default function AppLayout({ children }: AppLayoutProps) {
+  const { logout } = useAuth();
  const auth = useAppAuth() as any; 
-const { localUser, hasPermission, hasFeature, logout } = auth; // <-- ADICIONADO O LOGOUT
+const { localUser, hasPermission, hasFeature } = auth;
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);

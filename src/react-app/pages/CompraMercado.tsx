@@ -47,8 +47,14 @@ import {
   ImageIcon,
 } from "lucide-react";
 
-import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
+let Html5Qrcode: any;
+let Html5QrcodeSupportedFormats: any;
 
+if (typeof window !== "undefined") {
+  const lib = require("html5-qrcode");
+  Html5Qrcode = lib.Html5Qrcode;
+  Html5QrcodeSupportedFormats = lib.Html5QrcodeSupportedFormats;
+}
 interface ItemNfce {
   codigo?: string;
   descricao: string;
@@ -170,7 +176,9 @@ export default function CompraMercado() {
   const [showMatchesDialog, setShowMatchesDialog] = useState(false);
   const [dandoBaixa, setDandoBaixa] = useState(false);
 
-  const scannerRef = useRef<Html5Qrcode | null>(null);
+  const qrRef = useRef<any>(null); 
+  const scannerRef = qrRef;
+  
   const [scannerContainerVisible, setScannerContainerVisible] = useState(false);
   const [scanMode, setScanMode] = useState<"qrcode" | "barcode">("qrcode");
 
@@ -334,7 +342,7 @@ export default function CompraMercado() {
         await html5QrCode.start(
           { facingMode: "environment" },
           { fps: 10, qrbox: { width: qrboxWidth, height: qrboxHeight } },
-          (decodedText) => {
+          (decodedText: string) => {
             stopScanner();
             if (scanMode === "barcode") {
               setError(null);

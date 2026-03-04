@@ -78,7 +78,7 @@ function buscarProdutosFoodService(termo: string): ProdutoFoodService[] {
   return PRODUTOS_FOOD_SERVICE.filter(
     (p) =>
       p.nome.toLowerCase().includes(termoLower) ||
-      p.descricao.toLowerCase().includes(termoLower) ||
+      String((p as any).descricao ?? (p as any).description ?? (p as any).desc ?? (p as any).observacao ?? "").toLowerCase().includes(termoLower) ||
       p.categoria.toLowerCase().includes(termoLower)
   );
 }

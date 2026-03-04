@@ -15,6 +15,7 @@ import {
   Menu,
   X,
   Settings,
+  Calculator, // Adicionado para o módulo de precificação
 } from "lucide-react";
 
 type InboxCountResponse = { count: number };
@@ -72,7 +73,6 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
   }, [localUser]);
 
   // ✅ Proteção real: se tiver provider mas não tiver usuário, redireciona
-  // (troque "/login" por "/" se você quiser cair na landing)
   useEffect(() => {
     if (!auth) return; // ainda carregando provider
     if (!localUser && pathname?.startsWith("/app")) {
@@ -111,7 +111,7 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
         const res = await fetch("/api/ia/inbox-count", { cache: "no-store" });
         if (!res.ok) {
           consecutiveFails++;
-          if (consecutiveFails >= 3) return; // para de insistir
+          if (consecutiveFails >= 3) return; 
           return;
         }
         const data = (await res.json()) as InboxCountResponse;
@@ -140,12 +140,10 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
     try {
       await signOut?.();
     } finally {
-      // garante retorno pro público se o signOut não redirecionar
       router.replace("/");
     }
   };
 
-  // ✅ Estado enquanto provider ainda não montou (ou está carregando)
   if (!auth) {
     return (
       <div className="min-h-screen bg-gray-50/30">
@@ -164,13 +162,11 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
                 </span>
               </div>
             </div>
-
             <div className="text-[10px] uppercase tracking-[0.2em] font-black text-gray-400 italic">
               Carregando...
             </div>
           </div>
         </header>
-
         <main className="max-w-[1600px] mx-auto p-6 md:p-8 animate-in fade-in duration-700">
           {children}
         </main>
@@ -182,7 +178,6 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
     <div className="min-h-screen bg-gray-50/30">
       <header className="bg-white/70 backdrop-blur-2xl border-b border-gray-100 sticky top-0 z-50">
         <div className="max-w-[1600px] mx-auto px-6 md:px-8 h-20 flex items-center justify-between">
-          {/* Logo + Nome */}
           <div className="flex items-center gap-4 md:gap-6">
             <Link
               href="/app"
@@ -202,7 +197,7 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
             </div>
           </div>
 
-          {/* Menu Desktop */}
+          {/* Menu Desktop - NavItem Precificação adicionado abaixo */}
           <nav className="hidden lg:flex items-center gap-1 bg-gray-100/40 p-1.5 rounded-[28px] border border-gray-100 shadow-inner">
             <NavItem href="/app" active={isActive("/app")} icon={<Home size={18} />} label="Dashboard" />
             <NavItem
@@ -215,11 +210,10 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
             <NavItem href="/app/compras" active={isActive("/app/compras")} icon={<ShoppingCart size={18} />} label="Compras" />
             <NavItem href="/app/financeiro" active={isActive("/app/financeiro")} icon={<DollarSign size={18} />} label="Financeiro" />
             <NavItem href="/app/estoque" active={isActive("/app/estoque")} icon={<Package size={18} />} label="Estoque" />
+            <NavItem href="/app/precificacao" active={isActive("/app/precificacao")} icon={<Calculator size={18} />} label="Eng. Preços" />
           </nav>
 
-          {/* Ações */}
           <div className="flex items-center gap-3 md:gap-4">
-            {/* Mobile hamburger */}
             <button
               className="lg:hidden w-11 h-11 rounded-[18px] bg-white border border-gray-100 shadow-sm flex items-center justify-center"
               onClick={() => setMobileOpen((v) => !v)}
@@ -275,7 +269,7 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
           </div>
         </div>
 
-        {/* Menu Mobile */}
+        {/* Menu Mobile - Item Precificação adicionado abaixo */}
         {mobileOpen && (
           <div className="lg:hidden border-t border-gray-100 bg-white/70 backdrop-blur-2xl">
             <div className="max-w-[1600px] mx-auto px-6 py-4 flex flex-col gap-2">
@@ -291,6 +285,7 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
               <NavItem href="/app/compras" active={isActive("/app/compras")} icon={<ShoppingCart size={18} />} label="Compras" onClick={() => setMobileOpen(false)} />
               <NavItem href="/app/financeiro" active={isActive("/app/financeiro")} icon={<DollarSign size={18} />} label="Financeiro" onClick={() => setMobileOpen(false)} />
               <NavItem href="/app/estoque" active={isActive("/app/estoque")} icon={<Package size={18} />} label="Estoque" onClick={() => setMobileOpen(false)} />
+              <NavItem href="/app/precificacao" active={isActive("/app/precificacao")} icon={<Calculator size={18} />} label="Eng. Preços" onClick={() => setMobileOpen(false)} />
             </div>
           </div>
         )}

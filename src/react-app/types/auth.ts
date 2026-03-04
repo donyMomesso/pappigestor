@@ -1,4 +1,13 @@
-import type { MochaUser } from "@getmocha/users-service/shared";
+// Removido: @getmocha/users-service
+// import type { MochaUser } from "@getmocha/users-service/shared";
+
+// Tipo de usuário autenticado (substitui MochaUser)
+export interface AuthUser {
+  id: string;
+  email: string;
+  name?: string;
+  picture?: string;
+}
 
 export interface LocalUser {
   id: number;
@@ -17,7 +26,7 @@ export interface LocalUser {
 export const PLANO_FEATURES: Record<string, string[]> = {
   basico: [
     'compras',
-    'recebimento', 
+    'recebimento',
     'financeiro_basico',
     'estoque',
     'fornecedores',
@@ -32,6 +41,7 @@ export const PLANO_FEATURES: Record<string, string[]> = {
     'fornecedores',
     'produtos',
     'dashboard_basico',
+
     // Features premium
     'assessor_ia',
     'caixa_entrada',
@@ -44,7 +54,7 @@ export const PLANO_FEATURES: Record<string, string[]> = {
 
 export const PREMIUM_FEATURES = [
   'assessor_ia',
-  'caixa_entrada', 
+  'caixa_entrada',
   'cotacao',
   'dda',
   'dashboard_avancado',
@@ -57,7 +67,7 @@ export const PLANO_LABELS: Record<string, string> = {
 };
 
 export interface AuthResponse {
-  mochaUser: MochaUser;
+  mochaUser: AuthUser; // antes era MochaUser
   localUser: LocalUser | null;
   error?: string;
 }

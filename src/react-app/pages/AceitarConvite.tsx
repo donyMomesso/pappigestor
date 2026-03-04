@@ -1,6 +1,6 @@
+import { useAppAuth } from "@/react-app/contexts/AppAuthContext";
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router";
-import { useAuth } from "@getmocha/users-service/react";
+import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/react-app/components/ui/button";
 import { Card, CardContent } from "@/react-app/components/ui/card";
 import { Loader2, CheckCircle, XCircle, Mail } from "lucide-react";
@@ -20,10 +20,10 @@ const NIVEL_LABELS: Record<string, string> = {
 };
 
 export default function AceitarConvitePage() {
-  const { token } = useParams();
+  const { token } = useParams<{ token?: string }>();
   const navigate = useNavigate();
-  const { redirectToLogin } = useAuth();
-  
+  const auth = useAppAuth(); // mantém o hook, mesmo se não usar tudo
+
   const [isLoading, setIsLoading] = useState(true);
   const [convite, setConvite] = useState<ConviteInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -33,14 +33,20 @@ export default function AceitarConvitePage() {
   useEffect(() => {
     const verificarConvite = async () => {
       try {
+        if (!token) {
+          setError("Token inválido");
+          setIsLoading(false);
+          return;
+        }
+
         const res = await fetch(`/api/convites/verificar/${token}`);
-        
+
         if (res.ok) {
           const data = await res.json();
           setConvite(data);
-          
+
           // Salvar token no sessionStorage para usar após login
-          sessionStorage.setItem("convite_token", token || "");
+          sessionStorage.setItem("convite_token", token);
         } else {
           const data = await res.json();
           setError(data.error || "Convite inválido");
@@ -52,44 +58,49 @@ export default function AceitarConvitePage() {
       }
     };
 
-    if (token) {
-      verificarConvite();
-    }
+    verificarConvite();
   }, [token]);
 
   const handleAccept = async () => {
+    if (!token) return;
+
     setIsAccepting(true);
-    
+
     // Primeiro tenta aceitar (caso já esteja logado)
     try {
       const res = await fetch(`/api/convites/aceitar/${token}`, {
         method: "POST",
       });
-      
+
       if (res.ok) {
         setAccepted(true);
         setTimeout(() => navigate("/"), 2000);
         return;
       }
-      
-      const data = await res.json();
-      
+
+      let data: any = {};
+      try {
+        data = await res.json();
+      } catch {
+        // ignore
+      }
+
       if (res.status === 401) {
         // Não autenticado - redirecionar para login
-        redirectToLogin();
+        navigate("/login");
         return;
       }
-      
+
       if (data.alreadyExists) {
         // Usuário já existe - redirecionar
         navigate("/");
         return;
       }
-      
+
       setError(data.error || "Erro ao aceitar convite");
     } catch (err) {
       // Provavelmente não autenticado
-      redirectToLogin();
+      navigate("/login");
     } finally {
       setIsAccepting(false);
     }
@@ -167,12 +178,12 @@ export default function AceitarConvitePage() {
           </div>
 
           <p className="text-sm text-gray-500 text-center mb-6">
-            Ao aceitar, você fará login com sua conta Google ({convite?.email}) 
+            Ao aceitar, você fará login com sua conta Google ({convite?.email})
             e terá acesso ao sistema com as permissões definidas.
           </p>
 
-          <Button 
-            onClick={handleAccept} 
+          <Button
+            onClick={handleAccept}
             className="w-full bg-orange-600 hover:bg-orange-700"
             disabled={isAccepting}
           >

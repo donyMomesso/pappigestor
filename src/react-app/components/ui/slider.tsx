@@ -1,5 +1,5 @@
 import * as React from "react"
-import { Slider as SliderPrimitive } from "@radix-ui/react-select"
+import * as SliderPrimitive from "@radix-ui/react-slider"
 
 import { cn } from "@/react-app/lib/utils"
 

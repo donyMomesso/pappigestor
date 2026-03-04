@@ -3,18 +3,16 @@
 import * as React from "react"
 import { useMemo } from "react"
 import { cva, type VariantProps } from "class-variance-authority"
-import {
-  Dialog as DialogPrimitive,
-  Collapsible as CollapsiblePrimitive,
-  RadioGroup as RadioGroupPrimitive,
-  Progress as ProgressPrimitive,
-  Popover as PopoverPrimitive,
-  Label as LabelPrimitive,
-  DropdownMenu as DropdownMenuPrimitive,
-  Accordion as AccordionPrimitive,
-  Checkbox as CheckboxPrimitive,
-  AlertDialog as AlertDialogPrimitive,
-} from "@radix-ui/react-select"
+import * as DialogPrimitive from "@radix-ui/react-dialog"
+import * as CollapsiblePrimitive from "@radix-ui/react-collapsible"
+import * as RadioGroupPrimitive from "@radix-ui/react-radio-group"
+import * as ProgressPrimitive from "@radix-ui/react-progress"
+import * as PopoverPrimitive from "@radix-ui/react-popover"
+import * as LabelPrimitive from "@radix-ui/react-label"
+import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu"
+import * as AccordionPrimitive from "@radix-ui/react-accordion"
+import * as CheckboxPrimitive from "@radix-ui/react-checkbox"
+import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog"
 import { Slot } from "@radix-ui/react-slot" //
 import { X, Circle, Check, ChevronRight, ChevronDown, ChevronUp } from "lucide-react"
 
@@ -22,6 +20,7 @@ import { cn } from "@/react-app/lib/utils"
 // Importações de componentes que não estavam na sua lista:
 import { Textarea } from "@/react-app/components/ui/textarea"
 import { Separator } from "@/react-app/components/ui/separator"
+import * as AvatarPrimitive from "@radix-ui/react-avatar"
 
 // ============================================================================
 // 1. BUTTON
@@ -261,7 +260,6 @@ function CardFooter({ className, ...props }: React.ComponentProps<"div">) { retu
 // ============================================================================
 // 15. AVATAR
 // ============================================================================
-import { Avatar as AvatarPrimitive } from "@radix-ui/react-select"
 function Avatar({ className, size = "default", ...props }: React.ComponentProps<typeof AvatarPrimitive.Root> & { size?: "default" | "sm" | "lg" }) { return <AvatarPrimitive.Root data-slot="avatar" data-size={size} className={cn("size-8 rounded-full after:rounded-full data-[size=lg]:size-10 data-[size=sm]:size-6 after:border-border group/avatar relative flex shrink-0 select-none after:absolute after:inset-0 after:border after:mix-blend-darken dark:after:mix-blend-lighten", className)} {...props} /> }
 function AvatarImage({ className, ...props }: React.ComponentProps<typeof AvatarPrimitive.Image>) { return <AvatarPrimitive.Image data-slot="avatar-image" className={cn("rounded-full aspect-square size-full object-cover", className)} {...props} /> }
 function AvatarFallback({ className, ...props }: React.ComponentProps<typeof AvatarPrimitive.Fallback>) { return <AvatarPrimitive.Fallback data-slot="avatar-fallback" className={cn("bg-muted text-muted-foreground rounded-full flex size-full items-center justify-center text-sm group-data-[size=sm]/avatar:text-xs", className)} {...props} /> }

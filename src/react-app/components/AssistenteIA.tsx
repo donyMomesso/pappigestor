@@ -39,20 +39,35 @@ export default function AssistenteIA({ contexto = "home" }) {
   }, [historico]);
 
   const handleScanGmail = async () => {
-    setProcessando(true);
-    setHistorico(p => [...p, { tipo: "user", conteudo: "🔍 Verificando notas no meu Gmail...", timestamp: new Date() }]);
-    const res = await escanearNotasNoGmail();
-    if (res.success && res.notas?.length > 0) {
-      setHistorico(p => [...p, { 
-        tipo: "assistant", 
-        conteudo: `Encontrei ${res.notas.length} notas pendentes! A última é de **${res.notas[0].fornecedor}**. Deseja que eu faça a leitura profunda do PDF?`, 
-        dados: res.notas[0] 
-      }]);
-    } else {
-      setHistorico(p => [...p, { tipo: "assistant", conteudo: "Tudo limpo! Não encontrei notas novas no seu e-mail por enquanto." }]);
-    }
-    setProcessando(false);
-  };
+  setProcessando(true);
+  setHistorico((p) => [
+    ...p,
+    { tipo: "user", conteudo: "🔍 Verificando notas no meu Gmail...", timestamp: new Date() },
+  ]);
+
+  const res = await escanearNotasNoGmail();
+  const notas = res.notas ?? [];
+
+  if (res.success && notas.length > 0) {
+    const ultima = notas[0];
+
+    setHistorico((p) => [
+      ...p,
+      {
+        tipo: "assistant",
+        conteudo: `Encontrei ${notas.length} notas pendentes! A última é de **${ultima?.fornecedor ?? "um fornecedor"}**. Deseja que eu faça a leitura profunda do PDF?`,
+        dados: ultima,
+      },
+    ]);
+  } else {
+    setHistorico((p) => [
+      ...p,
+      { tipo: "assistant", conteudo: "Tudo limpo! Não encontrei notas novas no seu e-mail por enquanto." },
+    ]);
+  }
+
+  setProcessando(false);
+};
 
   const enviarMensagem = async (textoOverride?: string) => {
     const msgFinal = textoOverride || mensagem.trim();

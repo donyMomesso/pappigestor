@@ -1,8 +1,7 @@
 "use client";
 
 import { ReactNode, useState, useEffect } from "react";
-import { Navigate } from "react-router";
-import { useAuth } from "@getmocha/users-service/react";
+import { useRouter } from "next/navigation";
 import { useAppAuth } from "@/react-app/contexts/AppAuthContext";
 import { Loader2, Lightbulb } from "lucide-react";
 import { Button } from "@/react-app/components/ui/button";
@@ -18,22 +17,37 @@ const DICAS_GESTAO = [
   "Lançar notas pelo Scanner HD economiza 20 minutos por dia.",
   "Pizzarias que controlam o estoque diário lucram 10% mais.",
   "A proatividade da IA ajuda a evitar compras de última hora.",
-  "Sincronizar o DDA evita multas e juros por esquecimento."
+  "Sincronizar o DDA evita multas e juros por esquecimento.",
 ];
 
-export default function ProtectedRoute({ children, allowedRoles, skipSubscriptionCheck }: ProtectedRouteProps) {
-  const { user, isPending: authPending } = useAuth();
-  const { localUser, isLoading: appLoading, error, hasPermission, isSubscriptionExpired } = useAppAuth();
+export default function ProtectedRoute({
+  children,
+  allowedRoles,
+  skipSubscriptionCheck,
+}: ProtectedRouteProps) {
+  const router = useRouter();
+
+  // Mantém compatível mesmo se seu context ainda não tipou tudo
+  const auth = useAppAuth() as any;
+  const {
+    localUser,
+    isLoading: appLoading,
+    error,
+    hasPermission,
+    isSubscriptionExpired,
+  } = auth;
+
   const [dicaIndex, setDicaIndex] = useState(0);
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setDicaIndex((prev) => (prev + 1) % DICAS_GESTAO.length);
+      setDicaIndex((prev: number) => (prev + 1) % DICAS_GESTAO.length);
     }, 3500);
     return () => clearInterval(interval);
   }, []);
 
-  if (authPending || appLoading) {
+  // ✅ Loading (mantém seu visual)
+  if (appLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-red-50">
         <div className="flex flex-col items-center gap-6 max-w-xs text-center px-4">
@@ -46,27 +60,45 @@ export default function ProtectedRoute({ children, allowedRoles, skipSubscriptio
             </div>
           </div>
           <div className="space-y-2">
-             <p className="text-[10px] font-black uppercase tracking-[0.3em] text-orange-800/40 italic">Validando Acesso</p>
-             <p className="text-sm font-bold text-gray-700 italic">"{DICAS_GESTAO[dicaIndex]}"</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-orange-800/40 italic">
+              Validando Acesso
+            </p>
+            <p className="text-sm font-bold text-gray-700 italic">
+              "{DICAS_GESTAO[dicaIndex]}"
+            </p>
           </div>
         </div>
       </div>
     );
   }
 
-  if (!user || !localUser || error) return <Navigate to="/login" replace />;
-
-  if (!skipSubscriptionCheck && isSubscriptionExpired()) {
-    return <Navigate to="/configuracoes?tab=assinatura" replace />;
+  // ✅ Sem usuário / erro → manda pro login (sem react-router)
+  if (!localUser || error) {
+    router.replace("/login");
+    return null;
   }
 
-  if (allowedRoles && !hasPermission(allowedRoles)) {
+  // ✅ Assinatura expirada → direciona
+  if (!skipSubscriptionCheck && typeof isSubscriptionExpired === "function" && isSubscriptionExpired()) {
+    router.replace("/app/configuracoes?tab=assinatura");
+    return null;
+  }
+
+  // ✅ Role não permitida (mantém seu visual)
+  if (allowedRoles && typeof hasPermission === "function" && !hasPermission(allowedRoles)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-950 p-4">
         <div className="bg-white rounded-[40px] p-10 max-w-md text-center shadow-2xl">
-          <h2 className="text-2xl font-black italic text-gray-900 uppercase tracking-tighter mb-4">Acesso Negado</h2>
-          <p className="text-gray-500 text-sm mb-8">Seu nível de acesso não permite ver esta página.</p>
-          <Button onClick={() => window.history.back()} className="w-full bg-gray-900 text-white h-14 rounded-2xl font-black uppercase text-xs tracking-widest">
+          <h2 className="text-2xl font-black italic text-gray-900 uppercase tracking-tighter mb-4">
+            Acesso Negado
+          </h2>
+          <p className="text-gray-500 text-sm mb-8">
+            Seu nível de acesso não permite ver esta página.
+          </p>
+          <Button
+            onClick={() => window.history.back()}
+            className="w-full bg-gray-900 text-white h-14 rounded-2xl font-black uppercase text-xs tracking-widest"
+          >
             Voltar Agora
           </Button>
         </div>

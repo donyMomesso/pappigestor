@@ -1,5 +1,5 @@
 import * as React from "react"
-import { Progress as ProgressPrimitive } from "@radix-ui/react-select"
+import * as ProgressPrimitive from "@radix-ui/react-progress"
 
 import { cn } from "@/react-app/lib/utils"
 

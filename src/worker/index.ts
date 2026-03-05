@@ -942,8 +942,7 @@ app.get("/api/produtos", async (c) => {
     return c.json([]);
   }
 });
-
-app.post("/api/produtos", async (c) => {
+   app.post("/api/produtos", async (c) => {
   const empresaId = c.get("empresaId");
   try {
     const data = await c.req.json();
@@ -953,15 +952,8 @@ app.post("/api/produtos", async (c) => {
 
     // Anti-duplicidade
     const existente = await c.env.DB.prepare(
-      `
-      SELECT id 
-      FROM produtos 
-      WHERE pizzaria_id = ? AND LOWER(nome_produto) = LOWER(?)
-      LIMIT 1
-    `
-    )
-      .bind(empresaId, nomeLimpo)
-      .first();
+      `SELECT id FROM produtos WHERE pizzaria_id = ? AND LOWER(nome_produto) = LOWER(?) LIMIT 1`
+    ).bind(empresaId, nomeLimpo).first();
 
     if (existente) {
       return c.json({
@@ -971,31 +963,24 @@ app.post("/api/produtos", async (c) => {
       });
     }
 
-    const result = await c.env.DB.prepare(
-      `
+    const result = await c.env.DB.prepare(`
       INSERT INTO produtos (
-        pizzaria_id, 
-        nome_produto, 
-        categoria_produto, 
-        unidade_medida, 
-        fornecedor_preferencial_id, 
-        codigo_barras
+        pizzaria_id, nome_produto, categoria_produto, unidade_medida, 
+        fornecedor_preferencial_id, codigo_barras
       ) VALUES (?, ?, ?, ?, ?, ?) RETURNING id
-    `
-    )
-      .bind(
+    `).bind(
         empresaId,
         nomeLimpo,
-        data.categoria_produto,
-        data.unidade_medida,
+        data.categoria_produto || "Geral",
+        data.unidade_medida || "un",
         data.fornecedor_preferencial_id || null,
         data.codigo_barras || null
-      )
-      .first();
+      ).first();
 
     return c.json({ id: (result as any)?.id, success: true });
-  } catch {
-    return c.json({ error: "Erro crítico ao gravar novo produto." }, 500);
+  } catch (e: any) {
+    // 🔥 A MÁGICA ESTÁ AQUI: Agora ele vai gritar o erro exato do SQL!
+    return c.json({ error: `Falha no banco: ${e.message}` }, 500); 
   }
 });
 
@@ -1272,6 +1257,61 @@ app.delete("/api/fichas-tecnicas/:id", async (c) => {
     return c.json({ success: true, message: "Ficha apagada." });
   } catch {
     return c.json({ error: "Erro de exclusão." }, 500);
+  }
+});
+
+// ============================================================================
+// 11. MÓDULO FINANCEIRO UNIVERSAL
+// ============================================================================
+
+app.get("/api/lancamentos", async (c) => {
+  const empresaId = c.get("empresaId");
+  try {
+    const { results } = await c.env.DB.prepare(
+      `SELECT * FROM lancamentos WHERE empresa_id = ? ORDER BY vencimento_previsto ASC`
+    ).bind(empresaId).all();
+    return c.json(results);
+  } catch (e: any) {
+    return c.json({ error: `Erro ao buscar lançamentos: ${e.message}` }, 500);
+  }
+});
+
+app.post("/api/lancamentos", async (c) => {
+  const empresaId = c.get("empresaId");
+  try {
+    const data = await c.req.json();
+    
+    await c.env.DB.prepare(`
+      INSERT INTO lancamentos (
+        empresa_id, tipo, categoria, descricao, valor_previsto, 
+        valor_real, vencimento_previsto, vencimento_real, status, forma_pagamento, observacoes
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      empresaId, data.tipo, data.categoria, data.descricao, data.valor_previsto,
+      data.valor_real || null, data.vencimento_previsto, data.vencimento_real || null, 
+      data.status || 'pendente', data.forma_pagamento || null, data.observacoes || null
+    ).run();
+
+    return c.json({ success: true });
+  } catch (e: any) {
+    return c.json({ error: `Erro ao criar lançamento: ${e.message}` }, 500);
+  }
+});
+
+app.patch("/api/lancamentos/:id/pagar", async (c) => {
+  const empresaId = c.get("empresaId");
+  const id = c.req.param("id");
+  try {
+    const data = await c.req.json();
+    await c.env.DB.prepare(`
+      UPDATE lancamentos 
+      SET valor_real = ?, vencimento_real = ?, status = 'pago', forma_pagamento = ?, atualizado_em = CURRENT_TIMESTAMP
+      WHERE id = ? AND empresa_id = ?
+    `).bind(data.valor_real, data.vencimento_real, data.forma_pagamento, id, empresaId).run();
+
+    return c.json({ success: true });
+  } catch (e: any) {
+    return c.json({ error: `Erro ao dar baixa: ${e.message}` }, 500);
   }
 });
 

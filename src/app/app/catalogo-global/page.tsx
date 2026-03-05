@@ -9,8 +9,14 @@ import { Search, Package } from "lucide-react";
 interface ProdutoFoodService {
   id: string;
   nome: string;
+
+  embalagem?: string;
+  pesoAprox?: string;
   unidadeMedida?: string;
+  unidade_medida?: string;
+
   // campos opcionais (podem ou não existir)
+  
   descricao?: string;
   description?: string;
   desc?: string;
@@ -22,6 +28,7 @@ interface ProdutoFoodService {
   ativo?: boolean;
 
   [key: string]: any;
+  
 }
 
 export default function CatalogoGlobal() {

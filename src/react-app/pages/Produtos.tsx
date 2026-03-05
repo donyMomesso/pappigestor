@@ -379,8 +379,8 @@ export default function ProdutosPage() {
           body: JSON.stringify({
             nome_produto: item.nome,
             categoria_produto: item.categoria,
-            unidade_medida: item.unidadeMedida || "Kg",
-            peso_embalagem: item.embalagem || item.pesoAprox,
+            unidade_medida: String(((item as any).unidadeMedida ?? (item as any).unidade_medida ?? (item as any).unidade ?? "kg")).toLowerCase(),
+            peso_embalagem: ((item as any).embalagem ?? (item as any).pesoAprox ?? (item as any).peso_aprox ?? (item as any).peso ?? null),
           }),
         });
       }
@@ -571,11 +571,11 @@ export default function ProdutosPage() {
                               <span className="text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
                                 {item.categoria}
                               </span>
-                              {item.embalagem && (
-                                <span className="text-xs text-gray-500 dark:text-gray-400">{item.embalagem}</span>
+                              {(item as any).embalagem (
+                                <span className="text-xs text-gray-500 dark:text-gray-400">{(item as any).embalagem}</span>
                               )}
-                              {item.pesoAprox && (
-                                <span className="text-xs text-gray-500 dark:text-gray-400">{item.pesoAprox}</span>
+                              {(item as any).pesoAprox && (
+                                <span className="text-xs text-gray-500 dark:text-gray-400">{(item as any).pesoAprox}</span>
                               )}
                             </div>
                           </div>

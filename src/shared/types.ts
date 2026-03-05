@@ -1,5 +1,32 @@
 // src/shared/types.ts
 
+// ============================================================================
+// ITENS DE LANÇAMENTO (usado em compras / recebimento)
+// ============================================================================
+
+export type ItemLancamento = {
+  id?: number | string;
+
+  produto: string;
+
+  // formato antigo
+  qtd?: number;
+  preco_un?: number;
+
+  // formato novo usado no recebimento
+  quantidade_pedida?: number;
+  quantidade_recebida?: number;
+
+  valor_unitario?: number;
+
+  total?: number;
+  unidade?: string;
+};
+
+// ============================================================================
+// CATEGORIAS
+// ============================================================================
+
 export type CategoriaLancamento =
   | "vendas"
   | "compras"
@@ -10,7 +37,15 @@ export type CategoriaLancamento =
   | "taxas"
   | "outros";
 
+// ============================================================================
+// STATUS
+// ============================================================================
+
 export type StatusLancamento = "pago" | "pendente" | "atrasado";
+
+// ============================================================================
+// LANÇAMENTO BASE (Financeiro)
+// ============================================================================
 
 export interface Lancamento {
   id?: string;
@@ -18,13 +53,15 @@ export interface Lancamento {
 
   tipo: "entrada" | "saida";
   categoria: CategoriaLancamento;
+
   descricao: string;
 
-  // ✅ O Financeiro.tsx usa esses 2:
+  // valores
   valor_previsto: number;
   valor_real?: number | null;
 
-  vencimento_previsto: string; // YYYY-MM-DD
+  // datas
+  vencimento_previsto: string;
   vencimento_real?: string | null;
 
   status?: StatusLancamento;
@@ -38,14 +75,32 @@ export interface Lancamento {
     | string;
 
   observacoes?: string | null;
+
   criado_em?: string;
   atualizado_em?: string;
 
-  // compat com telas antigas (se existirem)
+  // compatibilidade telas antigas
   data?: string;
   valor?: number;
   vencimento?: string;
 }
+
+// ============================================================================
+// LANÇAMENTO COM ITENS (usado no RECEBIMENTO)
+// ============================================================================
+
+export interface LancamentoComItens extends Lancamento {
+  fornecedor?: string;
+
+  data_pedido?: string | null;
+  data_pagamento?: string | null;
+
+  itens: ItemLancamento[];
+}
+
+// ============================================================================
+// CATEGORIAS UI
+// ============================================================================
 
 export const CATEGORIAS: Array<{ value: CategoriaLancamento; label: string }> = [
   { value: "vendas", label: "Vendas" },
@@ -58,16 +113,42 @@ export const CATEGORIAS: Array<{ value: CategoriaLancamento; label: string }> = 
   { value: "outros", label: "Outros" },
 ];
 
+// ============================================================================
+// UTILITÁRIOS
+// ============================================================================
+
 function parseISODate(d?: string | null): Date | null {
   if (!d) return null;
+
   const s = d.trim();
-  const dt = new Date(s.length === 10 ? `${s}T00:00:00` : s);
-  return Number.isNaN(dt.getTime()) ? null : dt;
+
+  const dt = new Date(
+    s.length === 10
+      ? `${s}T00:00:00`
+      : s
+  );
+
+  return Number.isNaN(dt.getTime())
+    ? null
+    : dt;
 }
 
-export function calcularStatus(l: Partial<Lancamento>): StatusLancamento {
+// ============================================================================
+// CALCULAR STATUS AUTOMÁTICO
+// ============================================================================
+
+export function calcularStatus(
+  l: Partial<Lancamento>
+): StatusLancamento {
+
   if (l.status === "pago") return "pago";
-  if (l.vencimento_real || (typeof l.valor_real === "number" && l.valor_real > 0)) return "pago";
+
+  if (
+    l.vencimento_real ||
+    (typeof l.valor_real === "number" && l.valor_real > 0)
+  ) {
+    return "pago";
+  }
 
   const hoje = new Date();
   const hojeZerado = new Date(hoje.toDateString());
@@ -77,6 +158,9 @@ export function calcularStatus(l: Partial<Lancamento>): StatusLancamento {
     parseISODate(l.vencimento) ||
     parseISODate(l.data);
 
-  if (venc && venc < hojeZerado) return "atrasado";
+  if (venc && venc < hojeZerado) {
+    return "atrasado";
+  }
+
   return "pendente";
 }

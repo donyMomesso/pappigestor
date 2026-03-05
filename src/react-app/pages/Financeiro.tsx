@@ -158,10 +158,12 @@ export default function FinanceiroPage() {
   const fetchData = async () => {
     try {
       const pId = localStorage.getItem("pId") || localStorage.getItem("pizzariaId") || "";
+      const email = localUser?.email || localStorage.getItem("userEmail") || "";
+      
       const [lancRes, fornRes, empRes] = await Promise.all([
-        fetch('/api/lancamentos', { headers: { "x-pizzaria-id": pId } }),
-        fetch('/api/fornecedores', { headers: { "x-pizzaria-id": pId } }),
-        fetch('/api/empresa-config', { headers: { "x-pizzaria-id": pId } }),
+        fetch('/api/lancamentos', { headers: { "x-pizzaria-id": pId, "x-empresa-id": pId, "x-user-email": email } }),
+        fetch('/api/fornecedores', { headers: { "x-pizzaria-id": pId, "x-empresa-id": pId, "x-user-email": email } }),
+        fetch('/api/empresa-config', { headers: { "x-pizzaria-id": pId, "x-empresa-id": pId, "x-user-email": email } }),
       ]);
       
       if (lancRes.ok) setLancamentos(await lancRes.json());
@@ -177,9 +179,12 @@ export default function FinanceiroPage() {
   const fetchBoletosDDA = async () => {
     setLoadingDDA(true);
     const pId = localStorage.getItem("pId") || localStorage.getItem("pizzariaId") || "";
+    const email = localUser?.email || localStorage.getItem("userEmail") || "";
     try {
       const statusParam = ddaFilter !== 'todos' ? `?status=${ddaFilter}` : '';
-      const res = await fetch(`/api/boletos-dda${statusParam}`, { headers: { "x-pizzaria-id": pId } });
+      const res = await fetch(`/api/boletos-dda${statusParam}`, { 
+        headers: { "x-pizzaria-id": pId, "x-empresa-id": pId, "x-user-email": email } 
+      });
       if (res.ok) {
         setBoletosDDA(await res.json());
       }
@@ -198,12 +203,16 @@ export default function FinanceiroPage() {
 
     setSavingManual(true);
     const pId = localStorage.getItem("pId") || localStorage.getItem("pizzariaId") || "";
+    const email = localUser?.email || localStorage.getItem("userEmail") || "";
+    
     try {
       const response = await fetch('/api/lancamentos', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          "x-pizzaria-id": pId
+          "x-pizzaria-id": pId,
+          "x-empresa-id": pId,
+          "x-user-email": email
         },
         body: JSON.stringify({
           data_pedido: new Date().toISOString().split('T')[0],
@@ -244,12 +253,16 @@ export default function FinanceiroPage() {
     if (!confirm(`Confirmar pagamento de ${formatCurrency(boleto.valor)} para ${boleto.fornecedor_nome}?`)) return;
     
     const pId = localStorage.getItem("pId") || localStorage.getItem("pizzariaId") || "";
+    const email = localUser?.email || localStorage.getItem("userEmail") || "";
+    
     try {
       await fetch(`/api/boletos-dda/${boleto.id}`, {
         method: 'PATCH',
         headers: { 
           'Content-Type': 'application/json',
-          "x-pizzaria-id": pId
+          "x-pizzaria-id": pId,
+          "x-empresa-id": pId,
+          "x-user-email": email
         },
         body: JSON.stringify({
           status_pagamento: 'pago',
@@ -283,13 +296,16 @@ export default function FinanceiroPage() {
     if (!selectedLancamento) return;
     setSaving(true);
     const pId = localStorage.getItem("pId") || localStorage.getItem("pizzariaId") || "";
+    const email = localUser?.email || localStorage.getItem("userEmail") || "";
 
     try {
       await fetch(`/api/lancamentos/${selectedLancamento.id}`, {
         method: 'PATCH',
         headers: { 
           'Content-Type': 'application/json',
-          "x-pizzaria-id": pId
+          "x-pizzaria-id": pId,
+          "x-empresa-id": pId,
+          "x-user-email": email
         },
         body: JSON.stringify({
           is_boleto_recebido: true,
@@ -318,6 +334,8 @@ export default function FinanceiroPage() {
   const handleUploadComprovante = async (file: File) => {
     setUploadingComprovante(true);
     const pId = localStorage.getItem("pId") || localStorage.getItem("pizzariaId") || "";
+    const email = localUser?.email || localStorage.getItem("userEmail") || "";
+    
     try {
       const formData = new FormData();
       formData.append('file', file);
@@ -325,7 +343,11 @@ export default function FinanceiroPage() {
       
       const res = await fetch('/api/upload', {
         method: 'POST',
-        headers: { "x-pizzaria-id": pId },
+        headers: { 
+          "x-pizzaria-id": pId,
+          "x-empresa-id": pId,
+          "x-user-email": email
+        },
         body: formData,
       });
       
@@ -344,13 +366,16 @@ export default function FinanceiroPage() {
     if (!payingLancamento) return;
     setSaving(true);
     const pId = localStorage.getItem("pId") || localStorage.getItem("pizzariaId") || "";
+    const email = localUser?.email || localStorage.getItem("userEmail") || "";
 
     try {
       await fetch(`/api/lancamentos/${payingLancamento.id}`, {
         method: 'PATCH',
         headers: { 
           'Content-Type': 'application/json',
-          "x-pizzaria-id": pId
+          "x-pizzaria-id": pId,
+          "x-empresa-id": pId,
+          "x-user-email": email
         },
         body: JSON.stringify({
           data_pagamento: new Date().toISOString().split('T')[0],

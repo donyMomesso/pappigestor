@@ -12,6 +12,7 @@ import {
 import { Field, FieldContent, FieldTitle } from "@/react-app/components/ui/field"; 
 import { Input } from "@/react-app/components/ui/input";
 import { Button } from "@/react-app/components/ui/button";
+import { useAppAuth } from '@/react-app/contexts/AppAuthContext'; // ✅ IMPORT DA AUTENTICAÇÃO
 
 const StatusBadge = ({ children }: { children: React.ReactNode }) => (
   <span className="px-3 py-1 bg-orange-50 text-orange-600 rounded-full text-[9px] font-black uppercase italic border border-orange-100 animate-pulse">
@@ -20,6 +21,7 @@ const StatusBadge = ({ children }: { children: React.ReactNode }) => (
 );
 
 export default function InboxPage() {
+  const { localUser } = useAppAuth(); // ✅ PUXANDO O USUÁRIO LOGADO
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -42,11 +44,29 @@ export default function InboxPage() {
   const streamRef = useRef<MediaStream | null>(null);
   const [qrError, setQrError] = useState<string | null>(null);
 
+  // ✅ FUNÇÃO MÁGICA QUE GERA OS CABEÇALHOS DE SEGURANÇA
+  const getHeaders = useCallback((isFormData = false) => {
+    const pId = localStorage.getItem("pId") || localStorage.getItem("pizzariaId") || "";
+    const email = localUser?.email || localStorage.getItem("userEmail") || "";
+    
+    const headers: Record<string, string> = {
+      "x-pizzaria-id": pId,
+      "x-empresa-id": pId,
+      "x-user-email": email
+    };
+
+    // Se for FormData (Upload de Arquivo), o navegador define o Content-Type automaticamente
+    if (!isFormData) {
+      headers["Content-Type"] = "application/json";
+    }
+    
+    return headers;
+  }, [localUser]);
+
   const fetchInbox = async () => {
     try {
-      const pId = localStorage.getItem("pId") || localStorage.getItem("pizzariaId") || "";
       const res = await fetch("/api/ia/inbox", {
-        headers: { "x-pizzaria-id": pId }
+        headers: getHeaders()
       });
       const data = (await res.json()) as any[] | { results?: any[] };
       const extractedData = Array.isArray(data) ? data : (data?.results || []);
@@ -70,7 +90,6 @@ export default function InboxPage() {
     if (!file) return;
 
     setUploading(true);
-    const pId = localStorage.getItem("pId") || localStorage.getItem("pizzariaId") || "";
 
     try {
       const formData = new FormData();
@@ -78,7 +97,7 @@ export default function InboxPage() {
 
       const response = await fetch("/api/ia/ler-nota", {
         method: "POST",
-        headers: { "x-pizzaria-id": pId },
+        headers: getHeaders(true), // ✅ Passa true para não sobrescrever o Content-Type do FormData
         body: formData,
       });
 
@@ -100,12 +119,11 @@ export default function InboxPage() {
   const extrairDadosPorLink = async () => {
     if (!linkNfe.trim()) return;
     setExtraindo(true);
-    const pId = localStorage.getItem("pId") || localStorage.getItem("pizzariaId") || "";
 
     try {
       const response = await fetch("/api/ia/ler-link", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-pizzaria-id": pId },
+        headers: getHeaders(), // ✅ Usando headers seguros
         body: JSON.stringify({ url: linkNfe }),
       });
 
@@ -190,11 +208,11 @@ export default function InboxPage() {
   // ============================================================================
   const handleApprove = async (item: any) => {
     setProcessingId(item.id);
-    const pId = localStorage.getItem("pId") || localStorage.getItem("pizzariaId") || "";
+
     try {
       const res = await fetch("/api/ia/inbox/approve", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-pizzaria-id": pId },
+        headers: getHeaders(), // ✅ Usando headers seguros
         body: JSON.stringify({
           id: item.id,
           json_extraido: typeof item.json_extraido === 'string' ? item.json_extraido : JSON.stringify(item.json_extraido)

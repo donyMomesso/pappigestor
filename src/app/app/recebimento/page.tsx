@@ -23,7 +23,11 @@ interface ItemLancamento {
   quantidade_recebida?: number | null;
   unidade: string;
   valor_unitario?: number | null;
-}
+  qtd: number;
+  preco_un: number;
+  total?: number;
+
+};
 
 interface LancamentoComItens {
   id: number;

@@ -1,80 +1,134 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router';
-import { Button } from '@/react-app/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/react-app/components/ui/card';
-import { Input } from '@/react-app/components/ui/input';
-import { Label } from '@/react-app/components/ui/label';
-import { ArrowLeft, PackageCheck, Package, Check, AlertCircle, FileText, Receipt, Loader2, Sparkles, Camera, ScanBarcode, Image, X, Trash2, Shield, CheckCircle2 } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/react-app/components/ui/dialog';
-import { useAppAuth } from '@/react-app/contexts/AppAuthContext';
-import type { Lancamento, ItemLancamento } from '@/shared/types';
+"use client";
 
-const LOGO_URL = 'https://019c7b56-2054-7d0b-9c55-e7a603c40ba8.mochausercontent.com/1771799343659.png';
+import { useState, useEffect } from "react";
+import { Link } from "react-router";
+import { Button } from "@/react-app/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/react-app/components/ui/card";
+import { Input } from "@/react-app/components/ui/input";
+import { Label } from "@/react-app/components/ui/label";
+import {
+  ArrowLeft,
+  PackageCheck,
+  Package,
+  Check,
+  AlertCircle,
+  FileText,
+  Receipt,
+  Loader2,
+  Sparkles,
+  Camera,
+  ScanBarcode,
+  Image,
+  X,
+  Trash2,
+  Shield,
+  CheckCircle2,
+} from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/react-app/components/ui/dialog";
+import { useAppAuth } from "@/react-app/contexts/AppAuthContext";
 
+// ✅ IMPORTA OS TIPOS CERTOS (Lancamento + Item)
+import type { Lancamento, ItemLancamento } from "@/shared/types";
+
+const LOGO_URL =
+  "https://019c7b56-2054-7d0b-9c55-e7a603c40ba8.mochausercontent.com/1771799343659.png";
+
+// ✅ Agora o tipo aqui contém os campos que seu componente USA
 interface LancamentoComItens extends Lancamento {
   itens: ItemLancamento[];
+
+  // usados na tela:
+  fornecedor?: string;
+  data_pedido?: string | null;
+  data_pagamento?: string | null;
 }
 
 export default function RecebimentoPage() {
   const [lancamentos, setLancamentos] = useState<LancamentoComItens[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedLancamento, setSelectedLancamento] = useState<LancamentoComItens | null>(null);
-  const [quantidades, setQuantidades] = useState<Record<number, string>>({});
+  const [selectedLancamento, setSelectedLancamento] =
+    useState<LancamentoComItens | null>(null);
+
+  // ✅ item.id pode ser string/number/undefined -> usa Record<string,string>
+  const [quantidades, setQuantidades] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
-  
+
   // Nota Fiscal e Boleto
   const [notaFiscal, setNotaFiscal] = useState({
-    numero_nota: '',
-    data_emissao: '',
-    chave_acesso: '',
+    numero_nota: "",
+    data_emissao: "",
+    chave_acesso: "",
     arquivo: null as File | null,
-    arquivo_url: '',
+    arquivo_url: "",
   });
   const [boleto, setBoleto] = useState({
-    valor_real: '',
-    vencimento_real: '',
-    arquivo_url: '',
-    linha_digitavel: '',
+    valor_real: "",
+    vencimento_real: "",
+    arquivo_url: "",
+    linha_digitavel: "",
   });
+
   const [uploadingNF, setUploadingNF] = useState(false);
   const [uploadingBoleto, setUploadingBoleto] = useState(false);
   const [readingWithIA, setReadingWithIA] = useState(false);
   const [scanningBarcode, setScanningBarcode] = useState(false);
-  const [deletingId, setDeletingId] = useState<number | null>(null);
+
+  // ✅ ids no seu backend podem ser string -> deixa string
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  
+
   // Dialogs de feedback
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [showErrorDialog, setShowErrorDialog] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
-  
+  const [successMessage, setSuccessMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+
   const { localUser } = useAppAuth();
 
   useEffect(() => {
     fetchLancamentos();
   }, []);
 
+  // ✅ chave segura para mapear quantidade, mesmo se item.id vier undefined
+  const itemKey = (item: ItemLancamento) =>
+    String(item.id ?? item.produto ?? "item");
+
   const fetchLancamentos = async () => {
     try {
-      const res = await fetch('/api/lancamentos');
+      const res = await fetch("/api/lancamentos");
       const data = await res.json();
-      
-      const lancamentosComItens = await Promise.all(
-        data.map(async (l: Lancamento) => {
-          const detalhes = await fetch(`/api/lancamentos/${l.id}`).then(r => r.json());
-          return detalhes;
+
+      const lancamentosComItens: LancamentoComItens[] = await Promise.all(
+        (Array.isArray(data) ? data : []).map(async (l: Lancamento) => {
+          const detalhes = await fetch(`/api/lancamentos/${l.id}`).then((r) =>
+            r.json()
+          );
+          return detalhes as LancamentoComItens;
         })
       );
-      
+
+      // ✅ agora data_pagamento existe no tipo
       const pendentes = lancamentosComItens.filter(
-        (l: LancamentoComItens) => !l.data_pagamento
+        (l) => !l.data_pagamento && !l.vencimento_real
       );
-      
+
       setLancamentos(pendentes);
     } catch (error) {
-      console.error('Erro ao carregar lançamentos:', error);
+      console.error("Erro ao carregar lançamentos:", error);
+      setLancamentos([]);
     } finally {
       setLoading(false);
     }
@@ -82,25 +136,33 @@ export default function RecebimentoPage() {
 
   const handleSelectLancamento = (lancamento: LancamentoComItens) => {
     setSelectedLancamento(lancamento);
-    const qtds: Record<number, string> = {};
-    lancamento.itens?.forEach(item => {
-      qtds[item.id] = item.quantidade_recebida?.toString() || '';
+
+    const qtds: Record<string, string> = {};
+    lancamento.itens?.forEach((item) => {
+      const k = itemKey(item);
+      const v =
+        item.quantidade_recebida ??
+        item.qtd ??
+        undefined;
+
+      qtds[k] = typeof v === "number" ? String(v) : "";
     });
     setQuantidades(qtds);
-    
+
     // Reset forms
     setNotaFiscal({
-      numero_nota: '',
-      data_emissao: new Date().toISOString().split('T')[0],
-      chave_acesso: '',
+      numero_nota: "",
+      data_emissao: new Date().toISOString().split("T")[0],
+      chave_acesso: "",
       arquivo: null,
-      arquivo_url: '',
+      arquivo_url: "",
     });
+
     setBoleto({
-      valor_real: lancamento.valor_previsto.toString(),
-      vencimento_real: '',
-      arquivo_url: '',
-      linha_digitavel: '',
+      valor_real: String(lancamento.valor_previsto ?? ""),
+      vencimento_real: "",
+      arquivo_url: "",
+      linha_digitavel: "",
     });
   };
 
@@ -108,21 +170,27 @@ export default function RecebimentoPage() {
     setUploadingNF(true);
     try {
       const formData = new FormData();
-      formData.append('file', file);
-      formData.append('type', 'nota_fiscal');
-      
-      const res = await fetch('/api/upload', {
-        method: 'POST',
+      formData.append("file", file);
+      formData.append("type", "nota_fiscal");
+
+      const res = await fetch("/api/upload", {
+        method: "POST",
         body: formData,
       });
-      
+
       if (res.ok) {
         const data = await res.json();
-        setNotaFiscal(prev => ({ ...prev, arquivo_url: data.url, arquivo: file }));
+        setNotaFiscal((prev) => ({
+          ...prev,
+          arquivo_url: data.url,
+          arquivo: file,
+        }));
+      } else {
+        alert("Falha ao enviar NF.");
       }
     } catch (error) {
-      console.error('Erro ao fazer upload:', error);
-      alert('Erro ao enviar arquivo');
+      console.error("Erro ao fazer upload:", error);
+      alert("Erro ao enviar arquivo");
     } finally {
       setUploadingNF(false);
     }
@@ -130,43 +198,46 @@ export default function RecebimentoPage() {
 
   const handleReadWithIA = async () => {
     if (!notaFiscal.arquivo_url) {
-      alert('Anexe primeiro a imagem ou PDF da nota fiscal');
+      alert("Anexe primeiro a imagem ou PDF da nota fiscal");
       return;
     }
+
     setReadingWithIA(true);
     try {
-      const res = await fetch('/api/ia/ler-nota', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/ia/ler-nota", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ image_url: notaFiscal.arquivo_url }),
       });
-      
+
       if (res.ok) {
         const data = await res.json();
         if (data.dados) {
-          setNotaFiscal(prev => ({
+          setNotaFiscal((prev) => ({
             ...prev,
             numero_nota: data.dados.numero_nota || prev.numero_nota,
             data_emissao: data.dados.data_emissao || prev.data_emissao,
             chave_acesso: data.dados.chave_acesso || prev.chave_acesso,
           }));
+
           if (data.dados.valor_total) {
-            setBoleto(prev => ({
+            setBoleto((prev) => ({
               ...prev,
-              valor_real: data.dados.valor_total.toString(),
+              valor_real: String(data.dados.valor_total),
             }));
           }
-          alert('Dados extraídos com sucesso! Confira os campos preenchidos.');
+
+          alert("Dados extraídos com sucesso! Confira os campos preenchidos.");
         } else {
-          alert('Não foi possível extrair os dados. Preencha manualmente.');
+          alert("Não foi possível extrair os dados. Preencha manualmente.");
         }
       } else {
-        const error = await res.json();
-        alert(error.error || 'Erro ao ler nota com IA');
+        const error = await res.json().catch(() => ({}));
+        alert(error.error || "Erro ao ler nota com IA");
       }
     } catch (error) {
-      console.error('Erro ao ler com IA:', error);
-      alert('Erro ao processar nota com IA');
+      console.error("Erro ao ler com IA:", error);
+      alert("Erro ao processar nota com IA");
     } finally {
       setReadingWithIA(false);
     }
@@ -176,21 +247,23 @@ export default function RecebimentoPage() {
     setUploadingBoleto(true);
     try {
       const formData = new FormData();
-      formData.append('file', file);
-      formData.append('type', 'boleto');
-      
-      const res = await fetch('/api/upload', {
-        method: 'POST',
+      formData.append("file", file);
+      formData.append("type", "boleto");
+
+      const res = await fetch("/api/upload", {
+        method: "POST",
         body: formData,
       });
-      
+
       if (res.ok) {
         const data = await res.json();
-        setBoleto(prev => ({ ...prev, arquivo_url: data.url }));
+        setBoleto((prev) => ({ ...prev, arquivo_url: data.url }));
+      } else {
+        alert("Falha ao enviar boleto.");
       }
     } catch (error) {
-      console.error('Erro ao fazer upload:', error);
-      alert('Erro ao enviar arquivo');
+      console.error("Erro ao fazer upload:", error);
+      alert("Erro ao enviar arquivo");
     } finally {
       setUploadingBoleto(false);
     }
@@ -199,188 +272,209 @@ export default function RecebimentoPage() {
   const handleScanBarcode = async (file: File) => {
     setScanningBarcode(true);
     try {
-      // Upload da imagem primeiro
       const formData = new FormData();
-      formData.append('file', file);
-      formData.append('type', 'barcode_scan');
-      
-      const uploadRes = await fetch('/api/upload', {
-        method: 'POST',
+      formData.append("file", file);
+      formData.append("type", "barcode_scan");
+
+      const uploadRes = await fetch("/api/upload", {
+        method: "POST",
         body: formData,
       });
-      
-      if (!uploadRes.ok) {
-        throw new Error('Erro ao fazer upload');
-      }
-      
+
+      if (!uploadRes.ok) throw new Error("Erro ao fazer upload");
       const uploadData = await uploadRes.json();
-      
-      // Usar IA para extrair código de barras
-      const res = await fetch('/api/ia/ler-nota', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+
+      const res = await fetch("/api/ia/ler-nota", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           image_url: uploadData.url,
-          extrair_apenas: 'chave_acesso'
+          extrair_apenas: "chave_acesso",
         }),
       });
-      
+
       if (res.ok) {
         const data = await res.json();
         if (data.dados?.chave_acesso) {
-          setNotaFiscal(prev => ({
+          setNotaFiscal((prev) => ({
             ...prev,
             chave_acesso: data.dados.chave_acesso,
           }));
-          alert('Chave de acesso extraída com sucesso!');
+          alert("Chave de acesso extraída com sucesso!");
         } else {
-          alert('Não foi possível ler o código. Tente novamente ou digite manualmente.');
+          alert("Não foi possível ler o código. Tente novamente ou digite manualmente.");
         }
       }
     } catch (error) {
-      console.error('Erro ao escanear:', error);
-      alert('Erro ao processar imagem');
+      console.error("Erro ao escanear:", error);
+      alert("Erro ao processar imagem");
     } finally {
       setScanningBarcode(false);
     }
   };
 
   const getItemStatus = (item: ItemLancamento) => {
-    const recebido = quantidades[item.id] ? parseFloat(quantidades[item.id]) : null;
-    if (recebido === null || recebido === 0) return 'pendente';
-    if (recebido === item.quantidade_pedida) return 'ok';
-    if (recebido < item.quantidade_pedida) return 'faltando';
-    return 'excesso';
+    const k = itemKey(item);
+    const recebido = quantidades[k] ? parseFloat(quantidades[k]) : null;
+
+    const pedida =
+      item.quantidade_pedida ??
+      item.qtd ??
+      0;
+
+    if (recebido === null || recebido === 0) return "pendente";
+    if (recebido === pedida) return "ok";
+    if (recebido < pedida) return "faltando";
+    return "excesso";
   };
 
   const handleSaveRecebimento = async () => {
     if (!selectedLancamento) return;
     setSaving(true);
-    
+
     const erros: string[] = [];
 
     try {
-      // 1. Atualizar quantidades dos itens
+      // 1) Atualizar quantidades dos itens
       for (const item of selectedLancamento.itens || []) {
-        const qtd = quantidades[item.id];
-        if (qtd !== undefined && qtd !== '') {
+        // ✅ se não tiver id, não dá pra patch /api/itens/:id
+        if (item.id === undefined || item.id === null) continue;
+
+        const k = itemKey(item);
+        const qtd = quantidades[k];
+
+        if (qtd !== undefined && qtd !== "") {
           try {
             const res = await fetch(`/api/itens/${item.id}`, {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ quantidade_recebida: parseFloat(qtd) })
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ quantidade_recebida: parseFloat(qtd) }),
             });
+
             if (!res.ok) {
-              const err = await res.json().catch(() => ({ error: 'Erro desconhecido' }));
-              erros.push(`Item ${item.produto}: ${err.error || 'Erro ao atualizar'}`);
+              const err = await res.json().catch(() => ({ error: "Erro desconhecido" }));
+              erros.push(`Item ${item.produto}: ${err.error || "Erro ao atualizar"}`);
             }
-          } catch (e) {
+          } catch {
             erros.push(`Item ${item.produto}: Erro de conexão`);
           }
         }
       }
 
-      // 2. Registrar Nota Fiscal se preenchida
+      // 2) Registrar Nota Fiscal
       if (notaFiscal.numero_nota) {
         try {
-          const res = await fetch('/api/notas-fiscais', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+          const res = await fetch("/api/notas-fiscais", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               lancamento_id: selectedLancamento.id,
               numero_nota: notaFiscal.numero_nota,
               data_emissao: notaFiscal.data_emissao || null,
               chave_acesso: notaFiscal.chave_acesso || null,
               arquivo_url: notaFiscal.arquivo_url || null,
-            })
+            }),
           });
+
           if (!res.ok) {
-            const err = await res.json().catch(() => ({ error: 'Erro desconhecido' }));
-            erros.push(`Nota Fiscal: ${err.error || 'Erro ao registrar'}`);
+            const err = await res.json().catch(() => ({ error: "Erro desconhecido" }));
+            erros.push(`Nota Fiscal: ${err.error || "Erro ao registrar"}`);
           }
-        } catch (e) {
-          erros.push('Nota Fiscal: Erro de conexão');
+        } catch {
+          erros.push("Nota Fiscal: Erro de conexão");
         }
       }
 
-      // 3. Registrar Boleto se preenchido
+      // 3) Registrar Boleto
       if (boleto.valor_real && boleto.vencimento_real) {
         try {
           const res = await fetch(`/api/lancamentos/${selectedLancamento.id}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               is_boleto_recebido: true,
               valor_real: parseFloat(boleto.valor_real),
-              vencimento_real: boleto.vencimento_real
-            })
+              vencimento_real: boleto.vencimento_real,
+            }),
           });
+
           if (!res.ok) {
-            const err = await res.json().catch(() => ({ error: 'Erro desconhecido' }));
-            erros.push(`Boleto: ${err.error || 'Erro ao registrar'}`);
+            const err = await res.json().catch(() => ({ error: "Erro desconhecido" }));
+            erros.push(`Boleto: ${err.error || "Erro ao registrar"}`);
           }
-        } catch (e) {
-          erros.push('Boleto: Erro de conexão');
+        } catch {
+          erros.push("Boleto: Erro de conexão");
         }
       }
 
       if (erros.length > 0) {
-        setErrorMessage(`Alguns itens tiveram problemas:\n${erros.join('\n')}`);
+        setErrorMessage(`Alguns itens tiveram problemas:\n${erros.join("\n")}`);
         setShowErrorDialog(true);
       } else {
-        setSuccessMessage('Recebimento registrado com sucesso!');
+        setSuccessMessage("Recebimento registrado com sucesso!");
         setShowSuccessDialog(true);
       }
     } catch (error) {
-      console.error('Erro ao salvar:', error);
-      setErrorMessage('Erro inesperado ao salvar recebimento. Tente novamente.');
+      console.error("Erro ao salvar:", error);
+      setErrorMessage("Erro inesperado ao salvar recebimento. Tente novamente.");
       setShowErrorDialog(true);
     } finally {
       setSaving(false);
     }
   };
 
-  const formatCurrency = (value: number | null) => {
-    if (value === null) return '-';
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+  const formatCurrency = (value: number | null | undefined) => {
+    if (value === null || value === undefined) return "-";
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    }).format(value);
   };
 
-  const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString('pt-BR');
+  const formatDate = (date?: string | null) => {
+    if (!date) return "-";
+    const d = new Date(date);
+    if (Number.isNaN(d.getTime())) return "-";
+    return d.toLocaleDateString("pt-BR");
   };
 
-  const isAdmin = localUser?.nivel_acesso === 'admin_empresa' || localUser?.nivel_acesso === 'super_admin';
+  // ✅ não briga com o tipo NivelAcesso (deixa string)
+  const nivel = String((localUser as any)?.nivel_acesso ?? "");
+  const isAdmin =
+    nivel === "admin_empresa" || nivel === "super_admin" || nivel === "admin" || nivel === "master";
 
-  const handleDeleteClick = (e: React.MouseEvent, lancamentoId: number) => {
+  const handleDeleteClick = (e: React.MouseEvent, lancamentoId?: string) => {
     e.stopPropagation();
     if (!isAdmin) {
-      alert('Apenas administradores podem excluir lançamentos');
+      alert("Apenas administradores podem excluir lançamentos");
       return;
     }
+    if (!lancamentoId) return;
+
     setDeletingId(lancamentoId);
     setDeleteConfirmOpen(true);
   };
 
   const handleConfirmDelete = async () => {
     if (!deletingId) return;
-    
+
     setDeleting(true);
     try {
       const res = await fetch(`/api/lancamentos/${deletingId}`, {
-        method: 'DELETE'
+        method: "DELETE",
       });
-      
+
       if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.error || 'Erro ao excluir');
+        const error = await res.json().catch(() => ({}));
+        throw new Error(error.error || "Erro ao excluir");
       }
-      
+
       setDeleteConfirmOpen(false);
       setDeletingId(null);
       fetchLancamentos();
     } catch (error) {
-      console.error('Erro ao excluir:', error);
-      alert(error instanceof Error ? error.message : 'Erro ao excluir lançamento');
+      console.error("Erro ao excluir:", error);
+      alert(error instanceof Error ? error.message : "Erro ao excluir lançamento");
     } finally {
       setDeleting(false);
     }
@@ -420,7 +514,7 @@ export default function RecebimentoPage() {
               <CardHeader className="border-b bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-t-xl">
                 <CardTitle className="flex items-center gap-2">
                   <PackageCheck className="w-5 h-5" />
-                  Conferir Entrega - {selectedLancamento.fornecedor}
+                  Conferir Entrega - {selectedLancamento.fornecedor || selectedLancamento.descricao}
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-6">
@@ -457,78 +551,105 @@ export default function RecebimentoPage() {
                         </span>
                       </div>
                     </div>
+
                     {selectedLancamento.itens.map((item) => {
+                      const k = itemKey(item);
                       const status = getItemStatus(item);
-                      const recebido = quantidades[item.id] ? parseFloat(quantidades[item.id]) : 0;
-                      const diferenca = item.quantidade_pedida - recebido;
-                      
+
+                      const recebido = quantidades[k] ? parseFloat(quantidades[k]) : 0;
+                      const pedida = item.quantidade_pedida ?? item.qtd ?? 0;
+                      const diferenca = pedida - recebido;
+
                       return (
-                      <div key={item.id} className={`p-4 border rounded-lg transition-colors ${
-                        status === 'ok' ? 'bg-green-50 border-green-200' :
-                        status === 'faltando' ? 'bg-amber-50 border-amber-200' :
-                        status === 'excesso' ? 'bg-blue-50 border-blue-200' :
-                        'bg-white border-gray-200'
-                      }`}>
-                        <div className="flex justify-between items-start mb-3">
-                          <div className="flex-1">
-                            <p className="font-medium text-gray-800">{item.produto}</p>
-                            <div className="flex items-center gap-3 mt-1 text-sm">
-                              <span className="text-gray-600">
-                                Pedido: <strong>{item.quantidade_pedida}</strong> {item.unidade}
-                              </span>
-                              {item.valor_unitario && (
-                                <span className="text-gray-500">{formatCurrency(item.valor_unitario)}/un</span>
+                        <div
+                          key={k}
+                          className={`p-4 border rounded-lg transition-colors ${
+                            status === "ok"
+                              ? "bg-green-50 border-green-200"
+                              : status === "faltando"
+                              ? "bg-amber-50 border-amber-200"
+                              : status === "excesso"
+                              ? "bg-blue-50 border-blue-200"
+                              : "bg-white border-gray-200"
+                          }`}
+                        >
+                          <div className="flex justify-between items-start mb-3">
+                            <div className="flex-1">
+                              <p className="font-medium text-gray-800">{item.produto}</p>
+                              <div className="flex items-center gap-3 mt-1 text-sm">
+                                <span className="text-gray-600">
+                                  Pedido: <strong>{pedida}</strong> {item.unidade || "un"}
+                                </span>
+                                {item.valor_unitario && (
+                                  <span className="text-gray-500">
+                                    {formatCurrency(item.valor_unitario)}/un
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              {status === "ok" && (
+                                <span className="flex items-center gap-1 px-2 py-1 bg-green-500 text-white text-xs font-medium rounded-full">
+                                  <Check className="w-3 h-3" /> OK
+                                </span>
+                              )}
+                              {status === "faltando" && (
+                                <span className="flex items-center gap-1 px-2 py-1 bg-amber-500 text-white text-xs font-medium rounded-full">
+                                  <AlertCircle className="w-3 h-3" /> Falta {diferenca}{" "}
+                                  {item.unidade || "un"}
+                                </span>
+                              )}
+                              {status === "excesso" && (
+                                <span className="flex items-center gap-1 px-2 py-1 bg-blue-500 text-white text-xs font-medium rounded-full">
+                                  +{Math.abs(diferenca)} {item.unidade || "un"}
+                                </span>
                               )}
                             </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            {status === 'ok' && (
-                              <span className="flex items-center gap-1 px-2 py-1 bg-green-500 text-white text-xs font-medium rounded-full">
-                                <Check className="w-3 h-3" /> OK
-                              </span>
-                            )}
-                            {status === 'faltando' && (
-                              <span className="flex items-center gap-1 px-2 py-1 bg-amber-500 text-white text-xs font-medium rounded-full">
-                                <AlertCircle className="w-3 h-3" /> Falta {diferenca} {item.unidade}
-                              </span>
-                            )}
-                            {status === 'excesso' && (
-                              <span className="flex items-center gap-1 px-2 py-1 bg-blue-500 text-white text-xs font-medium rounded-full">
-                                +{Math.abs(diferenca)} {item.unidade}
-                              </span>
-                            )}
+
+                          <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2 flex-1">
+                              <label className="text-sm text-gray-600 whitespace-nowrap">
+                                Recebido:
+                              </label>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                placeholder="0"
+                                value={quantidades[k] || ""}
+                                onChange={(e) =>
+                                  setQuantidades({ ...quantidades, [k]: e.target.value })
+                                }
+                                className={`w-24 ${
+                                  status === "ok"
+                                    ? "border-green-300 bg-green-50"
+                                    : status === "faltando"
+                                    ? "border-amber-300 bg-amber-50"
+                                    : "border-gray-200"
+                                } focus:border-green-500 focus:ring-green-500`}
+                              />
+                              <span className="text-sm text-gray-500">{item.unidade || "un"}</span>
+                            </div>
+
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                setQuantidades({
+                                  ...quantidades,
+                                  [k]: String(pedida),
+                                })
+                              }
+                              className="text-xs"
+                            >
+                              Qtd Correta
+                            </Button>
                           </div>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <div className="flex items-center gap-2 flex-1">
-                            <label className="text-sm text-gray-600 whitespace-nowrap">Recebido:</label>
-                            <Input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              placeholder="0"
-                              value={quantidades[item.id] || ''}
-                              onChange={(e) => setQuantidades({ ...quantidades, [item.id]: e.target.value })}
-                              className={`w-24 ${
-                                status === 'ok' ? 'border-green-300 bg-green-50' :
-                                status === 'faltando' ? 'border-amber-300 bg-amber-50' :
-                                'border-gray-200'
-                              } focus:border-green-500 focus:ring-green-500`}
-                            />
-                            <span className="text-sm text-gray-500">{item.unidade}</span>
-                          </div>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setQuantidades({ ...quantidades, [item.id]: item.quantidade_pedida.toString() })}
-                            className="text-xs"
-                          >
-                            Qtd Correta
-                          </Button>
-                        </div>
-                      </div>
-                    );
+                      );
                     })}
                   </div>
                 ) : (
@@ -554,7 +675,9 @@ export default function RecebimentoPage() {
                     <Label>Número da NF</Label>
                     <Input
                       value={notaFiscal.numero_nota}
-                      onChange={(e) => setNotaFiscal({ ...notaFiscal, numero_nota: e.target.value })}
+                      onChange={(e) =>
+                        setNotaFiscal({ ...notaFiscal, numero_nota: e.target.value })
+                      }
                       placeholder="000.000.000"
                     />
                   </div>
@@ -563,16 +686,20 @@ export default function RecebimentoPage() {
                     <Input
                       type="date"
                       value={notaFiscal.data_emissao}
-                      onChange={(e) => setNotaFiscal({ ...notaFiscal, data_emissao: e.target.value })}
+                      onChange={(e) =>
+                        setNotaFiscal({ ...notaFiscal, data_emissao: e.target.value })
+                      }
                     />
                   </div>
                 </div>
-                
+
                 <div>
                   <Label>Chave de Acesso (44 dígitos)</Label>
                   <Input
                     value={notaFiscal.chave_acesso}
-                    onChange={(e) => setNotaFiscal({ ...notaFiscal, chave_acesso: e.target.value })}
+                    onChange={(e) =>
+                      setNotaFiscal({ ...notaFiscal, chave_acesso: e.target.value })
+                    }
                     placeholder="0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000"
                     maxLength={54}
                   />
@@ -582,7 +709,6 @@ export default function RecebimentoPage() {
                   <Label>Foto ou PDF da Nota Fiscal</Label>
                   <div className="mt-2 space-y-3">
                     <div className="flex gap-2">
-                      {/* Botão Câmera */}
                       <label className="flex-1 flex items-center justify-center gap-2 p-3 border-2 border-dashed border-blue-300 rounded-lg cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors">
                         <Camera className="w-5 h-5 text-blue-500" />
                         <span className="text-blue-600 font-medium text-sm">Tirar Foto</span>
@@ -597,7 +723,7 @@ export default function RecebimentoPage() {
                           }}
                         />
                       </label>
-                      {/* Botão Galeria/Arquivo */}
+
                       <label className="flex-1 flex items-center justify-center gap-2 p-3 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-gray-400 hover:bg-gray-50 transition-colors">
                         {uploadingNF ? (
                           <Loader2 className="w-5 h-5 animate-spin text-gray-500" />
@@ -618,7 +744,7 @@ export default function RecebimentoPage() {
                         />
                       </label>
                     </div>
-                    
+
                     {notaFiscal.arquivo_url && (
                       <div className="flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded-lg">
                         <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
@@ -627,14 +753,16 @@ export default function RecebimentoPage() {
                           type="button"
                           variant="ghost"
                           size="sm"
-                          onClick={() => setNotaFiscal(prev => ({ ...prev, arquivo_url: '', arquivo: null }))}
+                          onClick={() =>
+                            setNotaFiscal((prev) => ({ ...prev, arquivo_url: "", arquivo: null }))
+                          }
                           className="h-6 w-6 p-0 text-gray-400 hover:text-red-500"
                         >
                           <X className="w-4 h-4" />
                         </Button>
                       </div>
                     )}
-                    
+
                     {notaFiscal.arquivo_url && (
                       <Button
                         type="button"
@@ -657,7 +785,7 @@ export default function RecebimentoPage() {
                     )}
                   </div>
                 </div>
-                
+
                 <div>
                   <Label>Escanear Chave de Acesso (44 dígitos)</Label>
                   <div className="mt-2">
@@ -667,7 +795,9 @@ export default function RecebimentoPage() {
                       ) : (
                         <>
                           <ScanBarcode className="w-5 h-5 text-orange-500" />
-                          <span className="text-orange-600 font-medium text-sm">Escanear Código de Barras</span>
+                          <span className="text-orange-600 font-medium text-sm">
+                            Escanear Código de Barras
+                          </span>
                         </>
                       )}
                       <input
@@ -681,9 +811,11 @@ export default function RecebimentoPage() {
                         }}
                       />
                     </label>
+
                     {notaFiscal.chave_acesso && (
                       <p className="mt-2 text-xs text-green-600 flex items-center gap-1">
-                        <Check className="w-3 h-3" /> Chave detectada: {notaFiscal.chave_acesso.slice(0, 20)}...
+                        <Check className="w-3 h-3" /> Chave detectada:{" "}
+                        {notaFiscal.chave_acesso.slice(0, 20)}...
                       </p>
                     )}
                   </div>
@@ -711,33 +843,42 @@ export default function RecebimentoPage() {
                       onChange={(e) => setBoleto({ ...boleto, valor_real: e.target.value })}
                       placeholder="0,00"
                     />
-                    {boleto.valor_real && parseFloat(boleto.valor_real) !== selectedLancamento.valor_previsto && (
-                      <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
-                        <AlertCircle className="w-3 h-3" />
-                        Diferença de {formatCurrency(Math.abs(parseFloat(boleto.valor_real) - selectedLancamento.valor_previsto))}
-                      </p>
-                    )}
+                    {boleto.valor_real &&
+                      parseFloat(boleto.valor_real) !== selectedLancamento.valor_previsto && (
+                        <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" />
+                          Diferença de{" "}
+                          {formatCurrency(
+                            Math.abs(parseFloat(boleto.valor_real) - selectedLancamento.valor_previsto)
+                          )}
+                        </p>
+                      )}
                   </div>
+
                   <div>
                     <Label>Data de Vencimento</Label>
                     <Input
                       type="date"
                       value={boleto.vencimento_real}
-                      onChange={(e) => setBoleto({ ...boleto, vencimento_real: e.target.value })}
+                      onChange={(e) =>
+                        setBoleto({ ...boleto, vencimento_real: e.target.value })
+                      }
                     />
                   </div>
                 </div>
-                
+
                 <div>
                   <Label>Linha Digitável (opcional)</Label>
                   <Input
                     value={boleto.linha_digitavel}
-                    onChange={(e) => setBoleto({ ...boleto, linha_digitavel: e.target.value })}
+                    onChange={(e) =>
+                      setBoleto({ ...boleto, linha_digitavel: e.target.value })
+                    }
                     placeholder="00000.00000 00000.000000 00000.000000 0 00000000000000"
                     maxLength={60}
                   />
                 </div>
-                
+
                 <div>
                   <Label>Foto do Boleto (para conferência)</Label>
                   <div className="mt-2 flex gap-2">
@@ -761,6 +902,7 @@ export default function RecebimentoPage() {
                         }}
                       />
                     </label>
+
                     <label className="flex-1 flex items-center justify-center gap-2 p-3 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-gray-400 hover:bg-gray-50 transition-colors">
                       <Image className="w-5 h-5 text-gray-500" />
                       <span className="text-gray-600 text-sm">Da Galeria</span>
@@ -775,15 +917,18 @@ export default function RecebimentoPage() {
                       />
                     </label>
                   </div>
+
                   {boleto.arquivo_url && (
                     <div className="flex items-center gap-2 mt-2 p-2 bg-green-50 border border-green-200 rounded-lg">
                       <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
-                      <span className="text-sm text-green-700 flex-1">Boleto anexado para conferência</span>
+                      <span className="text-sm text-green-700 flex-1">
+                        Boleto anexado para conferência
+                      </span>
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
-                        onClick={() => setBoleto(prev => ({ ...prev, arquivo_url: '' }))}
+                        onClick={() => setBoleto((prev) => ({ ...prev, arquivo_url: "" }))}
                         className="h-6 w-6 p-0 text-gray-400 hover:text-red-500"
                       >
                         <X className="w-4 h-4" />
@@ -794,13 +939,9 @@ export default function RecebimentoPage() {
               </CardContent>
             </Card>
 
-            {/* Botões de Ação */}
+            {/* Botões */}
             <div className="flex gap-3">
-              <Button
-                variant="outline"
-                onClick={() => setSelectedLancamento(null)}
-                className="flex-1"
-              >
+              <Button variant="outline" onClick={() => setSelectedLancamento(null)} className="flex-1">
                 Voltar
               </Button>
               <Button
@@ -839,8 +980,8 @@ export default function RecebimentoPage() {
             ) : (
               <div className="space-y-4">
                 {lancamentos.map((lancamento) => (
-                  <Card 
-                    key={lancamento.id} 
+                  <Card
+                    key={String(lancamento.id ?? lancamento.descricao)}
                     className="border-0 shadow-lg hover:shadow-xl transition-all cursor-pointer group"
                     onClick={() => handleSelectLancamento(lancamento)}
                   >
@@ -851,18 +992,22 @@ export default function RecebimentoPage() {
                             <Package className="w-6 h-6 text-green-600" />
                           </div>
                           <div>
-                            <h3 className="font-semibold text-gray-800">{lancamento.fornecedor}</h3>
+                            <h3 className="font-semibold text-gray-800">
+                              {lancamento.fornecedor || lancamento.descricao}
+                            </h3>
                             <p className="text-sm text-gray-500">
                               {formatDate(lancamento.data_pedido)} • {lancamento.categoria}
                             </p>
                             <p className="text-xs text-gray-400">
-                              {lancamento.itens?.length || 0} itens • {formatCurrency(lancamento.valor_previsto)}
+                              {lancamento.itens?.length || 0} itens •{" "}
+                              {formatCurrency(lancamento.valor_previsto)}
                             </p>
                           </div>
                         </div>
+
                         <div className="flex items-center gap-2">
                           {isAdmin && (
-                            <Button 
+                            <Button
                               size="sm"
                               variant="ghost"
                               onClick={(e) => handleDeleteClick(e, lancamento.id)}
@@ -871,7 +1016,7 @@ export default function RecebimentoPage() {
                               <Trash2 className="w-4 h-4" />
                             </Button>
                           )}
-                          <Button 
+                          <Button
                             size="sm"
                             className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
                           >
@@ -888,7 +1033,7 @@ export default function RecebimentoPage() {
         )}
       </main>
 
-      {/* Dialog de Confirmação de Exclusão */}
+      {/* Dialog exclusão */}
       <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -900,17 +1045,13 @@ export default function RecebimentoPage() {
               Esta ação é irreversível. O lançamento e todos os seus itens serão removidos permanentemente.
             </DialogDescription>
           </DialogHeader>
+
           <div className="py-4">
-            <p className="text-sm text-gray-600">
-              Tem certeza que deseja excluir este lançamento?
-            </p>
+            <p className="text-sm text-gray-600">Tem certeza que deseja excluir este lançamento?</p>
           </div>
+
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              variant="outline"
-              onClick={() => setDeleteConfirmOpen(false)}
-              disabled={deleting}
-            >
+            <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)} disabled={deleting}>
               Cancelar
             </Button>
             <Button
@@ -935,7 +1076,7 @@ export default function RecebimentoPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog de Sucesso */}
+      {/* Dialog sucesso */}
       <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -962,7 +1103,7 @@ export default function RecebimentoPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog de Erro */}
+      {/* Dialog erro */}
       <Dialog open={showErrorDialog} onOpenChange={setShowErrorDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -975,10 +1116,7 @@ export default function RecebimentoPage() {
             <p className="text-sm text-gray-600 whitespace-pre-line">{errorMessage}</p>
           </div>
           <DialogFooter className="gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setShowErrorDialog(false)}
-            >
+            <Button variant="outline" onClick={() => setShowErrorDialog(false)}>
               Tentar Novamente
             </Button>
             <Button

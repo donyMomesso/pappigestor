@@ -6,6 +6,10 @@ import { Input } from "@/react-app/components/ui/input";
 import { Card, CardContent } from "@/react-app/components/ui/card";
 import { Label } from "@/react-app/components/ui/label";
 import { Badge } from "@/react-app/components/ui/badge";
+import type { ItemLancamento } from "@/shared/types";
+import { useAppAuth } from '@/react-app/contexts/AppAuthContext';
+import type { Lancamento } from "@/shared/types"; 
+
 import {
   Dialog,
   DialogContent,
@@ -80,8 +84,10 @@ interface EstoqueItem {
   unidade_medida?: string;
 }
 
+
 export default function EstoquePage() {
   const [mounted, setMounted] = useState(false);
+  const { localUser } = useAppAuth();
   const [estoques, setEstoques] = useState<EstoqueItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -114,11 +120,15 @@ export default function EstoquePage() {
 
   const getHeaders = useCallback(() => {
     const pId = localStorage.getItem("pId") || localStorage.getItem("pizzariaId") || "";
+    // Pega o email do contexto ou tenta puxar do localStorage como garantia
+    const email = localUser?.email || localStorage.getItem("userEmail") || ""; 
+
     return {
       "Content-Type": "application/json",
-      "x-pizzaria-id": pId
+      "x-pizzaria-id": pId,
+      "x-user-email": email // <--- A CHAVE MÁGICA QUE FALTAVA
     };
-  }, []);
+  }, [localUser]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);

@@ -17,21 +17,29 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/react-app/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/react-app/components/ui/tabs";
 import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/react-app/components/ui/tabs";
-import { Plus, Edit2, Trash2, UserCheck, UserX, Loader2, Users, Mail, Clock, CheckCircle, Copy, Send } from "lucide-react";
-import { NIVEL_LABELS } from "@/react-app/types/auth";
+  Plus,
+  Edit2,
+  Trash2,
+  UserCheck,
+  UserX,
+  Loader2,
+  Users,
+  Mail,
+  Clock,
+  CheckCircle,
+  Copy,
+  Send,
+} from "lucide-react";
+import { NIVEL_LABELS, type NivelAcesso } from "@/react-app/types/auth";
 
 interface Usuario {
   id: number;
   nome: string;
   email: string;
   empresa_id: number;
-  nivel_acesso: string;
+  nivel_acesso: NivelAcesso | string; // <- vem do backend como string às vezes
   is_ativo: number;
   created_at: string;
   empresa_nome?: string;
@@ -45,29 +53,38 @@ interface Empresa {
 interface Convite {
   id: number;
   email: string;
-  nivel_acesso: string;
+  nivel_acesso: NivelAcesso | string; // <- idem
   status: string;
   empresa_id: number;
   empresa_nome?: string;
   created_at: string;
   aceito_at?: string;
+  token?: string;
 }
 
-const NIVEIS = [
+const NIVEIS: Array<{ value: string; label: string }> = [
   { value: "operador", label: "Operador" },
   { value: "comprador", label: "Comprador" },
   { value: "financeiro", label: "Financeiro" },
   { value: "admin_empresa", label: "Admin da Empresa" },
 ];
 
+// helper seguro: só usa label se a key existir no Record
+function nivelLabel(nivel: string): string {
+  return (NIVEL_LABELS as Record<string, string>)[nivel] ?? nivel;
+}
+
 export default function UsuariosPage() {
-  const { localUser, hasPermission } = useAppAuth();
+  const { localUser, isSuperAdmin } = useAppAuth();
+
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [convites, setConvites] = useState<Convite[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isConviteDialogOpen, setIsConviteDialogOpen] = useState(false);
+
   const [editingUser, setEditingUser] = useState<Usuario | null>(null);
   const [isSendingConvite, setIsSendingConvite] = useState(false);
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
@@ -84,8 +101,6 @@ export default function UsuariosPage() {
     nivel_acesso: "comprador",
     empresa_id: "",
   });
-
-  const isSuperAdmin = hasPermission(["super_admin"]);
 
   const fetchUsuarios = async () => {
     try {
@@ -130,6 +145,7 @@ export default function UsuariosPage() {
     fetchUsuarios();
     fetchEmpresas();
     fetchConvites();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -170,7 +186,7 @@ export default function UsuariosPage() {
       nome: usuario.nome,
       email: usuario.email,
       empresa_id: String(usuario.empresa_id),
-      nivel_acesso: usuario.nivel_acesso,
+      nivel_acesso: String(usuario.nivel_acesso),
     });
     setIsDialogOpen(true);
   };
@@ -183,9 +199,7 @@ export default function UsuariosPage() {
         body: JSON.stringify({ is_ativo: usuario.is_ativo ? 0 : 1 }),
       });
 
-      if (res.ok) {
-        fetchUsuarios();
-      }
+      if (res.ok) fetchUsuarios();
     } catch (err) {
       alert("Erro ao alterar status");
     }
@@ -196,9 +210,7 @@ export default function UsuariosPage() {
 
     try {
       const res = await fetch(`/api/usuarios/${id}`, { method: "DELETE" });
-      if (res.ok) {
-        fetchUsuarios();
-      }
+      if (res.ok) fetchUsuarios();
     } catch (err) {
       alert("Erro ao excluir usuário");
     }
@@ -260,15 +272,14 @@ export default function UsuariosPage() {
 
     try {
       const res = await fetch(`/api/convites/${id}`, { method: "DELETE" });
-      if (res.ok) {
-        fetchConvites();
-      }
+      if (res.ok) fetchConvites();
     } catch (err) {
       alert("Erro ao cancelar convite");
     }
   };
 
-  const copyConviteLink = (token: string) => {
+  const copyConviteLink = (token?: string) => {
+    if (!token) return;
     const url = `${window.location.origin}/convite/${token}`;
     navigator.clipboard.writeText(url);
     setCopiedLink(token);
@@ -285,7 +296,6 @@ export default function UsuariosPage() {
     });
   };
 
-  // Super admin pode adicionar super_admin
   const niveisDisponiveis = isSuperAdmin
     ? [...NIVEIS, { value: "super_admin", label: "Super Admin" }]
     : NIVEIS;
@@ -298,7 +308,7 @@ export default function UsuariosPage() {
     );
   }
 
-  const convitesPendentes = convites.filter(c => c.status === "pendente");
+  const convitesPendentes = convites.filter((c) => c.status === "pendente");
 
   return (
     <div>
@@ -330,155 +340,164 @@ export default function UsuariosPage() {
                   Novo Usuário
                 </Button>
               </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{editingUser ? "Editar Usuário" : "Novo Usuário"}</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nome</label>
-                <Input
-                  value={form.nome}
-                  onChange={(e) => setForm({ ...form, nome: e.target.value })}
-                  placeholder="Nome completo"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                <Input
-                  type="email"
-                  value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  placeholder="email@exemplo.com"
-                  required
-                />
-              </div>
-              {isSuperAdmin && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Empresa</label>
-                  <Select
-                    value={form.empresa_id}
-                    onValueChange={(v) => setForm({ ...form, empresa_id: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione a empresa" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {empresas.map((e) => (
-                        <SelectItem key={e.id} value={String(e.id)}>
-                          {e.nome_fantasia}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nível de Acesso
-                </label>
-                <Select
-                  value={form.nivel_acesso}
-                  onValueChange={(v) => setForm({ ...form, nivel_acesso: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {niveisDisponiveis.map((n) => (
-                      <SelectItem key={n.value} value={n.value}>
-                        {n.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex gap-3 pt-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsDialogOpen(false)}
-                  className="flex-1"
-                >
-                  Cancelar
-                </Button>
-                <Button type="submit" className="flex-1 bg-orange-600 hover:bg-orange-700">
-                  {editingUser ? "Salvar" : "Criar"}
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
-      </div>
 
-      {usuarios.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <Users className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500">Nenhum usuário cadastrado</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-4">
-          {usuarios.map((usuario) => (
-            <Card key={usuario.id} className={!usuario.is_ativo ? "opacity-60" : ""}>
-              <CardContent className="py-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div
-                      className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-medium ${
-                        usuario.is_ativo ? "bg-orange-500" : "bg-gray-400"
-                      }`}
-                    >
-                      {usuario.nome.charAt(0).toUpperCase()}
-                    </div>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>{editingUser ? "Editar Usuário" : "Novo Usuário"}</DialogTitle>
+                </DialogHeader>
+
+                <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Nome</label>
+                    <Input
+                      value={form.nome}
+                      onChange={(e) => setForm({ ...form, nome: e.target.value })}
+                      placeholder="Nome completo"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                    <Input
+                      type="email"
+                      value={form.email}
+                      onChange={(e) => setForm({ ...form, email: e.target.value })}
+                      placeholder="email@exemplo.com"
+                      required
+                    />
+                  </div>
+
+                  {isSuperAdmin && (
                     <div>
-                      <h3 className="font-medium text-gray-900">{usuario.nome}</h3>
-                      <p className="text-sm text-gray-500">{usuario.email}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">
-                          {NIVEL_LABELS[usuario.nivel_acesso] || usuario.nivel_acesso}
-                        </span>
-                        {isSuperAdmin && usuario.empresa_nome && (
-                          <span className="text-xs text-gray-500">
-                            {usuario.empresa_nome}
-                          </span>
-                        )}
-                        {!usuario.is_ativo && (
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700">
-                            Inativo
-                          </span>
-                        )}
-                      </div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Empresa</label>
+                      <Select
+                        value={form.empresa_id}
+                        onValueChange={(v) => setForm({ ...form, empresa_id: v })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione a empresa" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {empresas.map((e) => (
+                            <SelectItem key={e.id} value={String(e.id)}>
+                              {e.nome_fantasia}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleToggleStatus(usuario)}
-                      title={usuario.is_ativo ? "Desativar" : "Ativar"}
+                  )}
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Nível de Acesso</label>
+                    <Select
+                      value={form.nivel_acesso}
+                      onValueChange={(v) => setForm({ ...form, nivel_acesso: v })}
                     >
-                      {usuario.is_ativo ? (
-                        <UserX className="w-4 h-4 text-red-500" />
-                      ) : (
-                        <UserCheck className="w-4 h-4 text-green-500" />
-                      )}
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {niveisDisponiveis.map((n) => (
+                          <SelectItem key={n.value} value={n.value}>
+                            {n.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="flex gap-3 pt-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setIsDialogOpen(false)}
+                      className="flex-1"
+                    >
+                      Cancelar
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={() => handleEdit(usuario)}>
-                      <Edit2 className="w-4 h-4 text-gray-500" />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => handleDelete(usuario.id)}>
-                      <Trash2 className="w-4 h-4 text-red-500" />
+                    <Button type="submit" className="flex-1 bg-orange-600 hover:bg-orange-700">
+                      {editingUser ? "Salvar" : "Criar"}
                     </Button>
                   </div>
-                </div>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          {usuarios.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <Users className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500">Nenhum usuário cadastrado</p>
               </CardContent>
             </Card>
-          ))}
-        </div>
-      )}
+          ) : (
+            <div className="grid gap-4">
+              {usuarios.map((usuario) => (
+                <Card key={usuario.id} className={!usuario.is_ativo ? "opacity-60" : ""}>
+                  <CardContent className="py-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div
+                          className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-medium ${
+                            usuario.is_ativo ? "bg-orange-500" : "bg-gray-400"
+                          }`}
+                        >
+                          {usuario.nome.charAt(0).toUpperCase()}
+                        </div>
+
+                        <div>
+                          <h3 className="font-medium text-gray-900">{usuario.nome}</h3>
+                          <p className="text-sm text-gray-500">{usuario.email}</p>
+
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">
+                              {nivelLabel(String(usuario.nivel_acesso))}
+                            </span>
+
+                            {isSuperAdmin && usuario.empresa_nome && (
+                              <span className="text-xs text-gray-500">{usuario.empresa_nome}</span>
+                            )}
+
+                            {!usuario.is_ativo && (
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700">
+                                Inativo
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleToggleStatus(usuario)}
+                          title={usuario.is_ativo ? "Desativar" : "Ativar"}
+                        >
+                          {usuario.is_ativo ? (
+                            <UserX className="w-4 h-4 text-red-500" />
+                          ) : (
+                            <UserCheck className="w-4 h-4 text-green-500" />
+                          )}
+                        </Button>
+
+                        <Button variant="ghost" size="icon" onClick={() => handleEdit(usuario)}>
+                          <Edit2 className="w-4 h-4 text-gray-500" />
+                        </Button>
+
+                        <Button variant="ghost" size="icon" onClick={() => handleDelete(usuario.id)}>
+                          <Trash2 className="w-4 h-4 text-red-500" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="convites">
@@ -498,7 +517,7 @@ export default function UsuariosPage() {
             </Card>
           ) : (
             <div className="grid gap-4">
-              {convitesPendentes.map((convite: any) => (
+              {convitesPendentes.map((convite) => (
                 <Card key={convite.id}>
                   <CardContent className="py-4">
                     <div className="flex items-center justify-between">
@@ -506,11 +525,12 @@ export default function UsuariosPage() {
                         <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
                           <Clock className="w-5 h-5 text-blue-600" />
                         </div>
+
                         <div>
                           <h3 className="font-medium text-gray-900">{convite.email}</h3>
                           <div className="flex items-center gap-2 mt-1">
                             <span className="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">
-                              {NIVEL_LABELS[convite.nivel_acesso] || convite.nivel_acesso}
+                              {nivelLabel(String(convite.nivel_acesso))}
                             </span>
                             <span className="text-xs text-gray-500">
                               Enviado em {formatDate(convite.created_at)}
@@ -518,6 +538,7 @@ export default function UsuariosPage() {
                           </div>
                         </div>
                       </div>
+
                       <div className="flex items-center gap-2">
                         <Button
                           variant="outline"
@@ -525,11 +546,16 @@ export default function UsuariosPage() {
                           onClick={() => copyConviteLink(convite.token)}
                         >
                           {copiedLink === convite.token ? (
-                            <><CheckCircle className="w-4 h-4 mr-1 text-green-500" /> Copiado</>
+                            <>
+                              <CheckCircle className="w-4 h-4 mr-1 text-green-500" /> Copiado
+                            </>
                           ) : (
-                            <><Copy className="w-4 h-4 mr-1" /> Copiar Link</>
+                            <>
+                              <Copy className="w-4 h-4 mr-1" /> Copiar Link
+                            </>
                           )}
                         </Button>
+
                         <Button
                           variant="ghost"
                           size="icon"
@@ -553,6 +579,7 @@ export default function UsuariosPage() {
           <DialogHeader>
             <DialogTitle>Enviar Convite</DialogTitle>
           </DialogHeader>
+
           <form onSubmit={handleSendConvite} className="space-y-4 mt-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
@@ -564,6 +591,7 @@ export default function UsuariosPage() {
                 required
               />
             </div>
+
             {isSuperAdmin && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Empresa</label>
@@ -584,6 +612,7 @@ export default function UsuariosPage() {
                 </Select>
               </div>
             )}
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Nível de Acesso</label>
               <Select
@@ -602,6 +631,7 @@ export default function UsuariosPage() {
                 </SelectContent>
               </Select>
             </div>
+
             <div className="flex gap-3 pt-4">
               <Button
                 type="button"
@@ -611,6 +641,7 @@ export default function UsuariosPage() {
               >
                 Cancelar
               </Button>
+
               <Button
                 type="submit"
                 className="flex-1 bg-orange-600 hover:bg-orange-700"

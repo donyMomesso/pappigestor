@@ -9,8 +9,15 @@ import React, {
   ReactNode,
 } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import type { LocalUser, NivelAcesso, PlanoEmpresa, Feature } from "@/react-app/types/auth";
+import type {
+  LocalUser,
+  NivelAcesso,
+  PlanoEmpresa,
+  Feature,
+} from "@/react-app/types/auth";
 import { PLANO_FEATURES } from "@/react-app/types/auth";
+
+type MatchMode = "ANY" | "ALL";
 
 interface AppAuthContextValue {
   localUser: LocalUser | null;
@@ -21,14 +28,15 @@ interface AppAuthContextValue {
   signOut: () => Promise<void>;
   refreshUser: () => Promise<void>;
 
-  // Permissão por role (simples)
-  hasRole: (allowed: NivelAcesso[]) => boolean;
+  // SaaS: role e permission aceitam 1 ou várias
+  hasRole: (allowed: NivelAcesso | NivelAcesso[], mode?: MatchMode) => boolean;
+  hasPermission: (permission: string | string[], mode?: MatchMode) => boolean;
 
-  // Permissão por feature do plano
+  // Feature do plano
   hasFeature: (feature: Feature) => boolean;
 
-  // Permissão por "permissoes" finas (se usar)
-  hasPermission: (permission: string) => boolean;
+  // Conveniência
+  isSuperAdmin: boolean;
 
   isSubscriptionExpired: () => boolean;
 }
@@ -36,25 +44,38 @@ interface AppAuthContextValue {
 const AppAuthContext = createContext<AppAuthContextValue | null>(null);
 
 // ----------------------------
+// Helpers
+// ----------------------------
+function toList<T>(v: T | T[]): T[] {
+  return Array.isArray(v) ? v : [v];
+}
+
+function hasAll(userList: string[], required: string[]) {
+  return required.every((r) => userList.includes(r));
+}
+
+function hasAny(userList: string[], required: string[]) {
+  return required.some((r) => userList.includes(r));
+}
+
+// ----------------------------
 // Normalizadores (compatibilidade)
 // ----------------------------
 function normalizePlan(raw: any): PlanoEmpresa {
   const v = String(raw ?? "").trim().toLowerCase();
 
-  // compat antigos
   if (v === "grátis" || v === "gratis") return "gratis";
   if (v === "básico" || v === "basico") return "basico";
   if (v === "pro" || v === "profissional") return "profissional";
   if (v === "enterprise") return "enterprise";
 
-  // default seguro
   return "gratis";
 }
 
 function normalizeRole(raw: any): NivelAcesso {
   const v = String(raw ?? "").trim().toLowerCase();
 
-  // compat antigos (se aparecer do banco/metadata)
+  // compat antigos
   if (v === "admin_empresa") return "dono";
   if (v === "super_admin") return "admin";
 
@@ -66,7 +87,6 @@ function normalizeRole(raw: any): NivelAcesso {
   if (v === "operador") return "operador";
   if (v === "viewer") return "viewer";
 
-  // default seguro (nunca dá admin sem querer)
   return "operador";
 }
 
@@ -106,7 +126,9 @@ export function AppAuthProvider({ children }: { children: ReactNode }) {
     const nivel_acesso = normalizeRole(meta.nivel_acesso);
 
     const featuresFromMeta = parseFeatureArray(meta.features);
-    const features = featuresFromMeta.length ? featuresFromMeta : PLANO_FEATURES[plano];
+    const features = featuresFromMeta.length
+      ? featuresFromMeta
+      : PLANO_FEATURES[plano];
 
     return {
       id: String(user.id),
@@ -156,25 +178,49 @@ export function AppAuthProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const hasRole = (allowed: NivelAcesso[]) => {
+  // --- Computados de segurança (SaaS) ---
+  const userPerms = localUser?.permissoes ?? [];
+
+  const computedIsSuperAdmin =
+    (localUser?.nivel_acesso === "admin") ||
+    userPerms.includes("super_admin");
+
+  // Role (nivel_acesso) — aceita 1 ou vários, ANY/ALL
+  const hasRole = (allowed: NivelAcesso | NivelAcesso[], mode: MatchMode = "ANY") => {
     if (!localUser) return false;
-    return allowed.includes(localUser.nivel_acesso);
+    if (computedIsSuperAdmin) return true;
+
+    const required = toList(allowed);
+
+    // "ALL" aqui não faz muito sentido pois user tem 1 role,
+    // mas deixo compatível: ALL só passa se required tiver 1 e bater.
+    if (mode === "ALL") {
+      return required.length === 1 && required[0] === localUser.nivel_acesso;
+    }
+    return required.includes(localUser.nivel_acesso);
+  };
+
+  // Permission — aceita 1 ou várias, ANY/ALL
+  const hasPermission = (permission: string | string[], mode: MatchMode = "ANY") => {
+    if (!localUser) return false;
+    if (computedIsSuperAdmin) return true;
+
+    // dono passa tudo (se quiser tirar, remova)
+    if (localUser.nivel_acesso === "dono") return true;
+
+    const required = toList(permission);
+
+    if (required.length === 0) return true;
+
+    return mode === "ALL"
+      ? hasAll(userPerms, required)
+      : hasAny(userPerms, required);
   };
 
   const hasFeature = (feature: Feature) => {
     if (!localUser) return false;
     const list = localUser.features ?? PLANO_FEATURES[localUser.plano];
     return list.includes(feature);
-  };
-
-  const hasPermission = (permission: string) => {
-    if (!localUser) return false;
-
-    // dono sempre passa (você pode tirar isso se quiser)
-    if (localUser.nivel_acesso === "dono") return true;
-
-    const perms = localUser.permissoes ?? [];
-    return perms.includes(permission);
   };
 
   const isSubscriptionExpired = () => {
@@ -205,12 +251,17 @@ export function AppAuthProvider({ children }: { children: ReactNode }) {
       hasRole,
       hasFeature,
       hasPermission,
+      isSuperAdmin: computedIsSuperAdmin,
       isSubscriptionExpired,
     }),
     [localUser, isLoading, error]
   );
 
-  return <AppAuthContext.Provider value={value}>{children}</AppAuthContext.Provider>;
+  return (
+    <AppAuthContext.Provider value={value}>
+      {children}
+    </AppAuthContext.Provider>
+  );
 }
 
 // ----------------------------

@@ -1,3 +1,11 @@
 "use client";
-import PageImpl from "@/react-app/pages/Comprador";
-export default function Page(){ return <PageImpl />; }
+
+import dynamic from "next/dynamic";
+
+const CompradorPage = dynamic(() => import("@/react-app/pages/Comprador"), {
+  ssr: false,
+});
+
+export default function Page() {
+  return <CompradorPage />;
+}

@@ -1,16 +1,23 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { getSupabaseClient } from "@/lib/supabaseClient";
 
 export default function Teste() {
   const [status, setStatus] = useState("testando...");
 
   useEffect(() => {
     (async () => {
+      const supabase = getSupabaseClient();
+      if (!supabase) {
+        setStatus("Supabase não configurado (ENV ausente) ❌");
+        return;
+      }
+
       const { data, error } = await supabase.auth.getSession();
       if (error) setStatus("Erro: " + error.message);
-      else setStatus("Conectado ao Supabase ✅");
+      else if (data.session) setStatus("Conectado ao Supabase ✅");
+      else setStatus("Sem sessão (faça login) ⚠️");
     })();
   }, []);
 

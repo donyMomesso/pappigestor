@@ -7,8 +7,11 @@ import React, {
   useMemo,
   useState,
   ReactNode,
+  useCallback,
 } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { getSupabaseClient } from "@/lib/supabaseClient";
+import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
+
 import type {
   LocalUser,
   NivelAcesso,
@@ -116,7 +119,7 @@ export function AppAuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const mapUser = (user: any): LocalUser | null => {
+  const mapUser = useCallback((user: any): LocalUser | null => {
     if (!user) return null;
 
     const meta = user.user_metadata ?? {};
@@ -142,9 +145,19 @@ export function AppAuthProvider({ children }: { children: ReactNode }) {
       features,
       foto: String(meta.avatar_url || meta.picture || meta.foto || ""),
     };
-  };
+  }, []);
 
-  const fetchSession = async () => {
+  const fetchSession = useCallback(async () => {
+    const supabase = getSupabaseClient();
+
+    // modo sem Supabase configurado (não quebra build)
+    if (!supabase) {
+      setLocalUser(null);
+      setIsLoading(false);
+      setError(null);
+      return;
+    }
+
     try {
       setIsLoading(true);
       setError(null);
@@ -161,29 +174,35 @@ export function AppAuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [mapUser]);
 
   useEffect(() => {
+    const supabase = getSupabaseClient();
+
+    // sempre tenta carregar sessão (se tiver supabase)
     fetchSession();
 
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-      const mapped = mapUser(session?.user);
-      setLocalUser(mapped);
-      setIsLoading(false);
-    });
+    // sem supabase = modo offline
+    if (!supabase) return;
+
+    const { data } = supabase.auth.onAuthStateChange(
+      (_event: AuthChangeEvent, session: Session | null) => {
+        const mapped = mapUser(session?.user);
+        setLocalUser(mapped);
+        setIsLoading(false);
+      }
+    );
 
     return () => {
       data.subscription.unsubscribe();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [fetchSession, mapUser]);
 
   // --- Computados de segurança (SaaS) ---
   const userPerms = localUser?.permissoes ?? [];
 
   const computedIsSuperAdmin =
-    (localUser?.nivel_acesso === "admin") ||
-    userPerms.includes("super_admin");
+    localUser?.nivel_acesso === "admin" || userPerms.includes("super_admin");
 
   // Role (nivel_acesso) — aceita 1 ou vários, ANY/ALL
   const hasRole = (allowed: NivelAcesso | NivelAcesso[], mode: MatchMode = "ANY") => {
@@ -192,8 +211,6 @@ export function AppAuthProvider({ children }: { children: ReactNode }) {
 
     const required = toList(allowed);
 
-    // "ALL" aqui não faz muito sentido pois user tem 1 role,
-    // mas deixo compatível: ALL só passa se required tiver 1 e bater.
     if (mode === "ALL") {
       return required.length === 1 && required[0] === localUser.nivel_acesso;
     }
@@ -212,9 +229,7 @@ export function AppAuthProvider({ children }: { children: ReactNode }) {
 
     if (required.length === 0) return true;
 
-    return mode === "ALL"
-      ? hasAll(userPerms, required)
-      : hasAny(userPerms, required);
+    return mode === "ALL" ? hasAll(userPerms, required) : hasAny(userPerms, required);
   };
 
   const hasFeature = (feature: Feature) => {
@@ -230,8 +245,10 @@ export function AppAuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    const supabase = getSupabaseClient();
+
     try {
-      await supabase.auth.signOut();
+      if (supabase) await supabase.auth.signOut();
     } catch (err) {
       console.error("Erro ao sair:", err);
     } finally {
@@ -254,14 +271,10 @@ export function AppAuthProvider({ children }: { children: ReactNode }) {
       isSuperAdmin: computedIsSuperAdmin,
       isSubscriptionExpired,
     }),
-    [localUser, isLoading, error]
+    [localUser, isLoading, error, fetchSession, computedIsSuperAdmin]
   );
 
-  return (
-    <AppAuthContext.Provider value={value}>
-      {children}
-    </AppAuthContext.Provider>
-  );
+  return <AppAuthContext.Provider value={value}>{children}</AppAuthContext.Provider>;
 }
 
 // ----------------------------

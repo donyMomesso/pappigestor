@@ -4,19 +4,8 @@ import { useState, useEffect } from "react";
 import { Button } from "@/react-app/components/ui/button";
 import { Input } from "@/react-app/components/ui/input";
 import { Card, CardContent } from "@/react-app/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/react-app/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/react-app/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/react-app/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/react-app/components/ui/select";
 import {
   AlertTriangle,
   Package,
@@ -27,6 +16,7 @@ import {
   Minus,
   Save,
   ShoppingCart,
+  Sparkles,
 } from "lucide-react";
 
 interface Produto {
@@ -48,7 +38,7 @@ interface Estoque {
   unidade_medida?: string;
   data_validade?: string;
   lote?: string;
-  status_validade?: 'vencido' | 'vencendo' | 'ok';
+  status_validade?: "vencido" | "vencendo" | "ok";
 }
 
 interface EstoqueComProduto extends Estoque {
@@ -59,19 +49,23 @@ export default function EstoquePage() {
   const [estoques, setEstoques] = useState<EstoqueComProduto[]>([]);
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
+
   const [isAuditDialogOpen, setIsAuditDialogOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [selectedEstoque, setSelectedEstoque] = useState<EstoqueComProduto | null>(null);
-  
+
   const [auditValue, setAuditValue] = useState("");
   const [auditMinimoValue, setAuditMinimoValue] = useState("");
   const [auditValidadeValue, setAuditValidadeValue] = useState("");
   const [auditLoteValue, setAuditLoteValue] = useState("");
   const [auditCaixasValue, setAuditCaixasValue] = useState("");
   const [auditUnidadesPorCaixaValue, setAuditUnidadesPorCaixaValue] = useState("");
+
   const [sendingToLista, setSendingToLista] = useState(false);
+  const [gerandoListaAuto, setGerandoListaAuto] = useState(false);
 
   const [addForm, setAddForm] = useState({
     produto_id: "",
@@ -114,6 +108,7 @@ export default function EstoquePage() {
   useEffect(() => {
     fetchEstoques();
     fetchProdutos();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function handleOpenAudit(estoque: EstoqueComProduto) {
@@ -134,9 +129,9 @@ export default function EstoquePage() {
     try {
       const res = await fetch(`/api/estoque/${selectedEstoque.id}`, {
         method: "PATCH",
-        headers: { 
-            "Content-Type": "application/json",
-            "x-pizzaria-id": pId 
+        headers: {
+          "Content-Type": "application/json",
+          "x-pizzaria-id": pId,
         },
         body: JSON.stringify({
           quantidade_atual: parseFloat(auditValue) || 0,
@@ -156,7 +151,7 @@ export default function EstoquePage() {
         const data = (await res.json()) as { error?: string };
         alert(data.error || "Erro ao atualizar estoque");
       }
-    } catch (err) {
+    } catch {
       alert("Erro de conexão");
     }
   };
@@ -164,37 +159,44 @@ export default function EstoquePage() {
   const handleEnviarParaLista = async () => {
     if (!selectedEstoque) return;
     const pId = localStorage.getItem("pId") || "";
-    
+
     setSendingToLista(true);
     try {
-      const quantidadeSolicitar = Math.max(
-        parseFloat(auditMinimoValue) - parseFloat(auditValue),
-        1
-      );
+      const atual = parseFloat(auditValue) || 0;
+      const minimo = parseFloat(auditMinimoValue) || 0;
+
+      // ✅ só sugere compra se estiver abaixo do mínimo
+      const falta = minimo - atual;
+      const quantidadeSolicitar = falta > 0 ? falta : 0;
+
+      if (quantidadeSolicitar <= 0) {
+        alert("Esse item já está acima do mínimo. Ajuste o mínimo ou reduza o estoque para gerar compra.");
+        return;
+      }
 
       const res = await fetch("/api/lista-compras", {
         method: "POST",
-        headers: { 
-            "Content-Type": "application/json",
-            "x-pizzaria-id": pId
+        headers: {
+          "Content-Type": "application/json",
+          "x-pizzaria-id": pId,
         },
         body: JSON.stringify({
           produto_id: selectedEstoque.produto_id,
           quantidade_solicitada: quantidadeSolicitar,
           unidade: selectedEstoque.unidade_medida || "un",
-          observacao: `Solicitado via auditoria. Estoque atual: ${auditValue}`,
+          observacao: `Solicitado via auditoria. Estoque atual: ${auditValue} / mínimo: ${auditMinimoValue}`,
         }),
       });
 
       if (res.ok) {
-        alert(`${selectedEstoque.produto_nome} enviado para compras!`);
+        alert(`${selectedEstoque.produto_nome ?? "Item"} enviado para compras!`);
         setIsAuditDialogOpen(false);
         setSelectedEstoque(null);
       } else {
         const data = (await res.json()) as { error?: string };
         alert(data.error || "Erro ao enviar para lista");
       }
-    } catch (err) {
+    } catch {
       alert("Erro de conexão");
     } finally {
       setSendingToLista(false);
@@ -208,9 +210,9 @@ export default function EstoquePage() {
     try {
       const res = await fetch("/api/estoque", {
         method: "POST",
-        headers: { 
-            "Content-Type": "application/json",
-            "x-pizzaria-id": pId
+        headers: {
+          "Content-Type": "application/json",
+          "x-pizzaria-id": pId,
         },
         body: JSON.stringify({
           produto_id: parseInt(addForm.produto_id),
@@ -225,14 +227,41 @@ export default function EstoquePage() {
 
       if (res.ok) {
         setIsAddDialogOpen(false);
-        setAddForm({ produto_id: "", quantidade_atual: "0", estoque_minimo: "0", data_validade: "", lote: "", quantidade_caixas: "0", unidades_por_caixa: "1" });
+        setAddForm({
+          produto_id: "",
+          quantidade_atual: "0",
+          estoque_minimo: "0",
+          data_validade: "",
+          lote: "",
+          quantidade_caixas: "0",
+          unidades_por_caixa: "1",
+        });
         fetchEstoques();
       } else {
         const data = (await res.json()) as { error?: string };
         alert(data.error || "Erro ao adicionar produto");
       }
-    } catch (err) {
+    } catch {
       alert("Erro de conexão");
+    }
+  };
+
+  const handleGerarListaAutomatica = async () => {
+    setGerandoListaAuto(true);
+    try {
+      const res = await fetch("/api/lista-compras/gerar-do-estoque", { method: "POST" });
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data?.error || "Erro ao gerar lista automática");
+        return;
+      }
+
+      alert(`Lista atualizada! Criados: ${data.criados ?? 0} | Atualizados: ${data.atualizados ?? 0}`);
+    } catch {
+      alert("Erro de conexão");
+    } finally {
+      setGerandoListaAuto(false);
     }
   };
 
@@ -250,7 +279,7 @@ export default function EstoquePage() {
     return matchesSearch;
   });
 
-  const estoqueBaixoCount = estoques.filter(e => e.quantidade_atual <= e.estoque_minimo).length;
+  const estoqueBaixoCount = estoques.filter((e) => e.quantidade_atual <= e.estoque_minimo).length;
 
   if (isLoading) {
     return (
@@ -267,14 +296,27 @@ export default function EstoquePage() {
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Auditoria de Estoque</h1>
           <p className="text-sm text-gray-600">Controle e ajuste as quantidades físicas</p>
         </div>
-        <Button
-          onClick={() => setIsAddDialogOpen(true)}
-          className="bg-orange-600 hover:bg-orange-700 w-full sm:w-auto"
-          disabled={produtos.length === 0}
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Adicionar ao Estoque
-        </Button>
+
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          <Button
+            onClick={handleGerarListaAutomatica}
+            variant="outline"
+            className="w-full sm:w-auto border-orange-200 text-orange-700 hover:bg-orange-50"
+            disabled={gerandoListaAuto}
+          >
+            {gerandoListaAuto ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
+            Gerar Lista Automática
+          </Button>
+
+          <Button
+            onClick={() => setIsAddDialogOpen(true)}
+            className="bg-orange-600 hover:bg-orange-700 w-full sm:w-auto"
+            disabled={produtos.length === 0}
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Adicionar ao Estoque
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -293,12 +335,18 @@ export default function EstoquePage() {
 
         <Card className={estoqueBaixoCount > 0 ? "border-red-200 bg-red-50" : ""}>
           <CardContent className="py-4 flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${estoqueBaixoCount > 0 ? "bg-red-100" : "bg-green-100"}`}>
+            <div
+              className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                estoqueBaixoCount > 0 ? "bg-red-100" : "bg-green-100"
+              }`}
+            >
               <AlertTriangle className={`w-5 h-5 ${estoqueBaixoCount > 0 ? "text-red-600" : "text-green-600"}`} />
             </div>
             <div>
               <p className="text-xs text-gray-500">Estoque Baixo</p>
-              <p className={`text-xl font-bold ${estoqueBaixoCount > 0 ? "text-red-600" : "text-green-600"}`}>{estoqueBaixoCount}</p>
+              <p className={`text-xl font-bold ${estoqueBaixoCount > 0 ? "text-red-600" : "text-green-600"}`}>
+                {estoqueBaixoCount}
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -320,12 +368,7 @@ export default function EstoquePage() {
       <div className="flex flex-col md:flex-row gap-4 mb-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <Input
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Buscar produto..."
-            className="pl-9"
-          />
+          <Input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Buscar produto..." className="pl-9" />
         </div>
         <Select value={filterStatus} onValueChange={setFilterStatus}>
           <SelectTrigger className="w-full md:w-48">
@@ -356,15 +399,13 @@ export default function EstoquePage() {
                 <tr key={item.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 font-medium">{item.produto_nome}</td>
                   <td className="px-4 py-3 text-center">
-                    <span className={`font-bold ${item.quantidade_atual <= item.estoque_minimo ? 'text-red-600' : ''}`}>
+                    <span className={`font-bold ${item.quantidade_atual <= item.estoque_minimo ? "text-red-600" : ""}`}>
                       {item.quantidade_atual} {item.unidade_medida}
                     </span>
                   </td>
-                  <td className="hidden md:table-cell px-4 py-3 text-center text-gray-500">
-                    {item.estoque_minimo}
-                  </td>
+                  <td className="hidden md:table-cell px-4 py-3 text-center text-gray-500">{item.estoque_minimo}</td>
                   <td className="hidden md:table-cell px-4 py-3 text-center">
-                    {item.data_validade ? new Date(item.data_validade).toLocaleDateString() : "-"}
+                    {item.data_validade ? new Date(item.data_validade).toLocaleDateString("pt-BR") : "-"}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <Button variant="ghost" size="sm" onClick={() => handleOpenAudit(item)}>
@@ -373,6 +414,13 @@ export default function EstoquePage() {
                   </td>
                 </tr>
               ))}
+              {filteredEstoques.length === 0 && (
+                <tr>
+                  <td className="px-4 py-6 text-center text-gray-500" colSpan={5}>
+                    Nenhum item encontrado.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -381,32 +429,50 @@ export default function EstoquePage() {
       {/* Dialog de Auditoria */}
       <Dialog open={isAuditDialogOpen} onOpenChange={setIsAuditDialogOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Auditar: {selectedEstoque?.produto_nome}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Auditar: {selectedEstoque?.produto_nome}</DialogTitle>
+          </DialogHeader>
+
           <div className="space-y-4 py-4">
             <div className="flex items-center justify-between bg-gray-50 p-4 rounded-lg">
-                <Button variant="outline" size="icon" onClick={() => adjustQuantity(-1)}><Minus /></Button>
-                <div className="text-center">
-                    <span className="text-2xl font-bold">{auditValue}</span>
-                    <p className="text-xs text-gray-500">{selectedEstoque?.unidade_medida}</p>
-                </div>
-                <Button variant="outline" size="icon" onClick={() => adjustQuantity(1)}><Plus /></Button>
+              <Button variant="outline" size="icon" onClick={() => adjustQuantity(-1)}>
+                <Minus />
+              </Button>
+              <div className="text-center">
+                <span className="text-2xl font-bold">{auditValue}</span>
+                <p className="text-xs text-gray-500">{selectedEstoque?.unidade_medida}</p>
+              </div>
+              <Button variant="outline" size="icon" onClick={() => adjustQuantity(1)}>
+                <Plus />
+              </Button>
             </div>
+
             <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                    <label className="text-xs font-medium">Estoque Mínimo</label>
-                    <Input type="number" value={auditMinimoValue} onChange={(e) => setAuditMinimoValue(e.target.value)} />
-                </div>
-                <div className="space-y-1">
-                    <label className="text-xs font-medium">Validade</label>
-                    <Input type="date" value={auditValidadeValue} onChange={(e) => setAuditValidadeValue(e.target.value)} />
-                </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium">Estoque Mínimo</label>
+                <Input type="number" value={auditMinimoValue} onChange={(e) => setAuditMinimoValue(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium">Validade</label>
+                <Input type="date" value={auditValidadeValue} onChange={(e) => setAuditValidadeValue(e.target.value)} />
+              </div>
             </div>
+
             <div className="flex flex-col gap-2">
-                <Button onClick={handleSaveAudit} className="w-full bg-orange-600"><Save className="mr-2 h-4 w-4"/>Salvar Ajuste</Button>
-                <Button variant="outline" onClick={handleEnviarParaLista} disabled={sendingToLista} className="w-full text-blue-600 border-blue-200">
-                    {sendingToLista ? <Loader2 className="animate-spin h-4 w-4" /> : <ShoppingCart className="mr-2 h-4 w-4"/>}
-                    Enviar para Compras
-                </Button>
+              <Button onClick={handleSaveAudit} className="w-full bg-orange-600 hover:bg-orange-700">
+                <Save className="mr-2 h-4 w-4" />
+                Salvar Ajuste
+              </Button>
+
+              <Button
+                variant="outline"
+                onClick={handleEnviarParaLista}
+                disabled={sendingToLista}
+                className="w-full text-blue-700 border-blue-200 hover:bg-blue-50"
+              >
+                {sendingToLista ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <ShoppingCart className="mr-2 h-4 w-4" />}
+                Enviar para Compras
+              </Button>
             </div>
           </div>
         </DialogContent>
@@ -415,22 +481,45 @@ export default function EstoquePage() {
       {/* Dialog de Adicionar */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Novo Item no Estoque</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Novo Item no Estoque</DialogTitle>
+          </DialogHeader>
+
           <form onSubmit={handleAddEstoque} className="space-y-4">
             <div className="space-y-1">
-                <label className="text-xs font-medium">Produto</label>
-                <Select value={addForm.produto_id} onValueChange={(v) => setAddForm({...addForm, produto_id: v})}>
-                    <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                    <SelectContent>
-                        {produtos.map(p => <SelectItem key={p.id} value={String(p.id)}>{p.nome_produto}</SelectItem>)}
-                    </SelectContent>
-                </Select>
+              <label className="text-xs font-medium">Produto</label>
+              <Select value={addForm.produto_id} onValueChange={(v) => setAddForm({ ...addForm, produto_id: v })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {produtos.map((p) => (
+                    <SelectItem key={p.id} value={String(p.id)}>
+                      {p.nome_produto}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
+
             <div className="grid grid-cols-2 gap-4">
-                <Input type="number" placeholder="Qtd Inicial" value={addForm.quantidade_atual} onChange={(e) => setAddForm({...addForm, quantidade_atual: e.target.value})} />
-                <Input type="number" placeholder="Mínimo" value={addForm.estoque_minimo} onChange={(e) => setAddForm({...addForm, estoque_minimo: e.target.value})} />
+              <Input
+                type="number"
+                placeholder="Qtd Inicial"
+                value={addForm.quantidade_atual}
+                onChange={(e) => setAddForm({ ...addForm, quantidade_atual: e.target.value })}
+              />
+              <Input
+                type="number"
+                placeholder="Mínimo"
+                value={addForm.estoque_minimo}
+                onChange={(e) => setAddForm({ ...addForm, estoque_minimo: e.target.value })}
+              />
             </div>
-            <Button type="submit" className="w-full bg-orange-600">Adicionar</Button>
+
+            <Button type="submit" className="w-full bg-orange-600 hover:bg-orange-700" disabled={!addForm.produto_id}>
+              Adicionar
+            </Button>
           </form>
         </DialogContent>
       </Dialog>

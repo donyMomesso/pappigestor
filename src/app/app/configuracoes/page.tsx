@@ -15,7 +15,10 @@ import {
   Save,
   Loader2,
   Check,
-  Search
+  Search,
+  Building,
+  RefreshCw,
+  Plus
 } from "lucide-react";
 import { Input } from "@/react-app/components/ui/input";
 
@@ -83,7 +86,6 @@ export default function ConfiguracoesPage() {
         throw new Error("CNPJ não encontrado na Receita Federal");
       }
       
-      // ✅ CORREÇÃO DO TYPESCRIPT AQUI: adicionado o "as any"
       const data = (await response.json()) as any;
       
       // Atualiza o form com os dados puxados da Receita
@@ -330,6 +332,48 @@ export default function ConfiguracoesPage() {
             </section>
           )}
 
+          {/* 🔥 A ABA DO DDA (OPEN FINANCE) QUE FALTAVA FOI RECOLOCADA AQUI 🔥 */}
+          {activeTab === "dda" && (
+            <section className="bg-white rounded-4xl border border-gray-100 shadow-sm p-8 animate-in fade-in slide-in-from-right-4 duration-300">
+              <div className="flex items-center gap-3 mb-8">
+                <div className="p-3 bg-green-100 text-green-600 rounded-2xl">
+                  <Database size={24} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black italic text-gray-800 uppercase tracking-tighter leading-none">Conexão Bancária</h3>
+                  <p className="text-xs text-gray-400 font-bold uppercase mt-1 text-[10px]">Open Finance e Busca de Boletos</p>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 rounded-3xl p-8 text-center border border-gray-100 mb-6">
+                <Building size={48} className="text-gray-300 mx-auto mb-4" />
+                <h4 className="font-black text-gray-900 uppercase italic mb-2">Nenhum Banco Conectado</h4>
+                <p className="text-sm text-gray-500 mb-6">Conecte sua conta bancária via Open Finance para buscar boletos DDA automaticamente.</p>
+                
+                <button 
+                  onClick={() => window.location.href = '/app/open-finance'}
+                  className="bg-green-600 hover:bg-green-700 text-white h-14 px-8 rounded-2xl font-black uppercase italic text-xs tracking-widest transition-all shadow-lg shadow-green-200 flex items-center justify-center gap-2 mx-auto"
+                >
+                  <Plus size={18} /> Conectar Nova Conta
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest">Configurações de Sincronização</h4>
+                <ToggleItem 
+                  title="Sincronização Automática" 
+                  desc="Buscar novos boletos DDA a cada 6 horas."
+                  initialValue={true}
+                />
+                <ToggleItem 
+                  title="Auto-associação de Notas" 
+                  desc="A IA tentará cruzar o boleto do banco com a Nota Fiscal importada."
+                  initialValue={true}
+                />
+              </div>
+            </section>
+          )}
+
           {activeTab === "plano" && (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
               <section className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-4xl p-8 text-white shadow-xl relative overflow-hidden">
@@ -357,7 +401,7 @@ export default function ConfiguracoesPage() {
             </div>
           )}
 
-          {activeTab !== "ia" && activeTab !== "plano" && activeTab !== "empresa" && (
+          {activeTab !== "ia" && activeTab !== "plano" && activeTab !== "empresa" && activeTab !== "dda" && (
             <div className="bg-white rounded-4xl border border-gray-100 p-20 text-center animate-in fade-in duration-300">
               <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-300">
                 <Settings size={32} />

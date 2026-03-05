@@ -1,55 +1,83 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { useCallback, useEffect, useState } from "react";
+import { getSupabaseClient } from "@/lib/supabaseClient";
 import { useAppAuth } from "@/react-app/contexts/AppAuthContext";
+
+export type ProdutoEstoque = {
+  id: string;
+  nome?: string | null;
+  unidade?: string | null;
+  empresa_id?: string | null;
+  [key: string]: any;
+};
 
 export function useEstoque() {
   const { localUser } = useAppAuth();
-  const [produtos, setProdutos] = useState<any[]>([]);
+
+  const [produtos, setProdutos] = useState<ProdutoEstoque[]>([]);
   const [loading, setLoading] = useState(true);
 
-  async function fetchEstoque() {
-    if (!localUser?.empresa_id) return;
-
-    setLoading(true);
-    const { data, error } = await supabase
-      .from("produtos")
-      .select("*")
-      .eq("empresa_id", localUser.empresa_id) // Filtra apenas dados da empresa logada
-      .order("nome", { ascending: true });
-
-    if (!error) setProdutos(data || []);
-    setLoading(false);
-  }
-
-  async function adicionarProduto(novoProduto: any) {
-    if (!localUser?.empresa_id) {
-      console.error("Erro: Utilizador sem empresa vinculada.");
+  const fetchEstoque = useCallback(async () => {
+    const empresaId = localUser?.empresa_id;
+    if (!empresaId) {
+      setProdutos([]);
+      setLoading(false);
       return;
     }
 
-    // Injeta automaticamente o ID da empresa no novo registo
-    const { error } = await supabase.from("produtos").insert([
-      { 
-        ...novoProduto, 
-        empresa_id: localUser.empresa_id 
-      }
-    ]);
-
-    if (!error) {
-      fetchEstoque();
-    } else {
-      console.error("Erro ao inserir:", error.message);
+    const supabase = getSupabaseClient();
+    if (!supabase) {
+      setProdutos([]);
+      setLoading(false);
+      return;
     }
-  }
+
+    setLoading(true);
+
+    const { data, error } = await supabase
+      .from("produtos")
+      .select("*")
+      .eq("empresa_id", empresaId)
+      .order("nome", { ascending: true });
+
+    if (!error) setProdutos((data ?? []) as ProdutoEstoque[]);
+    setLoading(false);
+  }, [localUser?.empresa_id]);
+
+  const adicionarProduto = useCallback(
+    async (novoProduto: Partial<ProdutoEstoque>) => {
+      const empresaId = localUser?.empresa_id;
+      if (!empresaId) {
+        console.error("Erro: Utilizador sem empresa vinculada.");
+        return;
+      }
+
+      const supabase = getSupabaseClient();
+      if (!supabase) {
+        console.error("Supabase não configurado.");
+        return;
+      }
+
+      const { error } = await supabase.from("produtos").insert([
+        {
+          ...novoProduto,
+          empresa_id: empresaId,
+        },
+      ]);
+
+      if (!error) {
+        await fetchEstoque();
+      } else {
+        console.error("Erro ao inserir:", error.message);
+      }
+    },
+    [localUser?.empresa_id, fetchEstoque]
+  );
 
   useEffect(() => {
-    // Só tenta procurar dados se o utilizador e a empresa já estiverem carregados
-    if (localUser?.empresa_id) {
-      fetchEstoque();
-    }
-  }, [localUser?.empresa_id]);
+    fetchEstoque();
+  }, [fetchEstoque]);
 
   return { produtos, loading, refresh: fetchEstoque, adicionarProduto };
 }

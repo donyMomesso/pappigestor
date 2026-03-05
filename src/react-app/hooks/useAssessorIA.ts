@@ -1,47 +1,104 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { useCallback, useState } from "react";
+import { getSupabaseClient } from "@/lib/supabaseClient";
+
+type AssessorArquivo = {
+  id: string;
+  created_at: string;
+  nome: string | null;
+  tipo: string | null;
+  url: string | null;
+  status: string | null;
+  resultado?: any;
+};
+
+type AssessorTemplate = {
+  id: string;
+  nome: string;
+  prompt: string;
+};
 
 export function useAssessorIA() {
-  const [insights, setInsights] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
 
-  async function analisarNegocio() {
+  const listarArquivos = useCallback(async (): Promise<AssessorArquivo[]> => {
+    const supabase = getSupabaseClient();
+    if (!supabase) return [];
+
     setLoading(true);
-    
-    // Busca dados de estoque e financeiro para análise
-    const { data: produtos } = await supabase.from("produtos").select("*");
-    const { data: fin } = await supabase.from("financeiro").select("*");
+    setErro(null);
 
-    const novosInsights = [];
+    try {
+      const { data, error } = await supabase
+        .from("assessor_ia_arquivos")
+        .select("*")
+        .order("created_at", { ascending: false });
 
-    // Lógica de análise automática
-    const criticos = produtos?.filter(p => p.estoque_atual <= p.estoque_minimo) || [];
-    if (criticos.length > 0) {
-      novosInsights.push({
-        tipo: "alerta",
-        titulo: "Risco de Rutura",
-        mensagem: `Tens ${criticos.length} itens abaixo do stock mínimo. Sugiro gerar lista de compras.`,
-        prioridade: "alta"
-      });
+      if (error) throw error;
+      return (data ?? []) as AssessorArquivo[];
+    } catch (e: any) {
+      setErro(e?.message ?? "Erro ao listar arquivos");
+      return [];
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const listarTemplates = useCallback(async (): Promise<AssessorTemplate[]> => {
+    const supabase = getSupabaseClient();
+    if (!supabase) return [];
+
+    try {
+      const { data, error } = await supabase
+        .from("assessor_ia_templates")
+        .select("id,nome,prompt")
+        .order("nome", { ascending: true });
+
+      if (error) throw error;
+      return (data ?? []) as AssessorTemplate[];
+    } catch {
+      return [];
+    }
+  }, []);
+
+  const processarArquivo = useCallback(async (arquivoId: string, templateId?: string) => {
+    const supabase = getSupabaseClient();
+    if (!supabase) {
+      setErro("Supabase não configurado");
+      return null;
     }
 
-    const pendentes = fin?.filter(t => t.status !== "pago" && t.tipo === "despesa").length || 0;
-    if (pendentes > 0) {
-      novosInsights.push({
-        tipo: "financeiro",
-        titulo: "Fluxo de Caixa",
-        mensagem: `Existem ${pendentes} boletos pendentes. Verifica o DDA para evitar multas.`,
-        prioridade: "media"
+    setLoading(true);
+    setErro(null);
+
+    try {
+      const res = await fetch("/api/assessor-ia/processar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ arquivoId, templateId }),
       });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || "Falha ao processar");
+      }
+
+      return await res.json();
+    } catch (e: any) {
+      setErro(e?.message ?? "Erro ao processar");
+      return null;
+    } finally {
+      setLoading(false);
     }
+  }, []);
 
-    setInsights(novosInsights);
-    setLoading(false);
-  }
-
-  useEffect(() => { analisarNegocio(); }, []);
-
-  return { insights, loading, refresh: analisarNegocio };
+  return {
+    loading,
+    erro,
+    listarArquivos,
+    listarTemplates,
+    processarArquivo,
+  };
 }

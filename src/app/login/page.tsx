@@ -2,26 +2,28 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabaseClient";
+import { getSupabaseClient } from "@/lib/supabaseClient";
 import { Button } from "@/react-app/components/ui/button";
 import { Sparkles, ArrowRight, ShieldCheck, Check, Crown, Zap } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
 
-  // ✅ Se já houver empresa selecionada, manda direto pro app
   useEffect(() => {
     const empresaId = localStorage.getItem("empresa_id");
-    if (empresaId) {
-      router.push("/app/dashboard");
-    }
+    if (empresaId) router.push("/app/dashboard");
   }, [router]);
 
   const handleLogin = async () => {
+    const supabase = getSupabaseClient();
+    if (!supabase) {
+      console.error("Supabase não configurado (ENV ausente).");
+      return;
+    }
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        // ✅ padronizado com o arquivo existente: /auth-callback
         redirectTo: `${window.location.origin}/auth-callback`,
         queryParams: { access_type: "offline", prompt: "consent" },
       },
@@ -39,9 +41,7 @@ export default function LoginPage() {
             <div className="p-3 bg-white/10 backdrop-blur-xl rounded-[22px] border border-white/20 shadow-2xl">
               <Sparkles className="w-8 h-8 text-white" />
             </div>
-            <span className="text-3xl font-black italic uppercase tracking-tighter">
-              Pappi Gestor
-            </span>
+            <span className="text-3xl font-black italic uppercase tracking-tighter">Pappi Gestor</span>
           </div>
         </div>
 

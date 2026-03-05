@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { useEffect, useState } from "react";
+import { getSupabaseClient } from "@/lib/supabaseClient";
 
 export type NivelAcesso =
   | "operador"
@@ -62,12 +62,17 @@ export function useAppAuth() {
   };
 
   async function reload() {
+    const supabase = getSupabaseClient();
+    if (!supabase) {
+      setLocalUser(null);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const { data: sessionData, error: sessErr } =
-        await supabase.auth.getSession();
-
+      const { data: sessionData, error: sessErr } = await supabase.auth.getSession();
       if (sessErr) throw sessErr;
 
       const session = sessionData.session;
@@ -80,7 +85,7 @@ export function useAppAuth() {
       const user = session.user;
       const userId = user.id;
 
-      // Busca vínculo empresa
+      // vínculo empresa
       const { data: link, error: linkErr } = await supabase
         .from("company_users")
         .select("company_id, role")
@@ -95,11 +100,9 @@ export function useAppAuth() {
       }
 
       if (!link?.company_id) {
-        // usuário ainda não tem empresa
         setLocalUser({
           id: userId,
-          nome:
-            (user.user_metadata?.full_name as string) ?? "Usuário",
+          nome: (user.user_metadata?.full_name as string) ?? "Usuário",
           email: user.email ?? "",
           nivel_acesso: "operador",
           empresa_id: "",
@@ -112,14 +115,14 @@ export function useAppAuth() {
       const companyId = link.company_id as string;
       const role = normalizeRole(link.role);
 
-      // Nome da empresa
+      // nome da empresa
       const { data: company } = await supabase
         .from("companies")
         .select("name")
         .eq("id", companyId)
         .maybeSingle();
 
-      // Features da empresa
+      // features
       const { data: feats } = await supabase
         .from("company_features")
         .select("feature, enabled")
@@ -131,8 +134,7 @@ export function useAppAuth() {
 
       setLocalUser({
         id: userId,
-        nome:
-          (user.user_metadata?.full_name as string) ?? "Usuário",
+        nome: (user.user_metadata?.full_name as string) ?? "Usuário",
         email: user.email ?? "",
         nivel_acesso: role,
         empresa_id: companyId,
@@ -148,12 +150,23 @@ export function useAppAuth() {
   }
 
   useEffect(() => {
-    reload();
-    const { data: sub } =
-      supabase.auth.onAuthStateChange(() => reload());
+    let unsub: (() => void) | undefined;
+
+    (async () => {
+      await reload();
+
+      const supabase = getSupabaseClient();
+      if (!supabase) return;
+
+      const { data } = supabase.auth.onAuthStateChange(() => {
+        reload();
+      });
+
+      unsub = () => data.subscription.unsubscribe();
+    })();
 
     return () => {
-      sub.subscription.unsubscribe();
+      if (unsub) unsub();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

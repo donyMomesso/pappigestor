@@ -1,24 +1,34 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { getSupabaseClient } from "@/lib/supabaseClient";
 
 export default function AppHome() {
   const [email, setEmail] = useState<string>("");
 
   useEffect(() => {
     (async () => {
+      const supabase = getSupabaseClient();
+      if (!supabase) {
+        window.location.href = "/auth";
+        return;
+      }
+
       const { data } = await supabase.auth.getUser();
       if (!data?.user) {
         window.location.href = "/auth";
         return;
       }
+
       setEmail(data.user.email ?? "");
     })();
   }, []);
 
   async function logout() {
-    await supabase.auth.signOut();
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      await supabase.auth.signOut();
+    }
     window.location.href = "/auth";
   }
 

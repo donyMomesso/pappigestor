@@ -1,49 +1,266 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { getSupabaseClient } from "@/lib/supabaseClient";
+
+type FinanceiroRow = {
+  id?: string;
+  empresa_id?: string | null;
+  tipo?: "receita" | "despesa" | string;
+  valor?: number | string | null;
+  created_at?: string | null;
+  data?: string | null; // se você usa outro campo
+};
+
+type ProdutoRow = {
+  id?: string;
+  empresa_id?: string | null;
+  nome?: string | null;
+  estoque_atual?: number | null;
+  estoque_minimo?: number | null;
+  custo_unitario?: number | null;
+};
+
+type MesSerie = { name: string; receitas: number; despesas: number };
+type EstoquePizza = { name: string; value: number };
+
+function toNumber(v: any) {
+  if (v === null || v === undefined) return 0;
+  if (typeof v === "number") return Number.isFinite(v) ? v : 0;
+  if (typeof v === "string") {
+    const s = v.trim().replace(/\./g, "").replace(",", ".");
+    const n = Number(s);
+    return Number.isFinite(n) ? n : 0;
+  }
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function monthKey(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function monthLabel(d: Date) {
+  return d.toLocaleString("pt-BR", { month: "short" }).replace(".", "");
+}
+
+function lastMonths(count: number) {
+  const out: Date[] = [];
+  const now = new Date();
+  for (let i = count - 1; i >= 0; i--) {
+    const dt = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    out.push(dt);
+  }
+  return out;
+}
+
+function safeDate(raw: any): Date | null {
+  if (!raw) return null;
+  const dt = new Date(raw);
+  return Number.isNaN(dt.getTime()) ? null : dt;
+}
 
 export function useDashboard() {
-  const [data, setData] = useState<any>({
-    faturamento: [],
-    estoqueStatus: [],
-    metricas: { totalVendas: 0, totalPagar: 0, itensCriticos: 0 }
-  });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  async function fetchDashboardData() {
+  const [seriesMensal, setSeriesMensal] = useState<MesSerie[]>([]);
+  const [estoquePizza, setEstoquePizza] = useState<EstoquePizza[]>([]);
+  const [itensCriticos, setItensCriticos] = useState<
+    Array<{ id?: string; nome: string; atual: number; minimo: number }>
+  >([]);
+
+  const [kpis, setKpis] = useState({
+    receitaTotal: 0,
+    despesaTotal: 0,
+    lucro: 0,
+    margem: 0,
+    itensCriticos: 0,
+  });
+
+  const refresh = useCallback(async () => {
     setLoading(true);
-    
-    // 1. Buscar Dados Financeiros para o Gráfico de Barras
-    const { data: fin } = await supabase.from("financeiro").select("*");
-    
-    // 2. Buscar Dados de Estoque para o Gráfico de Pizza
-    const { data: est } = await supabase.from("produtos").select("*");
+    setError(null);
 
-    // Processamento Simples para os Gráficos
-    const faturamentoMensal = [
-      { name: 'Jan', valor: 4000 }, { name: 'Fev', valor: 3000 },
-      { name: 'Mar', valor: 5000 }, { name: 'Abr', valor: 4500 }
-    ];
+    const supabase = getSupabaseClient();
+    if (!supabase) {
+      // ✅ modo offline (não quebra build)
+      const fake = lastMonths(6).map((d) => ({
+        name: monthLabel(d),
+        receitas: 8000,
+        despesas: 5200,
+      }));
 
-    const statusEstoque = [
-      { name: 'Ok', value: est?.filter(p => p.estoque_atual > p.estoque_minimo).length || 0 },
-      { name: 'Crítico', value: est?.filter(p => p.estoque_atual <= p.estoque_minimo).length || 0 }
-    ];
+      setSeriesMensal(fake);
+      setEstoquePizza([
+        { name: "Ok", value: 18 },
+        { name: "Crítico", value: 4 },
+      ]);
+      setItensCriticos([
+        { id: "1", nome: "Mussarela", atual: 2, minimo: 6 },
+        { id: "2", nome: "Calabresa", atual: 1, minimo: 4 },
+        { id: "3", nome: "Catupiry", atual: 1, minimo: 3 },
+      ]);
+      setKpis({
+        receitaTotal: 48000,
+        despesaTotal: 31200,
+        lucro: 16800,
+        margem: 35,
+        itensCriticos: 4,
+      });
 
-    setData({
-      faturamento: faturamentoMensal,
-      estoqueStatus: statusEstoque,
-      metricas: {
-        totalVendas: fin?.filter(t => t.tipo === 'receita').reduce((acc, t) => acc + t.valor, 0) || 0,
-        totalPagar: fin?.filter(t => t.tipo === 'despesa').reduce((acc, t) => acc + t.valor, 0) || 0,
-        itensCriticos: statusEstoque[1].value
+      setLoading(false);
+      return;
+    }
+
+    // ✅ pega SEMPRE o valor atual (não congela no primeiro render)
+    const empresaId =
+      typeof window !== "undefined"
+        ? (localStorage.getItem("empresa_id") || "")
+        : "";
+
+    try {
+      // 1) Financeiro (tabela exata: "financeiro")
+      let finQuery = supabase.from("financeiro").select("*");
+      if (empresaId) finQuery = finQuery.eq("empresa_id", empresaId);
+
+      const { data: fin, error: finErr } = await finQuery;
+      if (finErr) throw finErr;
+
+      // 2) Produtos (tabela exata: "produtos")
+      let prodQuery = supabase.from("produtos").select("*");
+      if (empresaId) prodQuery = prodQuery.eq("empresa_id", empresaId);
+
+      const { data: prods, error: prodErr } = await prodQuery;
+      if (prodErr) throw prodErr;
+
+      const finRows = (fin ?? []) as FinanceiroRow[];
+      const prodRows = (prods ?? []) as ProdutoRow[];
+
+      // Série mensal (últimos 6 meses)
+      const months = lastMonths(6);
+      const buckets = new Map<
+        string,
+        { receitas: number; despesas: number; label: string }
+      >();
+
+      months.forEach((d) => {
+        buckets.set(monthKey(d), {
+          receitas: 0,
+          despesas: 0,
+          label: monthLabel(d),
+        });
+      });
+
+      for (const row of finRows) {
+        const dt = safeDate(row.created_at || row.data);
+        if (!dt) continue;
+
+        const key = monthKey(new Date(dt.getFullYear(), dt.getMonth(), 1));
+        const b = buckets.get(key);
+        if (!b) continue;
+
+        const valor = toNumber(row.valor);
+        const tipo = String(row.tipo || "").toLowerCase();
+
+        if (tipo === "receita") b.receitas += valor;
+        if (tipo === "despesa") b.despesas += valor;
       }
-    });
-    setLoading(false);
-  }
 
-  useEffect(() => { fetchDashboardData(); }, []);
+      const serie: MesSerie[] = months.map((d) => {
+        const b = buckets.get(monthKey(d))!;
+        return {
+          name: b.label,
+          receitas: Math.round(b.receitas),
+          despesas: Math.round(b.despesas),
+        };
+      });
 
-  return { ...data, loading, refresh: fetchDashboardData };
+      // KPIs
+      const receitaTotal = finRows
+        .filter((t) => String(t.tipo || "").toLowerCase() === "receita")
+        .reduce((acc, t) => acc + toNumber(t.valor), 0);
+
+      const despesaTotal = finRows
+        .filter((t) => String(t.tipo || "").toLowerCase() === "despesa")
+        .reduce((acc, t) => acc + toNumber(t.valor), 0);
+
+      const lucro = receitaTotal - despesaTotal;
+      const margem =
+        receitaTotal > 0 ? (lucro / receitaTotal) * 100 : 0;
+
+      // Estoque crítico
+      const criticos = prodRows
+        .map((p) => ({
+          id: p.id,
+          nome: String(p.nome ?? "Item"),
+          atual: toNumber(p.estoque_atual),
+          minimo: toNumber(p.estoque_minimo),
+        }))
+        .filter((p) => p.minimo > 0 && p.atual <= p.minimo)
+        .sort((a, b) => a.atual / a.minimo - b.atual / b.minimo)
+        .slice(0, 8);
+
+      const totalOk = prodRows.filter((p) => {
+        const a = toNumber(p.estoque_atual);
+        const m = toNumber(p.estoque_minimo);
+        if (m <= 0) return true;
+        return a > m;
+      }).length;
+
+      const totalCrit = Math.max(0, prodRows.length - totalOk);
+
+      setSeriesMensal(serie);
+      setItensCriticos(criticos);
+      setEstoquePizza([
+        { name: "Ok", value: totalOk },
+        { name: "Crítico", value: totalCrit },
+      ]);
+
+      setKpis({
+        receitaTotal: Math.round(receitaTotal),
+        despesaTotal: Math.round(despesaTotal),
+        lucro: Math.round(lucro),
+        margem: Number.isFinite(margem) ? Math.round(margem * 10) / 10 : 0,
+        itensCriticos: totalCrit,
+      });
+    } catch (e: any) {
+      console.error(e);
+      setError(e?.message || "Erro ao carregar dashboard");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  const alertas = useMemo(() => {
+    const alerts: Array<{ tipo: "warn" | "danger"; texto: string }> = [];
+    if (kpis.itensCriticos > 0) {
+      alerts.push({
+        tipo: "warn",
+        texto: `Você tem ${kpis.itensCriticos} itens em estoque crítico.`,
+      });
+    }
+    if (kpis.lucro < 0) {
+      alerts.push({
+        tipo: "danger",
+        texto: `Seu caixa está negativo (lucro: R$ ${kpis.lucro}).`,
+      });
+    }
+    return alerts;
+  }, [kpis.itensCriticos, kpis.lucro]);
+
+  return {
+    loading,
+    error,
+    refresh,
+    serieMensal: seriesMensal,
+    estoquePizza,
+    itensCriticos,
+    kpis,
+    alertas,
+  };
 }

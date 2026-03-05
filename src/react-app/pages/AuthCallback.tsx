@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabaseClient";
+import { getSupabaseClient } from "@/lib/supabaseClient";
 import { Loader2 } from "lucide-react";
 
 type Empresa = {
@@ -23,36 +23,42 @@ export default function AuthCallbackPage() {
         setError(null);
         setStatus("Validando credenciais...");
 
+        // 0) Supabase (modo offline-safe)
+        const supabase = getSupabaseClient();
+        if (!supabase) {
+          setError("Supabase não configurado. Configure as variáveis de ambiente para ativar o login.");
+          setTimeout(() => router.push("/login"), 1200);
+          return;
+        }
+
         // 1) Sessão do Supabase (code -> session)
-      
-       const { data, error: authError } = await supabase.auth.getSession();
-if (authError) throw authError;
+        const { data, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) throw sessionError;
 
-const session = data.session;
-if (!session?.user?.email) {
-  router.push("/login");
-  return;
-}
+        const session = data.session;
+        if (!session?.user?.email) {
+          router.push("/login");
+          return;
+        }
 
-const email = session.user.email.toLowerCase();
+        const email = session.user.email.toLowerCase();
 
-// ✅ AQUI
-localStorage.setItem("user_email", email);
+        // salva email (usado por outras telas)
+        localStorage.setItem("user_email", email);
 
-setStatus("Carregando suas empresas...");
+        setStatus("Carregando suas empresas...");
 
-// 2) Descobrir empresas do usuário
-const res = await fetch("/api/empresas/minhas", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ email }),
-});
+        // 2) Descobrir empresas do usuário
+        const res = await fetch("/api/empresas/minhas", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email }),
+        });
 
         if (!res.ok) {
           const txt = await res.text().catch(() => "");
           console.error("Erro /api/empresas/minhas:", res.status, txt);
 
-          // fallback seguro: manda pro login (ou onboarding se você preferir)
           setError("Não consegui carregar suas empresas. Tente novamente.");
           setTimeout(() => router.push("/login"), 2500);
           return;
@@ -63,9 +69,8 @@ const res = await fetch("/api/empresas/minhas", {
 
         // 3) Regras de roteamento (SaaS multi-tenant)
         if (empresas.length === 0) {
-          // Usuário logou mas não tem empresa vinculada
           setStatus("Nenhuma empresa encontrada. Vamos criar/ativar sua empresa...");
-          // Ajuste o destino se você tiver onboarding
+
           setTimeout(() => {
             router.push("/app/onboarding");
             router.refresh();
@@ -74,11 +79,10 @@ const res = await fetch("/api/empresas/minhas", {
         }
 
         if (empresas.length === 1) {
-          // ✅ Única empresa -> seta empresa_id e segue
           const emp = empresas[0];
 
           localStorage.setItem("empresa_id", emp.id);
-          localStorage.removeItem("pId"); // limpa legado pra não confundir
+          localStorage.removeItem("pId"); // legado
 
           setStatus(`Entrando em ${emp.nome}...`);
 
@@ -89,10 +93,9 @@ const res = await fetch("/api/empresas/minhas", {
           return;
         }
 
-        // ✅ Mais de uma empresa -> manda pra seleção
+        // Mais de uma empresa -> seleção
         setStatus("Escolha a empresa para entrar...");
 
-        // opcional: salva um hint para a tela de empresas
         localStorage.removeItem("pId");
         localStorage.removeItem("empresa_id");
 
@@ -102,7 +105,7 @@ const res = await fetch("/api/empresas/minhas", {
         }, 700);
       } catch (err: any) {
         console.error("Erro crítico no callback:", err);
-        setError("Falha na autenticação. Tente novamente.");
+        setError(err?.message || "Falha na autenticação. Tente novamente.");
         setTimeout(() => router.push("/login"), 2500);
       }
     };

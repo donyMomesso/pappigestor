@@ -37,7 +37,7 @@ import {
 } from "lucide-react";
 import { Crown } from "lucide-react";
 
-import { supabase } from "@/lib/supabaseClient";
+import { getSupabaseClient } from "@/lib/supabaseClient"
 import { useAppAuth } from "@/hooks/useAppAuth";
 
 // Se você ainda não migrou o assistente, deixa assim por enquanto
@@ -246,10 +246,12 @@ export default function AppShell({ children }: { children: ReactNode }) {
   }, [loading, localUser, router]);
 
   const handleLogout = async () => {
+  const supabase = getSupabaseClient();
+  if (supabase) {
     await supabase.auth.signOut();
-    router.replace("/auth");
-  };
-
+  }
+  router.replace("/auth");
+};
   const visibleMainItems = mainNavItems.filter((item) => hasPermission(item.roles));
   const contexto = (pathname?.split("/")[2] || "home").trim() || "home";
 

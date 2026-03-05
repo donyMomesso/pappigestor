@@ -1,12 +1,20 @@
-import { supabase } from "@/lib/supabaseClient";
+"use client";
+
+import { getSupabaseClient } from "@/lib/supabaseClient";
 
 export async function requireUser() {
+  const supabase = getSupabaseClient();
+  if (!supabase) return null;
+
   const { data, error } = await supabase.auth.getUser();
   if (error || !data?.user) return null;
   return data.user;
 }
 
 export async function getMyCompanyId() {
+  const supabase = getSupabaseClient();
+  if (!supabase) return null;
+
   const user = await requireUser();
   if (!user) return null;
 
@@ -18,5 +26,5 @@ export async function getMyCompanyId() {
     .maybeSingle();
 
   if (error) return null;
-  return data?.company_id ?? null;
+  return (data?.company_id as string) ?? null;
 }

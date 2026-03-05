@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from "@/react-app/components/ui/dialog";
 import { PluggyConnect } from "react-pluggy-connect";
+import { useAppAuth } from "@/react-app/contexts/AppAuthContext"; // ✅ IMPORTADO O CONTEXTO AQUI
 
 interface Connector {
   id: number;
@@ -40,6 +41,7 @@ interface SyncResult {
 }
 
 export default function OpenFinance() {
+  const { localUser } = useAppAuth(); // ✅ PUXANDO O USUÁRIO
   const [connectors, setConnectors] = useState<Connector[]>([]);
   const [conexoes, setConexoes] = useState<ConexaoBancaria[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,10 +62,24 @@ export default function OpenFinance() {
   const [responsibleCpf, setResponsibleCpf] = useState("");
   const [docError, setDocError] = useState<string | null>(null);
 
+  // ✅ FUNÇÃO QUE GERA OS HEADERS COM O CRACHÁ
+  const getHeaders = useCallback(() => {
+    const pId = localStorage.getItem("pId") || localStorage.getItem("pizzariaId") || "";
+    const email = localUser?.email || localStorage.getItem("userEmail") || "";
+    return {
+      "Content-Type": "application/json",
+      "x-pizzaria-id": pId,
+      "x-empresa-id": pId,
+      "x-user-email": email
+    };
+  }, [localUser]);
+
   // Buscar conexões existentes
   const fetchConexoes = useCallback(async () => {
     try {
-      const res = await fetch("/api/conexoes-bancarias");
+      const res = await fetch("/api/conexoes-bancarias", {
+        headers: getHeaders() // ✅ CABEÇALHOS APLICADOS
+      });
       if (res.ok) {
         const data = await res.json();
         setConexoes(data);
@@ -73,15 +89,16 @@ export default function OpenFinance() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [getHeaders]);
 
   // Buscar conectores da Pluggy via backend (evita CORS)
-  // Filtra por tipo de conta: PF = PERSONAL_BANK, PJ = BUSINESS_BANK
   const fetchConnectors = async (accountType: "PF" | "PJ" = docType) => {
     setLoadingConnectors(true);
-    setSelectedConnector(null); // Limpa seleção ao mudar tipo
+    setSelectedConnector(null);
     try {
-      const res = await fetch(`/api/pluggy/connectors?accountType=${accountType}`);
+      const res = await fetch(`/api/pluggy/connectors?accountType=${accountType}`, {
+        headers: getHeaders() // ✅ CABEÇALHOS APLICADOS
+      });
       if (res.ok) {
         const data = await res.json();
         setConnectors(data.results || []);
@@ -97,21 +114,16 @@ export default function OpenFinance() {
     fetchConexoes();
   }, [fetchConexoes]);
 
-  
-
   const handleOpenConnectorList = () => {
     setShowConnectorDialog(true);
     setConnectError(null);
-    // Sempre busca conectores ao abrir para garantir filtro correto
     fetchConnectors(docType);
   };
   
-  // Quando mudar tipo de conta, recarrega lista de bancos
   const handleDocTypeChange = (newType: "PF" | "PJ") => {
     setDocType(newType);
     setDocError(null);
     setSelectedConnector(null);
-    // Se o diálogo estiver aberto, recarrega conectores
     if (showConnectorDialog) {
       fetchConnectors(newType);
     }
@@ -125,7 +137,6 @@ export default function OpenFinance() {
   // Validar documento
   const validateDocument = (): boolean => {
     setDocError(null);
-    
     const cleanDoc = docNumber.replace(/\D/g, '');
     
     if (docType === "PF") {
@@ -144,27 +155,21 @@ export default function OpenFinance() {
         return false;
       }
     }
-    
     return true;
   };
 
   // Iniciar conexão via Pluggy Connect Widget
   const handleConnect = async () => {
     if (!selectedConnector) return;
-    
-    // Validar documento antes de prosseguir
-    if (!validateDocument()) {
-      return;
-    }
+    if (!validateDocument()) return;
     
     setConnecting(true);
     setConnectError(null);
 
     try {
-      // Buscar Connect Token do backend com dados do documento
       const tokenRes = await fetch("/api/pluggy/connect-token", { 
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getHeaders(), // ✅ CABEÇALHOS APLICADOS
         body: JSON.stringify({
           docType,
           docNumber: docNumber.replace(/\D/g, ''),
@@ -192,13 +197,12 @@ export default function OpenFinance() {
   // Callback de sucesso do Pluggy Connect
   const handlePluggySuccess = async (data: { item: { id: string; connector?: { name?: string; imageUrl?: string } } }) => {
     try {
-      // Pega dados do connector selecionado ou do item retornado pelo Pluggy
       const connectorName = selectedConnector?.name || data.item.connector?.name || "Banco conectado";
       const connectorLogo = selectedConnector?.imageUrl || data.item.connector?.imageUrl || "";
       
       await fetch("/api/pluggy/conexao", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getHeaders(), // ✅ CABEÇALHOS APLICADOS
         body: JSON.stringify({
           itemId: data.item.id,
           connectorName,
@@ -227,7 +231,6 @@ export default function OpenFinance() {
     setConnecting(false);
   };
 
-  // Callback de fechamento do Pluggy Connect
   const handlePluggyClose = () => {
     setShowPluggyWidget(false);
     setConnectToken(null);
@@ -236,9 +239,11 @@ export default function OpenFinance() {
 
   const handleDelete = async (id: number) => {
     if (!confirm("Deseja remover esta conexão bancária?")) return;
-    
     try {
-      const res = await fetch(`/api/conexoes-bancarias/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/conexoes-bancarias/${id}`, { 
+        method: "DELETE",
+        headers: getHeaders() // ✅ CABEÇALHOS APLICADOS
+      });
       if (res.ok) {
         fetchConexoes();
       }
@@ -260,6 +265,7 @@ export default function OpenFinance() {
     try {
       const res = await fetch(`/api/pluggy/sincronizar-boletos/${conexao.pluggy_item_id}`, {
         method: "POST",
+        headers: getHeaders() // ✅ CABEÇALHOS APLICADOS
       });
 
       const data = await res.json();

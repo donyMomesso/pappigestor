@@ -2,7 +2,8 @@
 
 import dynamic from "next/dynamic";
 
-const OpenFinancePage = dynamic(() => import("./OpenFinanceClient"), {
+// 🔥 A MÁGICA AQUI: Apontamos diretamente para o seu ficheiro real do Pluggy!
+const OpenFinancePage = dynamic(() => import("@/react-app/pages/OpenFinance"), {
   ssr: false,
 });
 

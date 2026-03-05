@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { 
   Eye, Trash2, Loader2, ArrowRight, Receipt, Package, AlertCircle, 
-  Upload, MessageSquare, FileText, Info, Camera, QrCode, Link as LinkIcon, Check, X, Sparkles
+  Upload, MessageSquare, FileText, Info, Camera, QrCode, Link as LinkIcon, Check, X, Sparkles, DollarSign
 } from "lucide-react";
 import { 
   Dialog, DialogContent, DialogHeader, 
@@ -44,7 +44,7 @@ export default function InboxPage() {
 
   const fetchInbox = async () => {
     try {
-      const pId = localStorage.getItem("pId") || "";
+      const pId = localStorage.getItem("pId") || localStorage.getItem("pizzariaId") || "";
       const res = await fetch("/api/ia/inbox", {
         headers: { "x-pizzaria-id": pId }
       });
@@ -70,7 +70,7 @@ export default function InboxPage() {
     if (!file) return;
 
     setUploading(true);
-    const pId = localStorage.getItem("pId") || "";
+    const pId = localStorage.getItem("pId") || localStorage.getItem("pizzariaId") || "";
 
     try {
       const formData = new FormData();
@@ -100,7 +100,7 @@ export default function InboxPage() {
   const extrairDadosPorLink = async () => {
     if (!linkNfe.trim()) return;
     setExtraindo(true);
-    const pId = localStorage.getItem("pId") || "";
+    const pId = localStorage.getItem("pId") || localStorage.getItem("pizzariaId") || "";
 
     try {
       const response = await fetch("/api/ia/ler-link", {
@@ -190,19 +190,24 @@ export default function InboxPage() {
   // ============================================================================
   const handleApprove = async (item: any) => {
     setProcessingId(item.id);
-    const pId = localStorage.getItem("pId") || "";
+    const pId = localStorage.getItem("pId") || localStorage.getItem("pizzariaId") || "";
     try {
       const res = await fetch("/api/ia/inbox/approve", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-pizzaria-id": pId },
-        body: JSON.stringify(item),
+        body: JSON.stringify({
+          id: item.id,
+          json_extraido: typeof item.json_extraido === 'string' ? item.json_extraido : JSON.stringify(item.json_extraido)
+        }),
       });
 
       if (!res.ok) throw new Error("Falha ao aprovar");
+      
+      alert("Nota lançada no estoque com sucesso! Custos atualizados.");
       setItems((prev) => prev.filter((i) => i.id !== item.id));
     } catch (e) {
       console.error(e);
-      alert("Ocorreu um erro ao processar a nota.");
+      alert("Ocorreu um erro ao processar a nota para o estoque.");
     } finally {
       setProcessingId(null);
     }
@@ -368,17 +373,24 @@ export default function InboxPage() {
                     </div>
 
                     <div className="bg-gray-50 rounded-[30px] p-6 mb-8 max-h-60 overflow-y-auto border border-gray-100 shadow-inner">
-                       <p className="text-[9px] font-black uppercase italic text-gray-400 mb-4 tracking-widest">Produtos Detectados</p>
+                       <p className="text-[9px] font-black uppercase italic text-gray-400 mb-4 tracking-widest">Produtos Detectados (Serão enviados ao Estoque)</p>
                        <div className="space-y-3">
                           {Array.isArray(item.json_extraido) && item.json_extraido.map((prod: any, idx: number) => (
-                            <div key={idx} className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-gray-50">
+                            <div key={idx} className="flex flex-col md:flex-row md:justify-between md:items-center bg-white p-4 rounded-xl shadow-sm border border-gray-50 gap-3">
                                <div className="flex items-center gap-3">
                                   <Package size={16} className="text-orange-500" />
                                   <span className="text-xs font-bold uppercase italic">{prod.produto}</span>
                                </div>
-                               <div className="flex items-center gap-4">
-                                 {prod.preco_un && <span className="text-xs text-gray-400 font-bold">R$ {prod.preco_un} un</span>}
-                                 <span className="text-xs font-black bg-gray-100 px-3 py-1 rounded-lg border border-gray-200">Qtd: {prod.qtd || 1}</span>
+                               <div className="flex items-center gap-4 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200">
+                                 {prod.preco_un && (
+                                   <span className="text-xs font-black text-green-600 flex items-center gap-1">
+                                     <DollarSign size={12} className="text-green-500"/>
+                                     {parseFloat(prod.preco_un).toFixed(2)} unit.
+                                   </span>
+                                 )}
+                                 <span className="text-xs font-black text-gray-600 border-l border-gray-300 pl-4">
+                                   Qtd: {prod.qtd || 1}
+                                 </span>
                                </div>
                             </div>
                           ))}
@@ -394,10 +406,10 @@ export default function InboxPage() {
                       <Button 
                         onClick={() => handleApprove(item)}
                         disabled={processingId === item.id}
-                        className="h-16 px-10 w-full sm:w-auto bg-gradient-to-r from-orange-600 to-pink-600 text-white rounded-2xl font-black uppercase italic text-xs shadow-xl shadow-orange-200 hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:hover:scale-100"
+                        className="h-16 px-10 w-full sm:w-auto bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-2xl font-black uppercase italic text-xs shadow-xl shadow-green-200 hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:hover:scale-100"
                       >
                         {processingId === item.id ? (
-                          <><Loader2 className="animate-spin mr-2" size={18} /> Processando...</>
+                          <><Loader2 className="animate-spin mr-2" size={18} /> Injetando no Estoque...</>
                         ) : (
                           "Confirmar e Lançar Estoque"
                         )}

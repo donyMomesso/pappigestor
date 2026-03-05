@@ -1,17 +1,16 @@
 "use client";
 
-import type { LocalUser } from "@/hooks/useAppAuth";
-
 import React, { useEffect } from "react";
-import { useNavigate } from "react-router-dom"; 
+import { useNavigate } from "react-router-dom";
 import { useAppAuth } from "../contexts/AppAuthContext";
-import { Button } from "../components/ui/button"; 
-import { Loader2, UserPlus, LogIn } from "lucide-react";
+import type { LocalUser } from "../contexts/AppAuthContext";
+import { Button } from "../components/ui/button";
+import { UserPlus, LogIn } from "lucide-react";
 
-const LOGO_URL = "https://019c7b56-2054-7d0b-9c55-e7a603c40ba8.mochausercontent.com/1771799343659.png";
+const LOGO_URL =
+  "https://019c7b56-2054-7d0b-9c55-e7a603c40ba8.mochausercontent.com/1771799343659.png";
 
 export default function LoginPage() {
-  // Chamada correta do hook para evitar erros de "Cannot find name"
   const { localUser, setLocalUser } = useAppAuth();
   const navigate = useNavigate();
 
@@ -23,19 +22,18 @@ export default function LoginPage() {
   }, [localUser, navigate]);
 
   const handleGoogleLogin = () => {
+    // ✅ Mock local só pra não quebrar o build (troca pelo login real do Supabase depois)
+    const mockUser: LocalUser = {
+      id: "user_123",
+      nome: "Dony Momesso",
+      email: "dony@local.dev",
+      nivel_acesso: "admin",
+      empresa_id: "local_company",
+      nome_empresa: "Pappi Gestor (Local)",
+      plano: "Grátis",
+    };
 
-const mockUser: LocalUser = {
-  id: "user_123",
-  nome: "Dony Momesso",
-  email: "dony@local.dev",
-  nivel_acesso: "admin_empresa",
-  empresa_id: "local_company",
-  empresa_nome: "Pappi Gestor (Local)",
-  features: [],
-};
-
-setLocalUser(mockUser);
-
+    setLocalUser(mockUser);
     navigate("/app");
   };
 
@@ -43,7 +41,6 @@ setLocalUser(mockUser);
     <div className="min-h-screen flex items-center justify-center bg-[#050505] p-4">
       <div className="w-full max-w-md">
         <div className="bg-zinc-900 border border-zinc-800 rounded-[32px] p-8 space-y-8 shadow-2xl">
-          
           <div className="flex flex-col items-center gap-6">
             <img
               src={LOGO_URL}
@@ -72,12 +69,14 @@ setLocalUser(mockUser);
               <span className="w-full border-t border-zinc-800"></span>
             </div>
             <div className="relative flex justify-center text-[10px] uppercase">
-              <span className="bg-zinc-900 px-2 text-zinc-600 font-bold">Ou</span>
+              <span className="bg-zinc-900 px-2 text-zinc-600 font-bold">
+                Ou
+              </span>
             </div>
           </div>
 
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             className="w-full h-14 border-zinc-800 text-zinc-400 hover:bg-zinc-800 rounded-2xl text-xs font-bold uppercase italic"
             onClick={() => navigate("/cadastro")}
           >

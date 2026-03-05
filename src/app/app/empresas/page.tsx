@@ -32,7 +32,8 @@ export default function EmpresasPage() {
           return;
         }
 
-        const res = await fetch("http://localhost:8787/api/empresas/minhas", {
+        // ✅ endpoint relativo (funciona local e produção)
+          const res = await fetch("/api/empresas/minhas", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email }),
@@ -97,7 +98,7 @@ export default function EmpresasPage() {
           <CardContent className="p-8">
             <p className="text-sm text-gray-500 font-bold">Nenhuma empresa encontrada para este usuário.</p>
             <p className="text-xs text-gray-400 mt-1">
-              Faça login com um email que exista em <span className="font-mono">perfis_usuarios</span>.
+              Faça login com um email que exista no vínculo de empresas (ex: <span className="font-mono">company_users</span>).
             </p>
           </CardContent>
         </Card>
@@ -155,7 +156,7 @@ export default function EmpresasPage() {
                   className="rounded-2xl bg-gray-900 text-white font-black italic uppercase text-[10px] tracking-widest h-12 px-6"
                   onClick={() => {
                     localStorage.setItem("empresa_id", emp.id);
-                    window.location.href = "/app";
+                    window.location.href = "/app/dashboard";
                   }}
                 >
                   Entrar

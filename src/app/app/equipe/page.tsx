@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { api } from "@/lib/api";
 import { Button } from "@/react-app/components/ui/button";
 import { UserPlus, Trash2, Shield, User, Zap, Crown } from "lucide-react";
 
@@ -23,16 +24,6 @@ interface EquipeResponse {
   plano: PlanoInfo;
 }
 
-function getEmpresaId(): string {
-  // padrão novo
-  const empresaId = localStorage.getItem("empresa_id") || "";
-  if (empresaId) return empresaId;
-
-  // fallback antigo (se você ainda tiver gravado assim)
-  const pId = localStorage.getItem("pId") || "";
-  return pId;
-}
-
 export default function EquipePage() {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [emailNovo, setEmailNovo] = useState("");
@@ -50,7 +41,8 @@ export default function EquipePage() {
   }, []);
 
   async function fetchEquipe() {
-    const empresaId = getEmpresaId();
+    // ✅ aqui a validação é local, mas quem manda mesmo é o middleware no worker
+    const empresaId = localStorage.getItem("empresa_id") || "";
     if (!empresaId) {
       alert("Selecione uma empresa antes (Tela Empresas).");
       setLoading(false);
@@ -60,35 +52,22 @@ export default function EquipePage() {
     try {
       setLoading(true);
 
-      const res = await fetch("/api/admin/usuarios", {
-        headers: {
-          "x-empresa-id": empresaId,
-          // fallback temporário
-          "x-pizzaria-id": empresaId,
-        },
-      });
+      // ✅ SEM res, SEM fetch
+      const data = await api<EquipeResponse>("/api/admin/usuarios");
 
-      if (!res.ok) {
-        const txt = await res.text().catch(() => "");
-        console.error("Erro GET /api/admin/usuarios:", res.status, txt);
-        setUsuarios([]);
-        return;
-      }
-
-      const data = (await res.json().catch(() => null)) as EquipeResponse | null;
-
-      setUsuarios(Array.isArray(data?.usuarios) ? data!.usuarios : []);
+      setUsuarios(Array.isArray(data?.usuarios) ? data.usuarios : []);
       setStatusPlano(data?.plano ?? { usado: 0, limite: 1, nome: "Grátis" });
     } catch (e) {
       console.error("Erro fetchEquipe:", e);
       setUsuarios([]);
+      setStatusPlano({ usado: 0, limite: 1, nome: "Grátis" });
     } finally {
       setLoading(false);
     }
   }
 
   async function associarEmail() {
-    const empresaId = getEmpresaId();
+    const empresaId = localStorage.getItem("empresa_id") || "";
     if (!empresaId) {
       alert("Selecione uma empresa antes (Tela Empresas).");
       return;
@@ -101,28 +80,16 @@ export default function EquipePage() {
     }
 
     try {
-      const res = await fetch("/api/admin/usuarios", {
+      await api("/api/admin/usuarios", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-empresa-id": empresaId,
-          // fallback temporário
-          "x-pizzaria-id": empresaId,
-        },
-        body: JSON.stringify({ email, cargo }),
+        body: { email, cargo },
       });
 
-      if (res.ok) {
-        setEmailNovo("");
-        await fetchEquipe();
-        return;
-      }
-
-      const errData = (await res.json().catch(() => null)) as { error?: string } | null;
-      alert(errData?.error ?? "Erro ao associar e-mail.");
-    } catch (e) {
+      setEmailNovo("");
+      await fetchEquipe();
+    } catch (e: any) {
       console.error("Erro associarEmail:", e);
-      alert("Falha na comunicação com o servidor.");
+      alert(e?.message ?? "Falha na comunicação com o servidor.");
     }
   }
 
@@ -151,7 +118,8 @@ export default function EquipePage() {
             )}
           </div>
           <p className="text-2xl font-black italic tracking-tighter">
-            {statusPlano.usado} <span className="text-orange-500">/</span> {statusPlano.limite}
+            {statusPlano.usado} <span className="text-orange-500">/</span>{" "}
+            {statusPlano.limite}
             <span className="text-[10px] ml-2 opacity-60">USUÁRIOS</span>
           </p>
         </div>
@@ -216,7 +184,9 @@ export default function EquipePage() {
             {user.funcao !== "master" && (
               <button
                 className="p-3 text-zinc-300 hover:text-red-500 transition-colors"
-                onClick={() => alert("Remover usuário: implementar DELETE /api/admin/usuarios/:id")}
+                onClick={() =>
+                  alert("Remover usuário: implementar DELETE /api/admin/usuarios/:id")
+                }
                 title="Remover"
               >
                 <Trash2 size={18} />

@@ -1,13 +1,17 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useMemo, useState, ReactNode } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  ReactNode,
+} from "react";
 import { supabase } from "@/lib/supabaseClient";
-import type { LocalUser, NivelAcesso, PlanoEmpresa } from "@/react-app/types/auth";
+import type { LocalUser, NivelAcesso, PlanoEmpresa, Feature } from "@/react-app/types/auth";
 import { PLANO_FEATURES } from "@/react-app/types/auth";
 
-// ================================
-// CONTEXTO
-// ================================
 interface AppAuthContextValue {
   localUser: LocalUser | null;
   setLocalUser: React.Dispatch<React.SetStateAction<LocalUser | null>>;
@@ -17,13 +21,13 @@ interface AppAuthContextValue {
   signOut: () => Promise<void>;
   refreshUser: () => Promise<void>;
 
-  // RBAC (papéis)
+  // Permissão por role (simples)
   hasRole: (allowed: NivelAcesso[]) => boolean;
 
-  // Plano / Feature da EMPRESA
-  hasFeature: (feature: string) => boolean;
+  // Permissão por feature do plano
+  hasFeature: (feature: Feature) => boolean;
 
-  // Permissão selecionada por usuário (dono define)
+  // Permissão por "permissoes" finas (se usar)
   hasPermission: (permission: string) => boolean;
 
   isSubscriptionExpired: () => boolean;
@@ -31,86 +35,103 @@ interface AppAuthContextValue {
 
 const AppAuthContext = createContext<AppAuthContextValue | null>(null);
 
-// ================================
-// HELPERS
-// ================================
-function normalizeRole(role: any): NivelAcesso {
-  const r = String(role ?? "").toLowerCase().trim();
+// ----------------------------
+// Normalizadores (compatibilidade)
+// ----------------------------
+function normalizePlan(raw: any): PlanoEmpresa {
+  const v = String(raw ?? "").trim().toLowerCase();
 
-  // aceita legados
-  if (r === "dono" || r === "owner") return "dono";
-  if (r === "admin" || r === "admin_empresa") return "admin";
-  if (r === "financeiro") return "financeiro";
-  if (r === "comprador") return "comprador";
-  if (r === "viewer" || r === "visualizador") return "viewer";
-  return "operador";
-}
+  // compat antigos
+  if (v === "grátis" || v === "gratis") return "gratis";
+  if (v === "básico" || v === "basico") return "basico";
+  if (v === "pro" || v === "profissional") return "profissional";
+  if (v === "enterprise") return "enterprise";
 
-function normalizePlano(plano: any): PlanoEmpresa {
-  const p = String(plano ?? "").toLowerCase().trim();
-  if (p === "gratis" || p === "grátis") return "gratis";
-  if (p === "basico" || p === "básico") return "basico";
-  if (p === "profissional") return "profissional";
-  if (p === "enterprise" || p === "empresarial") return "enterprise";
   // default seguro
   return "gratis";
 }
 
-// ================================
-// PROVIDER
-// ================================
+function normalizeRole(raw: any): NivelAcesso {
+  const v = String(raw ?? "").trim().toLowerCase();
+
+  // compat antigos (se aparecer do banco/metadata)
+  if (v === "admin_empresa") return "dono";
+  if (v === "super_admin") return "admin";
+
+  // roles novas
+  if (v === "dono") return "dono";
+  if (v === "admin") return "admin";
+  if (v === "financeiro") return "financeiro";
+  if (v === "comprador") return "comprador";
+  if (v === "operador") return "operador";
+  if (v === "viewer") return "viewer";
+
+  // default seguro (nunca dá admin sem querer)
+  return "operador";
+}
+
+function parseStringArray(raw: any): string[] {
+  try {
+    if (!raw) return [];
+    if (Array.isArray(raw)) return raw.map(String);
+    const s = String(raw).trim();
+    if (!s) return [];
+    const parsed = JSON.parse(s);
+    return Array.isArray(parsed) ? parsed.map(String) : [];
+  } catch {
+    return [];
+  }
+}
+
+function parseFeatureArray(raw: any): Feature[] {
+  const arr = parseStringArray(raw);
+  return arr as Feature[];
+}
+
+// ----------------------------
+// Provider
+// ----------------------------
 export function AppAuthProvider({ children }: { children: ReactNode }) {
   const [localUser, setLocalUser] = useState<LocalUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // ================================
-  // MAPEAR USUÁRIO DO SUPABASE (metadata)
-  // ================================
   const mapUser = (user: any): LocalUser | null => {
     if (!user) return null;
 
-    const md = user.user_metadata ?? {};
+    const meta = user.user_metadata ?? {};
+    const email = String(user.email ?? "").trim().toLowerCase();
 
-    const role = normalizeRole(md.nivel_acesso ?? md.role);
-    const plano = normalizePlano(md.plano ?? md.empresa_plano);
+    const plano = normalizePlan(meta.plano);
+    const nivel_acesso = normalizeRole(meta.nivel_acesso);
+
+    const featuresFromMeta = parseFeatureArray(meta.features);
+    const features = featuresFromMeta.length ? featuresFromMeta : PLANO_FEATURES[plano];
 
     return {
       id: String(user.id),
-      email: String(user.email ?? ""),
-      nome: md.full_name || md.name || "Gestor",
-
-      empresa_id: md.empresa_id ?? null,
-      nome_empresa: md.nome_empresa || "Minha Empresa",
-
-      nivel_acesso: role,
+      email,
+      nome: String(meta.full_name || meta.name || "Usuário"),
+      nivel_acesso,
+      empresa_id: meta.empresa_id ?? null,
+      nome_empresa: String(meta.nome_empresa || meta.empresa_nome || "Minha Empresa"),
       plano,
-
-      foto: md.avatar_url || md.picture || "",
-
-      // permissões por seleção (dono define)
-      // Ex: ["compras","estoque","financeiro","ia"]
-      permissoes: Array.isArray(md.permissoes) ? md.permissoes : [],
+      permissoes: parseStringArray(meta.permissoes),
+      features,
+      foto: String(meta.avatar_url || meta.picture || meta.foto || ""),
     };
   };
 
-  // ================================
-  // BUSCAR SESSÃO
-  // ================================
   const fetchSession = async () => {
     try {
       setIsLoading(true);
       setError(null);
 
-      const {
-        data: { session },
-        error: sessionError,
-      } = await supabase.auth.getSession();
-
+      const { data, error: sessionError } = await supabase.auth.getSession();
       if (sessionError) throw sessionError;
 
-      const mappedUser = mapUser(session?.user);
-      setLocalUser(mappedUser);
+      const mapped = mapUser(data.session?.user);
+      setLocalUser(mapped);
     } catch (err: any) {
       console.error("Auth error:", err);
       setError(err?.message || "Erro ao carregar sessão");
@@ -120,67 +141,48 @@ export function AppAuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // ================================
-  // ESCUTAR LOGIN / LOGOUT
-  // ================================
   useEffect(() => {
     fetchSession();
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      const mappedUser = mapUser(session?.user);
-      setLocalUser(mappedUser);
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      const mapped = mapUser(session?.user);
+      setLocalUser(mapped);
       setIsLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      data.subscription.unsubscribe();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ================================
-  // ROLE (RBAC)
-  // ================================
   const hasRole = (allowed: NivelAcesso[]) => {
     if (!localUser) return false;
-    if (localUser.nivel_acesso === "dono") return true;
     return allowed.includes(localUser.nivel_acesso);
   };
 
-  // ================================
-  // PLANO / FEATURE (EMPRESA)
-  // ================================
-  const hasFeature = (feature: string) => {
+  const hasFeature = (feature: Feature) => {
     if (!localUser) return false;
-    if (localUser.nivel_acesso === "dono") return true;
-
-    const featuresDoPlano = PLANO_FEATURES[localUser.plano] ?? [];
-    return featuresDoPlano.includes(feature);
+    const list = localUser.features ?? PLANO_FEATURES[localUser.plano];
+    return list.includes(feature);
   };
 
-  // ================================
-  // PERMISSÃO (SELEÇÃO POR USUÁRIO)
-  // ================================
   const hasPermission = (permission: string) => {
     if (!localUser) return false;
+
+    // dono sempre passa (você pode tirar isso se quiser)
     if (localUser.nivel_acesso === "dono") return true;
 
     const perms = localUser.permissoes ?? [];
     return perms.includes(permission);
   };
 
-  // ================================
-  // CONTROLE DE PLANO (placeholder)
-  // ================================
   const isSubscriptionExpired = () => {
     if (!localUser) return true;
-    // futuramente validar vencimento
+    // depois você pluga vencimento aqui
     return false;
   };
 
-  // ================================
-  // LOGOUT
-  // ================================
   const signOut = async () => {
     try {
       await supabase.auth.signOut();
@@ -211,18 +213,15 @@ export function AppAuthProvider({ children }: { children: ReactNode }) {
   return <AppAuthContext.Provider value={value}>{children}</AppAuthContext.Provider>;
 }
 
-// ================================
-// HOOK OBRIGATÓRIO
-// ================================
+// ----------------------------
+// Hooks
+// ----------------------------
 export function useAppAuth() {
-  const context = useContext(AppAuthContext);
-  if (!context) throw new Error("useAppAuth deve ser usado dentro de AppAuthProvider");
-  return context;
+  const ctx = useContext(AppAuthContext);
+  if (!ctx) throw new Error("useAppAuth deve ser usado dentro de AppAuthProvider");
+  return ctx;
 }
 
-// ================================
-// HOOK OPCIONAL
-// ================================
 export function useAppAuthOptional() {
   return useContext(AppAuthContext);
 }

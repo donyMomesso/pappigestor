@@ -211,6 +211,12 @@ interface PrecosAlerta {
 }
 
 export default function HomePage() {
+    // ✅ Aceita lista de roles e valida se o usuário tem QUALQUER uma
+  const hasAnyRole = (roles: string[]) => {
+    const role = localUser?.nivel_acesso;
+    if (!role) return false;
+    return roles.includes(role);
+  };
   const { localUser, hasPermission } = useAppAuth();
   const [copiado, setCopiado] = useState(false);
   const [showEditor, setShowEditor] = useState(false);
@@ -319,7 +325,13 @@ export default function HomePage() {
       } catch {}
     }
     // Set default shortcuts based on available modules
-    const availableModules = ALL_MODULES.filter(m => hasPermission(m.roles));
+// roles do módulo (ex: ["dono","admin"])
+// retorna true se o usuário tiver QUALQUER uma delas
+const hasAnyRole = (roles: string[]) => {
+  const role = localUser?.nivel_acesso;
+  if (!role) return false;
+  return roles.includes(role);
+};
     const defaults = DEFAULT_SHORTCUTS.filter(id => 
       availableModules.some(m => m.id === id)
     );
@@ -336,10 +348,10 @@ export default function HomePage() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(shortcuts));
   };
 
-  const availableModules = ALL_MODULES.filter(m => hasPermission(m.roles));
+  const availableModules = ALL_MODULES.filter(m => hasAnyRole(m.roles));
   const shortcutModules = selectedShortcuts
     .map(id => ALL_MODULES.find(m => m.id === id))
-    .filter((m): m is ModuleCard => m !== undefined && hasPermission(m.roles));
+    .filter((m): m is ModuleCard => m !== undefined && hasAnyRole(m.roles));
 
   // Fill with placeholders if less than 4
   while (shortcutModules.length < 4) {
@@ -383,7 +395,7 @@ export default function HomePage() {
               Olá, {localUser?.nome?.split(' ')[0]}! 👋
             </h1>
             <p className="text-white/80 text-sm mt-0.5">
-             {NIVEL_LABELS[localUser?.nivel_acesso || ""] || localUser?.nivel_acesso}
+            {localUser?.nivel_acesso ? NIVEL_LABELS[localUser.nivel_acesso] : ""}
 {(localUser as any)?.empresa_nome ? ` • ${(localUser as any).empresa_nome}` : ""}
             </p>
           </div>

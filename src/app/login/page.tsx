@@ -83,7 +83,7 @@ export default function LoginPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <PricingCard
-                plan="Grátis"
+                plan="grátis"
                 price="R$ 0"
                 features={["5 Notas/mês", "1 Unidade", "Básico IA"]}
                 color="bg-gray-50 text-gray-400 border-transparent"

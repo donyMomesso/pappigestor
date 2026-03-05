@@ -255,7 +255,7 @@ app.get("/api/admin/usuarios", requireRole(["master", "admin"]), async (c) => {
 
     return c.json({
       usuarios: results ?? [],
-      plano: { nome: "Grátis", limite, usado },
+      plano: { nome: "grátis", limite, usado },
     });
   } catch (e: any) {
     return c.json(
@@ -1168,7 +1168,7 @@ app.post("/api/fichas-tecnicas", async (c) => {
       .bind(empresaId)
       .first();
 
-    const plano = String(empresa?.plano || "Grátis");
+    const plano = String(empresa?.plano || "grátis");
 
     // trava plano grátis/teste (mantido)
     if (plano.toLowerCase().includes("grátis") || plano.toLowerCase().includes("teste")) {

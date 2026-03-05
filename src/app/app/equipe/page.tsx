@@ -31,7 +31,7 @@ export default function EquipePage() {
   const [statusPlano, setStatusPlano] = useState<PlanoInfo>({
     usado: 0,
     limite: 1,
-    nome: "Grátis",
+    nome: "grátis",
   });
   const [loading, setLoading] = useState(true);
 
@@ -56,11 +56,11 @@ export default function EquipePage() {
       const data = await api<EquipeResponse>("/api/admin/usuarios");
 
       setUsuarios(Array.isArray(data?.usuarios) ? data.usuarios : []);
-      setStatusPlano(data?.plano ?? { usado: 0, limite: 1, nome: "Grátis" });
+      setStatusPlano(data?.plano ?? { usado: 0, limite: 1, nome: "grátis" });
     } catch (e) {
       console.error("Erro fetchEquipe:", e);
       setUsuarios([]);
-      setStatusPlano({ usado: 0, limite: 1, nome: "Grátis" });
+      setStatusPlano({ usado: 0, limite: 1, nome: "grátis" });
     } finally {
       setLoading(false);
     }

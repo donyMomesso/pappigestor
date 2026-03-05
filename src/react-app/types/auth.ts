@@ -1,72 +1,78 @@
 // src/react-app/types/auth.ts
 
-// Removido: @getmocha/users-service
-// import type { MochaUser } from "@getmocha/users-service/shared";
+// ================================
+// Tipos base do SaaS
+// ================================
 
-// Tipo de usuário autenticado (substitui MochaUser)
-export interface AuthUser {
-  id: string;
-  email: string;
-  name?: string;
-  picture?: string;
-}
+export type PlanoEmpresa = "gratis" | "basico" | "profissional" | "enterprise";
 
 /**
- * Roles (papéis) dentro de uma empresa
- * - dono: quem compra o app e controla tudo (inclui plano e equipe)
- * - admin: gerente (pode ter quase tudo, dependendo de permissões)
- * - comprador / financeiro / operador / viewer
+ * NivelAcesso (roles do SaaS):
+ * - dono: dono da empresa (manda em tudo)
+ * - admin: admin interno (pode quase tudo, depende de permissões)
+ * - financeiro: acesso a financeiro
+ * - comprador: acesso a compras / cotações etc
+ * - operador: usuário operacional
+ * - viewer: só visualização
  */
 export type NivelAcesso =
   | "dono"
   | "admin"
-  | "operador"
-  | "comprador"
   | "financeiro"
+  | "comprador"
+  | "operador"
   | "viewer";
 
-/**
- * Planos do SaaS
- * Você pode ajustar depois, mas mantenha como string union pra evitar bagunça
- */
-export type PlanoEmpresa = "gratis" | "basico" | "profissional" | "enterprise";
+export type Feature =
+  | "compras"
+  | "recebimento"
+  | "financeiro_basico"
+  | "estoque"
+  | "fornecedores"
+  | "produtos"
+  | "dashboard_basico"
+  | "assessor_ia"
+  | "caixa_entrada"
+  | "cotacao"
+  | "dda"
+  | "dashboard_avancado"
+  | "produtos_master";
 
-/**
- * Usuário local do app (SaaS multi-empresa)
- * ✅ 1 único tipo para o projeto inteiro
- */
+// ================================
+// Usuário local (front)
+// ================================
 export interface LocalUser {
-  id: string;                 // sempre string (uuid do supabase)
+  id: string;
   nome: string;
   email: string;
 
-  empresa_id: string | null;  // empresa do usuário (não mistura empresas)
+  // acesso
+  nivel_acesso: NivelAcesso;
+
+  // tenant
+  empresa_id: string | null;
   nome_empresa: string;
 
-  nivel_acesso: NivelAcesso;  // role
+  // plano
+  plano: PlanoEmpresa;
 
-  plano: PlanoEmpresa;        // plano da empresa
-
-  foto?: string;
-
-  /**
-   * Permissões granulares por usuário (seleção do dono)
-   * Ex: ["compras", "estoque", "financeiro", "ia"]
-   * - dono sempre tem tudo mesmo sem listar
-   */
-  permissoes?: string[];
+  // extras
+  permissoes?: string[]; // permissões finas (opcional)
+  features?: Feature[];  // features liberadas (opcional)
+  foto?: string;         // avatar (opcional)
 }
 
-/**
- * Features disponíveis por plano (o que a EMPRESA tem acesso)
- * Ajuste como quiser.
- */
-export const PLANO_FEATURES: Record<PlanoEmpresa, string[]> = {
+// ================================
+// Features disponíveis por plano
+// ================================
+export const PLANO_FEATURES: Record<PlanoEmpresa, Feature[]> = {
   gratis: [
+    "compras",
+    "recebimento",
+    "financeiro_basico",
     "estoque",
-    "produtos",
     "fornecedores",
-    "compras_basico",
+    "produtos",
     "dashboard_basico",
   ],
   basico: [
@@ -86,8 +92,6 @@ export const PLANO_FEATURES: Record<PlanoEmpresa, string[]> = {
     "fornecedores",
     "produtos",
     "dashboard_basico",
-
-    // Premium
     "assessor_ia",
     "caixa_entrada",
     "cotacao",
@@ -95,8 +99,8 @@ export const PLANO_FEATURES: Record<PlanoEmpresa, string[]> = {
     "dashboard_avancado",
     "produtos_master",
   ],
+  // enterprise: tudo do profissional (e pronto pra você expandir depois)
   enterprise: [
-    // Enterprise normalmente inclui tudo
     "compras",
     "recebimento",
     "financeiro_basico",
@@ -110,13 +114,10 @@ export const PLANO_FEATURES: Record<PlanoEmpresa, string[]> = {
     "dda",
     "dashboard_avancado",
     "produtos_master",
-    "multi_filiais",
-    "permissoes_avancadas",
-    "integracoes",
   ],
 };
 
-export const PREMIUM_FEATURES = [
+export const PREMIUM_FEATURES: Feature[] = [
   "assessor_ia",
   "caixa_entrada",
   "cotacao",
@@ -132,21 +133,30 @@ export const PLANO_LABELS: Record<PlanoEmpresa, string> = {
   enterprise: "Enterprise",
 };
 
+export const NIVEL_LABELS: Record<NivelAcesso, string> = {
+  dono: "Dono",
+  admin: "Admin",
+  financeiro: "Financeiro",
+  comprador: "Comprador",
+  operador: "Operador",
+  viewer: "Visualizador",
+};
+
+// ================================
+// AuthResponse (se você usa)
+// ================================
+export interface AuthUser {
+  id: string;
+  email: string;
+  name?: string;
+  picture?: string;
+}
+
 export interface AuthResponse {
   mochaUser: AuthUser;
   localUser: LocalUser | null;
   error?: string;
 }
-
-export const NIVEL_LABELS: Record<NivelAcesso, string> = {
-  dono: "Dono",
-  admin: "Admin",
-  operador: "Operador",
-  comprador: "Comprador",
-  financeiro: "Financeiro",
-  viewer: "Visualizador",
-};
-
 export const STATUS_LABELS: Record<string, string> = {
   teste_gratis: "Teste Grátis",
   ativo: "Ativo",

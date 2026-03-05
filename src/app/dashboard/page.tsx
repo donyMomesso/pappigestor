@@ -101,7 +101,7 @@ export default function OnboardingPage() {
       data: { 
         nome_empresa: nomeFantasia.trim(),
         empresa_id: company.id,
-        plano: "Grátis" // Cliente entra no grátis
+        plano: "grátis" // Cliente entra no grátis
       }
     });
 

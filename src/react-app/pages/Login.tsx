@@ -2,9 +2,9 @@
 
 import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAppAuth } from "../contexts/AppAuthContext";
-import type { LocalUser } from "../contexts/AppAuthContext";
-import { Button } from "../components/ui/button";
+import { useAppAuth } from "@/react-app/contexts/AppAuthContext";
+import type { LocalUser } from "@/react-app/types/auth";
+import { Button } from "@/react-app/components/ui/button";
 import { UserPlus, LogIn } from "lucide-react";
 
 const LOGO_URL =
@@ -30,9 +30,9 @@ export default function LoginPage() {
       nivel_acesso: "admin",
       empresa_id: "local_company",
       nome_empresa: "Pappi Gestor (Local)",
-      plano: "Grátis",
-    };
-
+      plano: "gratis",
+      features: [],
+};
     setLocalUser(mockUser);
     navigate("/app");
   };

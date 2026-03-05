@@ -9,7 +9,7 @@ import { Search, Package } from "lucide-react";
 interface ProdutoFoodService {
   id: string;
   nome: string;
-
+  unidadeMedida?: string;
   // campos opcionais (podem ou não existir)
   descricao?: string;
   description?: string;

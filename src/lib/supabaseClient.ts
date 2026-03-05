@@ -15,6 +15,9 @@ export function getSupabaseClient(): SupabaseClient | null {
   const isValidUrl = /^https?:\/\/.+/i.test(url);
   if (!isValidUrl || !key) return null;
 
-  if (!_client) _client = createBrowserClient(url, key);
+  if (!_client) {
+    _client = createBrowserClient<any>(url, key);
+  }
+
   return _client;
 }

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAppAuth } from "../contexts/AppAuthContext";
+import { useAppAuthOptional } from "@/contexts/AppAuthContext";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
@@ -42,7 +42,7 @@ export default function CadastroPage() {
   // ✅ AppAuthContext NÃO tem setLocalUser no seu tipo atual.
   // Em vez disso, fazemos o cadastro e depois redirecionamos.
   // Se quiser realmente “setar usuário local”, isso deve ser exposto no AppAuthContext (mas não vou inventar).
-  const auth = useAppAuth();
+  const auth = useAppAuthOptional();
 
   const [step, setStep] = useState<"form" | "processing" | "success">("form");
   const [formData, setFormData] = useState<FormData>({
@@ -165,9 +165,9 @@ export default function CadastroPage() {
 
       // ✅ Após criar, peça para o AppAuth recarregar a sessão (se existir login)
       // Não invento setLocalUser (não existe no seu context atual).
-      if (typeof auth.refreshUser === "function") {
-        await auth.refreshUser();
-      }
+     if (typeof auth?.refreshUser === "function") {
+  await auth.refreshUser();
+}
 
       setStep("success");
       setTimeout(() => router.push("/app"), 1500);

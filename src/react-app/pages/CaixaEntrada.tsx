@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useAppAuth } from "@/react-app/contexts/AppAuthContext";
+import { useAppAuth } from "@/contexts/AppAuthContext";
 import { processarNotaXML } from "@/app/actions/processar-nota"; // Garanta que este caminho existe
 import { 
   Loader2, Upload, FileText, CheckCircle2, 

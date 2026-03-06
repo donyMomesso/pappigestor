@@ -1,4 +1,4 @@
-import { useAppAuth } from "@/react-app/contexts/AppAuthContext";
+import { useAppAuthOptional } from "@/contexts/AppAuthContext";
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/react-app/components/ui/button";
@@ -22,7 +22,7 @@ const NIVEL_LABELS: Record<string, string> = {
 export default function AceitarConvitePage() {
   const { token } = useParams<{ token?: string }>();
   const navigate = useNavigate();
-  const auth = useAppAuth(); // mantém o hook, mesmo se não usar tudo
+  const auth = useAppAuthOptional(); // mantém o hook, mesmo se não usar tudo
 
   const [isLoading, setIsLoading] = useState(true);
   const [convite, setConvite] = useState<ConviteInfo | null>(null);

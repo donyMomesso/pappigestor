@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useAppAuth } from "@/react-app/contexts/AppAuthContext";
+import { useAppAuth } from "@/contexts/AppAuthContext";
 import { 
   ShoppingCart, DollarSign, Package, ClipboardList, 
   Sparkles, Building2, Settings2, Gift, Camera, 

@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from "@/react-app/components/ui/dialog";
 import { PluggyConnect } from "react-pluggy-connect";
-import { useAppAuth } from "@/react-app/contexts/AppAuthContext"; // ✅ IMPORTADO O CONTEXTO AQUI
+import { useAppAuth } from "@/contexts/AppAuthContext"; // ✅ IMPORTADO O CONTEXTO AQUI
 
 interface Connector {
   id: number;

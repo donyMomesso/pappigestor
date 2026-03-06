@@ -35,7 +35,7 @@ export default function OnboardingPage() {
             <input 
               name="nome_empresa"
               required
-              placeholder="Ex: Pappi Pizza Campinas"
+              placeholder="Ex: Pappi Gestor"
               className="w-full bg-white border-2 border-gray-100 p-5 rounded-2xl text-xl font-bold italic outline-none focus:border-orange-500 transition-all"
             />
           </div>

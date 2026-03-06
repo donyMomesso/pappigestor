@@ -2,7 +2,7 @@
 
 import { ReactNode, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAppAuth } from "@/react-app/contexts/AppAuthContext";
+import { useAppAuth } from "@/contexts/AppAuthContext";
 import { Loader2, Lightbulb } from "lucide-react";
 import { Button } from "@/react-app/components/ui/button";
 

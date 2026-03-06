@@ -2,7 +2,7 @@
 
 import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAppAuth } from "@/react-app/contexts/AppAuthContext";
+import { useAppAuth } from "@/contexts/AppAuthContext";
 import type { LocalUser } from "@/react-app/types/auth";
 import { Button } from "@/react-app/components/ui/button";
 import { UserPlus, LogIn } from "lucide-react";

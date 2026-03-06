@@ -514,7 +514,7 @@ export default function ListaComprasPage() {
 
   const generateWhatsAppMessage = () => {
     const selectedItensData = itens.filter(i => selectedItems.includes(i.id));
-    let message = "🍕 *PAPPI PIZZA - Solicitação de Cotação*\n\n";
+    let message = "🍕 *Pappi Gestor - Solicitação de Cotação*\n\n";
     message += "Olá! Gostaria de solicitar cotação para os seguintes itens:\n\n";
     
     selectedItensData.forEach((item, idx) => {

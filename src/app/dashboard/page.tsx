@@ -1,290 +1,486 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { getSupabaseClient } from "@/lib/supabaseClient";
+import { useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { useAppAuth } from "@/contexts/AppAuthContext";
+import { useDashboard } from "@/react-app/hooks/useDashboard";
+import { Card, CardContent } from "@/react-app/components/ui/card";
 import { Button } from "@/react-app/components/ui/button";
-import { Input } from "@/react-app/components/ui/input";
 import {
-  Building2,
-  Loader2,
+  TrendingDown,
+  TrendingUp,
+  BarChart3,
+  Target,
+  AlertTriangle,
   ArrowRight,
-  Search,
-  CheckCircle2,
+  Loader2,
+  RefreshCcw,
+  Sparkles,
+  Wallet,
+  Package,
+  Truck,
 } from "lucide-react";
 
-type Empresa = {
-  id: string;
-  nome: string;
-  plano?: string;
-  status?: string;
+function moneyBRL(v: number) {
+  return (v ?? 0).toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
+}
+
+type DashboardMode = "normal" | "estoque" | "financeiro" | "recebimento";
+
+export default function DashboardPage() {
+  const router = useRouter();
+  const { localUser } = useAppAuth();
+  const dashboard = useDashboard();
+
+  const loading = dashboard?.loading ?? false;
+  const error = dashboard?.error ?? null;
+  const refresh = dashboard?.refresh ?? (() => {});
+const rawKpis = dashboard?.kpis;
+
+const kpis = {
+  receitaTotal: rawKpis?.receitaTotal ?? 0,
+  despesaTotal: rawKpis?.despesaTotal ?? 0,
+  lucro: rawKpis?.lucro ?? 0,
+  margem: rawKpis?.margem ?? 0,
+  itensCriticos: rawKpis?.itensCriticos ?? 0,
+  recebimentosPendentes:
+    (rawKpis as typeof rawKpis & { recebimentosPendentes?: number })?.recebimentosPendentes ?? 0,
 };
+  const alertas = dashboard?.alertas ?? [];
 
-export default function OnboardingPage() {
-  const [loading, setLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const dashboardMode: DashboardMode = useMemo(() => {
+    if ((kpis.itensCriticos ?? 0) > 0) return "estoque";
+    if ((kpis.lucro ?? 0) < 0) return "financeiro";
+    if ((kpis.recebimentosPendentes ?? 0) > 0) return "recebimento";
+    return "normal";
+  }, [kpis.itensCriticos, kpis.lucro, kpis.recebimentosPendentes]);
 
-  // Novos estados para o fluxo de CNPJ
-  const [cnpj, setCnpj] = useState("");
-  const [isFetchingCnpj, setIsFetchingCnpj] = useState(false);
-  const [razaoSocial, setRazaoSocial] = useState("");
-  const [nomeFantasia, setNomeFantasia] = useState("");
-  const [msg, setMsg] = useState<string | null>(null);
-
-  useEffect(() => {
-    (async () => {
-      const supabase = getSupabaseClient();
-      if (!supabase) {
-        // modo offline / sem ENV
-        setMsg("Supabase não configurado. Configure as variáveis de ambiente para ativar o onboarding.");
-        window.location.href = "/login";
-        return;
-      }
-
-      const { data, error } = await supabase.auth.getSession();
-      if (error) {
-        console.error("Erro ao buscar sessão:", error);
-        window.location.href = "/login";
-        return;
-      }
-
-      const session = data.session;
-      if (!session) {
-        window.location.href = "/login";
-        return;
-      }
-
-      // Se já tiver empresa vinculada, manda pro App
-      if (session.user.user_metadata?.empresa_id) {
-        window.location.href = "/app";
-        return;
-      }
-
-      setLoading(false);
-    })();
-  }, []);
-
-  // FUNÇÃO MÁGICA: Busca CNPJ na BrasilAPI
-  const buscarCnpj = async (cnpjDigitado: string) => {
-    const cnpjLimpo = cnpjDigitado.replace(/\D/g, "");
-    setCnpj(cnpjDigitado); // Mantém o que o usuário digita
-
-    if (cnpjLimpo.length === 14) {
-      setIsFetchingCnpj(true);
-      setMsg(null);
-      try {
-        const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjLimpo}`);
-        if (!res.ok) throw new Error("CNPJ inválido ou não encontrado.");
-
-        const data = await res.json();
-        setRazaoSocial(data.razao_social);
-        // Se a receita tiver o nome fantasia, já preenche. Senão, usa a razão social como base.
-        setNomeFantasia(data.nome_fantasia || data.razao_social);
-      } catch (err: any) {
-        setMsg(err?.message || "Falha ao consultar CNPJ.");
-        setRazaoSocial("");
-        setNomeFantasia("");
-      } finally {
-        setIsFetchingCnpj(false);
-      }
-    } else {
-      setRazaoSocial("");
-      setNomeFantasia("");
+  const heroCopy = useMemo(() => {
+    switch (dashboardMode) {
+      case "estoque":
+        return {
+          title: `Bom dia, ${localUser?.nome?.split(" ")[0] || "gestor"} 👋`,
+          subtitle:
+            "Alguns itens do seu estoque pedem atenção agora. O sistema já separou o que priorizar para você agir rápido.",
+          cta: "Gerar lista inteligente",
+          action: () => router.push("/app/lista-compras"),
+        };
+      case "financeiro":
+        return {
+          title: `Bom dia, ${localUser?.nome?.split(" ")[0] || "gestor"} 👋`,
+          subtitle:
+            "Seu financeiro pede atenção hoje. Vamos organizar as pendências e proteger o caixa da operação.",
+          cta: "Revisar financeiro",
+          action: () => router.push("/app/financeiro"),
+        };
+      case "recebimento":
+        return {
+          title: `Bom dia, ${localUser?.nome?.split(" ")[0] || "gestor"} 👋`,
+          subtitle:
+            "Existe uma entrega aguardando conferência. Resolver isso agora mantém estoque, compras e financeiro alinhados.",
+          cta: "Conferir recebimento",
+          action: () => router.push("/app/recebimento"),
+        };
+      default:
+        return {
+          title: `Bom dia, ${localUser?.nome?.split(" ")[0] || "gestor"} 👋`,
+          subtitle:
+            "Sua operação está caminhando bem hoje. Encontramos oportunidades para economizar e manter tudo sob controle.",
+          cta: "Ver recomendações da IA",
+          action: () => router.push("/app/assessor-ia"),
+        };
     }
-  };
+  }, [dashboardMode, localUser?.nome, router]);
 
-  // FUNÇÃO DE CRIAÇÃO DA EMPRESA E ATIVAÇÃO DO SAAS
-  async function criarEmpresa(e: React.FormEvent) {
-    e.preventDefault();
-
-    const supabase = getSupabaseClient();
-    if (!supabase) {
-      setMsg("Supabase não configurado. Configure as variáveis de ambiente para ativar o onboarding.");
-      window.location.href = "/login";
-      return;
+  const fluxoLabel = useMemo(() => {
+    if ((kpis.lucro ?? 0) < 0) {
+      return {
+        text: "Fluxo: Negativo",
+        color: "bg-red-500",
+        tone: "text-red-600",
+      };
     }
-
-    if (!razaoSocial || !nomeFantasia) {
-      setMsg("Por favor, preencha um CNPJ válido primeiro.");
-      return;
+    if ((kpis.itensCriticos ?? 0) > 0) {
+      return {
+        text: "Fluxo: Atenção",
+        color: "bg-yellow-500",
+        tone: "text-yellow-600",
+      };
     }
+    return {
+      text: "Fluxo: Saudável",
+      color: "bg-green-500",
+      tone: "text-green-600",
+    };
+  }, [kpis.lucro, kpis.itensCriticos]);
 
-    setIsSubmitting(true);
-    setMsg(null);
+  const progressoOperacao = useMemo(() => {
+    const estoqueScore =
+      (kpis.itensCriticos ?? 0) === 0 ? 92 : Math.max(35, 92 - kpis.itensCriticos * 18);
 
-    const { data: sessData, error: sessErr } = await supabase.auth.getSession();
-    if (sessErr) {
-      console.error("Erro ao buscar sessão:", sessErr);
-      setMsg("Falha ao validar sessão. Faça login novamente.");
-      setIsSubmitting(false);
-      window.location.href = "/login";
-      return;
-    }
+    const financeiroScore =
+      (kpis.lucro ?? 0) >= 0
+        ? 82
+        : Math.max(30, 82 - Math.min(40, Math.abs(kpis.lucro) / 100));
 
-    const session = sessData.session;
-    if (!session) {
-      setIsSubmitting(false);
-      window.location.href = "/login";
-      return;
-    }
+    const recebimentoScore =
+      (kpis.recebimentosPendentes ?? 0) === 0
+        ? 90
+        : Math.max(45, 90 - kpis.recebimentosPendentes * 20);
 
-    // 1. Grava no banco de dados (Empresa)
-    const { data: company, error: companyErr } = await supabase
-      .from("companies")
-      .insert([
-        {
-          name: nomeFantasia.trim(), // O nome fantasia é o principal
-          razao_social: razaoSocial,
-          cnpj: cnpj.replace(/\D/g, ""),
-          created_by: session.user.id,
-        },
-      ])
-      .select("id")
-      .single();
-
-    if (companyErr) {
-      setMsg("Erro no Banco de Dados: " + companyErr.message);
-      setIsSubmitting(false);
-      return;
-    }
-
-    // 2. Vincula o Usuário como Dono (Admin)
-    const { error: linkErr } = await supabase.from("company_users").insert([
-      {
-        company_id: company.id,
-        user_id: session.user.id,
-        role: "admin_empresa",
-      },
-    ]);
-
-    if (linkErr) {
-      setMsg("Erro ao vincular usuário: " + linkErr.message);
-      setIsSubmitting(false);
-      return;
-    }
-
-    // 3. Atualiza a sessão para o Dashboard ficar Universal
-    const { error: updErr } = await supabase.auth.updateUser({
-      data: {
-        nome_empresa: nomeFantasia.trim(),
-        empresa_id: company.id,
-        plano: "grátis",
-      },
-    });
-
-    if (updErr) {
-      setMsg("Erro ao atualizar usuário: " + updErr.message);
-      setIsSubmitting(false);
-      return;
-    }
-
-    window.location.href = "/app";
-  }
-
-  if (loading)
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <Loader2 className="animate-spin text-orange-500" />
-      </div>
-    );
+    return {
+      estoque: estoqueScore,
+      financeiro: financeiroScore,
+      recebimentos: recebimentoScore,
+    };
+  }, [kpis.itensCriticos, kpis.lucro, kpis.recebimentosPendentes]);
 
   return (
-    <main className="min-h-screen flex items-center justify-center p-6 bg-gray-50 relative overflow-hidden">
-      <div className="absolute -top-24 -left-24 w-96 h-96 bg-orange-500/10 rounded-full blur-3xl"></div>
-
-      <div className="w-full max-w-xl bg-white rounded-[45px] p-10 md:p-12 shadow-2xl relative z-10 border border-gray-100">
-        <div className="text-center mb-10">
-          <div className="w-20 h-20 bg-gradient-to-br from-orange-500 to-pink-500 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-orange-200">
-            <Building2 className="text-white" size={32} />
-          </div>
-          <h1 className="text-4xl font-black italic uppercase tracking-tighter text-gray-900">
-            Registrar Unidade
-          </h1>
-          <p className="text-gray-400 font-bold italic uppercase text-[10px] tracking-widest mt-2">
-            Insira seu CNPJ. Nós fazemos o resto.
-          </p>
-        </div>
-
-        <form onSubmit={criarEmpresa} className="space-y-6">
-          {/* CAMPO CNPJ */}
-          <div className="space-y-2">
-            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 ml-2 italic">
-              CNPJ do Restaurante
-            </label>
-            <div className="relative">
-              <Search
-                className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-300"
-                size={20}
-              />
-              <Input
-                className="h-16 pl-14 rounded-[25px] border-gray-100 bg-gray-50 font-black text-lg focus:bg-white transition-all tracking-widest"
-                value={cnpj}
-                onChange={(e) => buscarCnpj(e.target.value)}
-                placeholder="00.000.000/0001-00"
-                maxLength={18}
-                required
-              />
-              {isFetchingCnpj && (
-                <Loader2
-                  className="absolute right-5 top-1/2 -translate-y-1/2 text-orange-500 animate-spin"
-                  size={20}
-                />
-              )}
-            </div>
-          </div>
-
-          {/* DADOS DA RECEITA (APARECEM SE ACHAR O CNPJ) */}
-          {razaoSocial && (
-            <div className="p-6 bg-green-50 rounded-[30px] border border-green-100 space-y-4 animate-in fade-in slide-in-from-top-4">
-              <div className="flex items-center gap-2 text-green-600 mb-2">
-                <CheckCircle2 size={18} />
-                <span className="text-[10px] font-black uppercase tracking-widest italic">
-                  Dados Localizados
+    <div className="space-y-10 animate-in fade-in duration-700">
+      {/* HERO ACOLHEDOR */}
+      <Card className="border-0 rounded-[40px] overflow-hidden bg-gradient-to-br from-gray-950 via-zinc-900 to-orange-950 text-white shadow-2xl">
+        <CardContent className="p-8 md:p-10">
+          <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-8">
+            <div className="max-w-3xl">
+              <div className="inline-flex items-center gap-2 rounded-full border border-orange-500/20 bg-orange-500/10 px-4 py-2 mb-5">
+                <Sparkles className="w-4 h-4 text-orange-400" />
+                <span className="text-[10px] font-black uppercase tracking-[0.25em] text-orange-300 italic">
+                  Painel Inteligente Ativo
                 </span>
               </div>
 
-              <div>
-                <p className="text-[9px] uppercase tracking-widest text-green-600/60 font-black italic mb-1">
-                  Razão Social (Receita Federal)
-                </p>
-                <p className="font-bold text-sm text-green-900 opacity-80 uppercase leading-tight">
-                  {razaoSocial}
-                </p>
-              </div>
+              <h1 className="text-3xl md:text-5xl font-black italic uppercase tracking-tighter leading-none">
+                {heroCopy.title}
+              </h1>
 
-              <div>
-                <p className="text-[9px] uppercase tracking-widest text-green-600/60 font-black italic mb-2">
-                  Nome do App (Como seus funcionários verão)
-                </p>
-                <Input
-                  className="h-14 rounded-2xl border-green-200 bg-white font-black uppercase tracking-tighter text-gray-800"
-                  value={nomeFantasia}
-                  onChange={(e) => setNomeFantasia(e.target.value)}
-                  required
-                />
+              <p className="mt-5 text-sm md:text-base text-zinc-300 max-w-2xl leading-relaxed">
+                {heroCopy.subtitle}
+              </p>
+
+              <div className="mt-6 flex flex-wrap items-center gap-3">
+                <Button
+                  onClick={heroCopy.action}
+                  className="bg-orange-600 hover:bg-orange-500 rounded-2xl h-14 px-7 text-xs md:text-sm font-black italic uppercase tracking-wider shadow-xl shadow-orange-950/40"
+                >
+                  {heroCopy.cta}
+                  <ArrowRight className="ml-2 w-4 h-4" />
+                </Button>
+
+                <Button
+                  onClick={refresh}
+                  variant="outline"
+                  className="rounded-2xl h-14 px-5 gap-2 border-white/15 bg-white/5 text-white hover:bg-white/10 hover:text-white"
+                >
+                  {loading ? (
+                    <Loader2 className="animate-spin" size={16} />
+                  ) : (
+                    <RefreshCcw size={16} />
+                  )}
+                  <span className="text-[10px] font-black uppercase tracking-widest italic">
+                    Atualizar painel
+                  </span>
+                </Button>
               </div>
             </div>
-          )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 min-w-full xl:min-w-[430px]">
+              <MiniPulseCard
+                icon={<Package className="w-4 h-4" />}
+                label="Estoque"
+                value={`${kpis.itensCriticos ?? 0} críticos`}
+              />
+              <MiniPulseCard
+                icon={<Wallet className="w-4 h-4" />}
+                label="Lucro"
+                value={moneyBRL(kpis.lucro ?? 0)}
+              />
+              <MiniPulseCard
+                icon={<Truck className="w-4 h-4" />}
+                label="Recebimentos"
+                value={`${kpis.recebimentosPendentes ?? 0} pendentes`}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* TOPO OPERACIONAL */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div>
+          <h2 className="text-3xl font-black italic uppercase tracking-tighter text-gray-900 leading-none">
+            Painel Estratégico
+          </h2>
+          <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] mt-3 italic">
+            Métricas de performance da {localUser?.nome_empresa || "sua empresa"}
+          </p>
+        </div>
+
+        <div className="flex gap-2 items-center">
+          <div className="bg-white border border-gray-100 rounded-2xl px-6 py-3 shadow-sm flex items-center gap-3">
+            <div className={`w-2 h-2 rounded-full ${fluxoLabel.color}`} />
+            <span className="text-[10px] font-black uppercase italic text-gray-500">
+              {fluxoLabel.text}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* ERRO */}
+      {error && (
+        <div className="rounded-2xl border border-red-100 bg-red-50 p-4 text-red-700">
+          <p className="text-sm font-bold">Erro ao carregar dashboard: {error}</p>
+        </div>
+      )}
+
+      {/* KPIS */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard
+          title="Receita Total"
+          value={moneyBRL(kpis.receitaTotal ?? 0)}
+          trend={loading ? "Carregando..." : "Últimos lançamentos"}
+          isPositive={true}
+          loading={loading}
+        />
+        <StatCard
+          title="Despesa Total"
+          value={moneyBRL(kpis.despesaTotal ?? 0)}
+          trend={loading ? "Carregando..." : "Últimos lançamentos"}
+          isPositive={false}
+          loading={loading}
+        />
+        <StatCard
+          title="Lucro"
+          value={moneyBRL(kpis.lucro ?? 0)}
+          trend={loading ? "..." : `Margem ${kpis.margem ?? 0}%`}
+          isPositive={(kpis.lucro ?? 0) >= 0}
+          loading={loading}
+        />
+        <StatCard
+          title="Estoque Crítico"
+          value={String(kpis.itensCriticos ?? 0)}
+          trend={
+            loading
+              ? "..."
+              : (kpis.itensCriticos ?? 0) > 0
+                ? "Atenção imediata"
+                : "Operação estável"
+          }
+          isPositive={(kpis.itensCriticos ?? 0) === 0 ? true : null}
+          loading={loading}
+        />
+      </div>
+
+      {/* FAIXA DE PROGRESSO */}
+      <Card className="border-gray-100 rounded-[35px] bg-white shadow-sm p-8">
+        <CardContent className="p-0">
+          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-6">
+            <div>
+              <h3 className="text-xl font-black italic uppercase tracking-tighter text-gray-900">
+                Progresso da Operação
+              </h3>
+              <p className="text-sm text-gray-500 mt-1">
+                Um retrato rápido do quanto sua casa está organizada hoje.
+              </p>
+            </div>
+
+            <p className={`text-xs font-black uppercase italic ${fluxoLabel.tone}`}>
+              {dashboardMode === "estoque" && "Prioridade de hoje: proteger o estoque"}
+              {dashboardMode === "financeiro" && "Prioridade de hoje: proteger o caixa"}
+              {dashboardMode === "recebimento" && "Prioridade de hoje: concluir conferências"}
+              {dashboardMode === "normal" && "Prioridade de hoje: aproveitar oportunidades"}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <ProgressMetric
+              label="Estoque revisado"
+              value={progressoOperacao.estoque}
+              barClass="bg-green-500"
+            />
+            <ProgressMetric
+              label="Financeiro organizado"
+              value={progressoOperacao.financeiro}
+              barClass="bg-purple-500"
+            />
+            <ProgressMetric
+              label="Recebimentos conferidos"
+              value={progressoOperacao.recebimentos}
+              barClass="bg-orange-500"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* CURVA ABC */}
+        <Card className="lg:col-span-2 border-gray-100 rounded-[45px] bg-white shadow-xl overflow-hidden p-10">
+          <div className="flex items-center justify-between mb-8">
+            <h3 className="text-xl font-black italic uppercase tracking-tighter text-gray-800 flex items-center gap-2">
+              <BarChart3 className="text-orange-500" /> Curva ABC de Gastos
+            </h3>
+            <span className="text-[9px] font-black uppercase bg-gray-50 px-3 py-1 rounded-full text-gray-400 italic">
+              Últimos 30 dias
+            </span>
+          </div>
+
+          <div className="h-64 flex items-end gap-4 px-4">
+            <div className="flex-1 bg-gradient-to-t from-orange-500 to-pink-500 rounded-t-2xl h-[90%] relative group">
+              <span className="absolute -top-8 left-1/2 -translate-x-1/2 text-[10px] font-black opacity-0 group-hover:opacity-100 transition-opacity">
+                Proteínas
+              </span>
+            </div>
+            <div className="flex-1 bg-gray-100 rounded-t-2xl h-[60%] hover:bg-orange-200 transition-colors" />
+            <div className="flex-1 bg-gray-100 rounded-t-2xl h-[45%] hover:bg-orange-200 transition-colors" />
+            <div className="flex-1 bg-gray-100 rounded-t-2xl h-[30%] hover:bg-orange-200 transition-colors" />
+            <div className="flex-1 bg-gray-100 rounded-t-2xl h-[15%] hover:bg-orange-200 transition-colors" />
+          </div>
+
+          <p className="mt-6 text-[10px] font-bold uppercase tracking-widest text-gray-400 italic">
+            Próximo passo: ligar essa Curva ABC com seus lançamentos reais para mostrar as categorias com maior impacto financeiro.
+          </p>
+        </Card>
+
+        {/* ALERTAS IA */}
+        <Card className="border-gray-100 rounded-[45px] bg-gray-900 text-white shadow-xl p-10 relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-8 opacity-10">
+            <Target size={120} />
+          </div>
+
+          <h3 className="text-xl font-black italic uppercase tracking-tighter mb-3 flex items-center gap-2 relative z-10">
+            <AlertTriangle className="text-yellow-400" size={20} /> Alertas IA
+          </h3>
+
+          <p className="text-xs text-zinc-400 mb-8 relative z-10">
+            O sistema cruzou sinais da operação e separou o que mais merece sua atenção.
+          </p>
+
+          <div className="space-y-6 relative z-10">
+            {loading ? (
+              <div className="flex items-center gap-2 text-xs font-bold italic opacity-80">
+                <Loader2 className="animate-spin" size={16} />
+                Carregando insights...
+              </div>
+            ) : alertas.length === 0 ? (
+              <AlertItem text="Nenhum alerta crítico agora. Tudo sob controle ✅" />
+            ) : (
+              alertas.slice(0, 4).map((a, idx) => (
+                <AlertItem key={idx} text={a.texto} />
+              ))
+            )}
+          </div>
 
           <Button
-            disabled={isSubmitting || !razaoSocial}
-            className="w-full h-16 rounded-[25px] bg-gradient-to-r from-gray-900 to-gray-800 text-white font-black italic uppercase text-xs tracking-[0.2em] shadow-xl hover:scale-[1.02] transition-all disabled:opacity-50 disabled:hover:scale-100"
+            onClick={() => router.push("/app/assessor-ia")}
+            className="w-full mt-12 bg-white/10 hover:bg-white/20 border border-white/20 rounded-2xl h-14 font-black italic uppercase text-[10px] tracking-widest transition-all"
           >
-            {isSubmitting ? (
-              <Loader2 className="animate-spin" />
-            ) : (
-              <>
-                Finalizar e Entrar no Sistema <ArrowRight className="ml-2" size={18} />
-              </>
-            )}
+            Ver Todos os Insights <ArrowRight size={14} className="ml-2" />
           </Button>
-        </form>
-
-        {msg && (
-          <div className="mt-6 p-4 bg-red-50 text-red-600 rounded-2xl text-[10px] font-black uppercase italic tracking-widest text-center border border-red-100">
-            {msg}
-          </div>
-        )}
+        </Card>
       </div>
-    </main>
+    </div>
+  );
+}
+
+function MiniPulseCard({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-sm p-4">
+      <div className="flex items-center gap-2 text-orange-300 mb-2">
+        {icon}
+        <span className="text-[10px] font-black uppercase tracking-[0.2em] italic">
+          {label}
+        </span>
+      </div>
+      <p className="text-lg font-black italic uppercase tracking-tight text-white">
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function ProgressMetric({
+  label,
+  value,
+  barClass,
+}: {
+  label: string;
+  value: number;
+  barClass: string;
+}) {
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-sm font-bold text-gray-700">{label}</p>
+        <span className="text-xs font-black uppercase italic text-gray-500">
+          {value}%
+        </span>
+      </div>
+      <div className="w-full bg-gray-100 h-3 rounded-full overflow-hidden">
+        <div className={`h-3 rounded-full ${barClass}`} style={{ width: `${value}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function StatCard({
+  title,
+  value,
+  trend,
+  isPositive,
+  loading,
+}: {
+  title: string;
+  value: string;
+  trend: string;
+  isPositive: boolean | null;
+  loading?: boolean;
+}) {
+  return (
+    <Card className="border-gray-100 rounded-[35px] bg-white shadow-sm hover:shadow-lg transition-all p-8">
+      <CardContent className="p-0">
+        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2 italic">
+          {title}
+        </p>
+
+        <h4 className="text-3xl font-black italic uppercase tracking-tighter text-gray-900">
+          {loading ? "—" : value}
+        </h4>
+
+        <div
+          className={`mt-4 flex items-center gap-1 text-[10px] font-black uppercase italic ${
+            isPositive === null
+              ? "text-gray-400"
+              : isPositive
+                ? "text-green-600"
+                : "text-red-500"
+          }`}
+        >
+          {isPositive !== null &&
+            (isPositive ? <TrendingUp size={14} /> : <TrendingDown size={14} />)}
+          {trend}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function AlertItem({ text }: { text: string }) {
+  return (
+    <div className="flex items-start gap-4 group cursor-pointer">
+      <div className="w-1.5 h-1.5 rounded-full bg-orange-500 mt-1.5 group-hover:scale-150 transition-transform" />
+      <p className="text-xs font-bold italic opacity-80 group-hover:opacity-100 transition-opacity leading-relaxed">
+        {text}
+      </p>
+    </div>
   );
 }

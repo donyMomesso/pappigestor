@@ -1,6 +1,6 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router";
-import { AppAuthProvider } from "@/react-app/contexts/AppAuthContext";
+import { AppAuthProvider } from "@/contexts/AppAuthContext";
 import ProtectedRoute from "@/react-app/components/ProtectedRoute";
 import AppLayout from "@/react-app/components/AppLayout";
 

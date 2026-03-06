@@ -15,7 +15,7 @@ export async function cadastrarItemEstoque(formData: FormData) {
   // 1. Pegar os dados do usuário logado
   const { data: { user } } = await supabase.auth.getUser();
   
-  // 2. Buscar o pizzaria_id vinculado ao perfil da Pappi Pizza
+  // 2. Buscar o pizzaria_id vinculado ao perfil da Pappi do usuário logado
   const { data: perfil } = await supabase
     .from('perfis_usuarios')
     .select('pizzaria_id')

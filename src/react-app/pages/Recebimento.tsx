@@ -37,7 +37,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/react-app/components/ui/dialog";
-import { useAppAuth } from "@/react-app/contexts/AppAuthContext";
+import { useAppAuth } from "@/contexts/AppAuthContext";
 
 // ✅ IMPORTA OS TIPOS CERTOS (Lancamento + Item)
 import type { Lancamento, ItemLancamento } from "@/shared/types";

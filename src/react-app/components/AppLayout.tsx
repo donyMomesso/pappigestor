@@ -4,7 +4,7 @@ import { ReactNode, useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { useAppAuth } from "@/react-app/contexts/AppAuthContext";
+import { useAppAuth } from "@/contexts/AppAuthContext";
 import { useTheme } from "@/react-app/hooks/useTheme";
 import AssistenteIA from "@/react-app/components/AssistenteIA";
 

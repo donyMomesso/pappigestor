@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAppAuth } from "@/react-app/contexts/AppAuthContext";
+import { useAppAuth } from "@/contexts/AppAuthContext";
 import { Button } from "@/react-app/components/ui/button";
 import { Card, CardContent } from "@/react-app/components/ui/card";
 import { Building2, Plus, ShieldCheck, MapPin, ArrowLeft, Hash } from "lucide-react";

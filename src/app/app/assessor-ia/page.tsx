@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useAppAuth } from "@/react-app/contexts/AppAuthContext";
+import { useAppAuth } from "@/contexts/AppAuthContext";
 import { 
   Sparkles, 
   BrainCircuit, 
@@ -92,7 +92,7 @@ export default function AssessorIAPage() {
             <Lightbulb size={56} className="animate-pulse" />
           </div>
           <h2 className="text-2xl font-black italic text-gray-900 uppercase tracking-tighter">
-            Como posso ajudar a <span className="text-purple-600">Pappi Pizza</span> hoje?
+            Como posso ajudar a <span className="text-purple-600">Pappi Gestor</span> hoje?
           </h2>
           <p className="text-gray-500 max-w-md mx-auto font-bold italic text-sm leading-relaxed">
             Pergunte sobre seus custos, peça uma previsão de estoque ou solicite um ranking dos seus melhores fornecedores.

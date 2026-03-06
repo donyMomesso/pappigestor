@@ -35,7 +35,7 @@ const CATEGORIAS_FORNECEDOR = [
 ];
 
 // O SEGREDO NEUROCIENTÍFICO
-const MENSAGEM_PADRAO = "Olá, {nome}, tudo bem? Gostaria de solicitar uma cotação para a Pappi Pizza referente aos seguintes itens:\n";
+const MENSAGEM_PADRAO = "Olá, {nome}, tudo bem? Gostaria de solicitar uma cotação para a Pappi Gestor referente aos seguintes itens:\n";
 
 export default function FornecedoresPage() {
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);

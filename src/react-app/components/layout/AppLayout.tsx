@@ -3,7 +3,7 @@
 import { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useAppAuth } from "@/react-app/contexts/AppAuthContext";
+import { useAppAuth } from "@/contexts/AppAuthContext";
 import { Home, ShoppingCart, DollarSign, Package, LayoutDashboard, LogOut, Sparkles } from "lucide-react";
 
 export default function AppLayout({ children }: { children: ReactNode }) {

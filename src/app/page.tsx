@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAppAuth } from "../react-app/contexts/AppAuthContext";
+import { useAppAuthOptional } from "@/contexts/AppAuthContext";
 import {
   ArrowRight,
   Sparkles,
@@ -76,7 +76,8 @@ function CardDisc({
 // --- PÁGINA PRINCIPAL ---
 
 export default function LandingPage() {
-  const { localUser } = useAppAuth();
+ const auth = useAppAuthOptional();
+const localUser = auth?.localUser ?? null;
   const router = useRouter();
 
   useEffect(() => {

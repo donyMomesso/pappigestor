@@ -21,7 +21,7 @@ import * as XLSX from 'xlsx';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/react-app/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/react-app/components/ui/select';
 import { Textarea } from '@/react-app/components/ui/textarea';
-import { useAppAuth } from '@/react-app/contexts/AppAuthContext';
+import { useAppAuth } from '@/contexts/AppAuthContext';
 
 // ============================================================================
 // TIPAGENS MOVIDAS PARA DENTRO DO FICHEIRO PARA EVITAR ERRO TS2307

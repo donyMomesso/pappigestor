@@ -11,7 +11,7 @@ import {
   Image, X, Trash2, Shield, CheckCircle2 
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/react-app/components/ui/dialog';
-import { useAppAuth } from '@/react-app/contexts/AppAuthContext';
+import { useAppAuth } from '@/contexts/AppAuthContext';
 
 const LOGO_URL = 'https://019c7b56-2054-7d0b-9c55-e7a603c40ba8.mochausercontent.com/1771799343659.png';
 

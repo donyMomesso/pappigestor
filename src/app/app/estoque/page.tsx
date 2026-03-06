@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/react-app/components/ui/card";
 import { Label } from "@/react-app/components/ui/label";
 import { Badge } from "@/react-app/components/ui/badge";
 import type { ItemLancamento } from "@/shared/types";
-import { useAppAuth } from "@/react-app/contexts/AppAuthContext";
+import { useAppAuth } from "@/contexts/AppAuthContext";
 import type { Lancamento } from "@/shared/types";
 
 import {

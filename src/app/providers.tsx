@@ -1,7 +1,7 @@
 "use client";
 
 import { ReactNode } from "react";
-import { AppAuthProvider } from "@/react-app/contexts/AppAuthContext";
+import { AppAuthProvider } from "@/contexts/AppAuthContext";
 
 /**
  * Este componente envolve a aplicação com todos os contextos necessários.

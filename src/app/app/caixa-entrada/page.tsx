@@ -12,7 +12,7 @@ import {
 import { Field, FieldContent, FieldTitle } from "@/react-app/components/ui/field"; 
 import { Input } from "@/react-app/components/ui/input";
 import { Button } from "@/react-app/components/ui/button";
-import { useAppAuth } from '@/react-app/contexts/AppAuthContext'; // ✅ IMPORT DA AUTENTICAÇÃO
+import { useAppAuth } from '@/contexts/AppAuthContext'; // ✅ IMPORT DA AUTENTICAÇÃO
 
 const StatusBadge = ({ children }: { children: React.ReactNode }) => (
   <span className="px-3 py-1 bg-orange-50 text-orange-600 rounded-full text-[9px] font-black uppercase italic border border-orange-100 animate-pulse">

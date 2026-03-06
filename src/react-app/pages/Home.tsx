@@ -35,7 +35,7 @@ import {
   DollarSign,
 } from "lucide-react";
 
-import { useAppAuth } from "@/react-app/contexts/AppAuthContext";
+import { useAppAuth } from "@/contexts/AppAuthContext";
 import { NIVEL_LABELS } from "@/react-app/types/auth";
 
 interface ModuleCard {

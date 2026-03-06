@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
-import { useAppAuth } from "@/react-app/contexts/AppAuthContext";
+import { useAppAuth } from "@/contexts/AppAuthContext";
 import { Button } from "@/react-app/components/ui/button";
 import { Input } from "@/react-app/components/ui/input";
 import { Card, CardContent } from "@/react-app/components/ui/card";
@@ -588,7 +588,7 @@ export default function ListaComprasPage() {
     const fornecedor = fornecedores.find((f) => f.id === fornecedorId);
     const selectedItensData = itens.filter((i) => selectedItems.includes(i.id));
 
-    let message = `🍕 *PAPPI PIZZA - Solicitação de Cotação*\n\nOlá! Gostaria de cotar:\n\n`;
+    let message = `🍕 *Pappi Gestor - Solicitação de Cotação*\n\nOlá! Gostaria de cotar:\n\n`;
     const listaTxt = selectedItensData
       .map((i, idx) => `${idx + 1}. *${i.produto_nome}* (${i.quantidade_solicitada} ${i.unidade_medida})`)
       .join("\n");

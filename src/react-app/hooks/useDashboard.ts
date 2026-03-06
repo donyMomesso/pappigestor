@@ -9,7 +9,7 @@ type FinanceiroRow = {
   tipo?: "receita" | "despesa" | string;
   valor?: number | string | null;
   created_at?: string | null;
-  data?: string | null; // se você usa outro campo
+  data?: string | null;
 };
 
 type ProdutoRow = {
@@ -19,6 +19,15 @@ type ProdutoRow = {
   estoque_atual?: number | null;
   estoque_minimo?: number | null;
   custo_unitario?: number | null;
+};
+
+type RecebimentoRow = {
+  id?: string;
+  empresa_id?: string | null;
+  status?: string | null;
+  created_at?: string | null;
+  data_recebimento?: string | null;
+  conferido?: boolean | null;
 };
 
 type MesSerie = { name: string; receitas: number; despesas: number };
@@ -60,6 +69,20 @@ function safeDate(raw: any): Date | null {
   return Number.isNaN(dt.getTime()) ? null : dt;
 }
 
+function isRecebimentoPendente(row: RecebimentoRow) {
+  const status = String(row.status ?? "").toLowerCase().trim();
+
+  if (status === "pendente") return true;
+  if (status === "aguardando") return true;
+  if (status === "em_aberto") return true;
+  if (status === "aberto") return true;
+
+  if (row.conferido === false) return true;
+  if (!row.data_recebimento) return true;
+
+  return false;
+}
+
 export function useDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -76,6 +99,7 @@ export function useDashboard() {
     lucro: 0,
     margem: 0,
     itensCriticos: 0,
+    recebimentosPendentes: 0,
   });
 
   const refresh = useCallback(async () => {
@@ -84,7 +108,6 @@ export function useDashboard() {
 
     const supabase = getSupabaseClient();
     if (!supabase) {
-      // ✅ modo offline (não quebra build)
       const fake = lastMonths(6).map((d) => ({
         name: monthLabel(d),
         receitas: 8000,
@@ -107,37 +130,46 @@ export function useDashboard() {
         lucro: 16800,
         margem: 35,
         itensCriticos: 4,
+        recebimentosPendentes: 1,
       });
 
       setLoading(false);
       return;
     }
 
-    // ✅ pega SEMPRE o valor atual (não congela no primeiro render)
     const empresaId =
-      typeof window !== "undefined"
-        ? (localStorage.getItem("empresa_id") || "")
-        : "";
+      typeof window !== "undefined" ? localStorage.getItem("empresa_id") || "" : "";
 
     try {
-      // 1) Financeiro (tabela exata: "financeiro")
       let finQuery = supabase.from("financeiro").select("*");
       if (empresaId) finQuery = finQuery.eq("empresa_id", empresaId);
 
-      const { data: fin, error: finErr } = await finQuery;
-      if (finErr) throw finErr;
-
-      // 2) Produtos (tabela exata: "produtos")
       let prodQuery = supabase.from("produtos").select("*");
       if (empresaId) prodQuery = prodQuery.eq("empresa_id", empresaId);
 
-      const { data: prods, error: prodErr } = await prodQuery;
+      // tentativa segura: se a tabela ainda não existir, não derruba o dashboard
+      let recebimentosRows: RecebimentoRow[] = [];
+      try {
+        let recebQuery = supabase.from("recebimentos").select("*");
+        if (empresaId) recebQuery = recebQuery.eq("empresa_id", empresaId);
+
+        const { data: recebData, error: recebErr } = await recebQuery;
+        if (!recebErr) {
+          recebimentosRows = (recebData ?? []) as RecebimentoRow[];
+        }
+      } catch {
+        recebimentosRows = [];
+      }
+
+      const [{ data: fin, error: finErr }, { data: prods, error: prodErr }] =
+        await Promise.all([finQuery, prodQuery]);
+
+      if (finErr) throw finErr;
       if (prodErr) throw prodErr;
 
       const finRows = (fin ?? []) as FinanceiroRow[];
       const prodRows = (prods ?? []) as ProdutoRow[];
 
-      // Série mensal (últimos 6 meses)
       const months = lastMonths(6);
       const buckets = new Map<
         string,
@@ -176,7 +208,6 @@ export function useDashboard() {
         };
       });
 
-      // KPIs
       const receitaTotal = finRows
         .filter((t) => String(t.tipo || "").toLowerCase() === "receita")
         .reduce((acc, t) => acc + toNumber(t.valor), 0);
@@ -186,10 +217,8 @@ export function useDashboard() {
         .reduce((acc, t) => acc + toNumber(t.valor), 0);
 
       const lucro = receitaTotal - despesaTotal;
-      const margem =
-        receitaTotal > 0 ? (lucro / receitaTotal) * 100 : 0;
+      const margem = receitaTotal > 0 ? (lucro / receitaTotal) * 100 : 0;
 
-      // Estoque crítico
       const criticos = prodRows
         .map((p) => ({
           id: p.id,
@@ -210,6 +239,8 @@ export function useDashboard() {
 
       const totalCrit = Math.max(0, prodRows.length - totalOk);
 
+      const totalRecebimentosPendentes = recebimentosRows.filter(isRecebimentoPendente).length;
+
       setSeriesMensal(serie);
       setItensCriticos(criticos);
       setEstoquePizza([
@@ -223,6 +254,7 @@ export function useDashboard() {
         lucro: Math.round(lucro),
         margem: Number.isFinite(margem) ? Math.round(margem * 10) / 10 : 0,
         itensCriticos: totalCrit,
+        recebimentosPendentes: totalRecebimentosPendentes,
       });
     } catch (e: any) {
       console.error(e);
@@ -238,20 +270,30 @@ export function useDashboard() {
 
   const alertas = useMemo(() => {
     const alerts: Array<{ tipo: "warn" | "danger"; texto: string }> = [];
+
     if (kpis.itensCriticos > 0) {
       alerts.push({
         tipo: "warn",
         texto: `Você tem ${kpis.itensCriticos} itens em estoque crítico.`,
       });
     }
+
     if (kpis.lucro < 0) {
       alerts.push({
         tipo: "danger",
-        texto: `Seu caixa está negativo (lucro: R$ ${kpis.lucro}).`,
+        texto: `Seu caixa está negativo (lucro: ${moneyPreview(kpis.lucro)}).`,
       });
     }
+
+    if (kpis.recebimentosPendentes > 0) {
+      alerts.push({
+        tipo: "warn",
+        texto: `Existem ${kpis.recebimentosPendentes} recebimentos aguardando conferência.`,
+      });
+    }
+
     return alerts;
-  }, [kpis.itensCriticos, kpis.lucro]);
+  }, [kpis.itensCriticos, kpis.lucro, kpis.recebimentosPendentes]);
 
   return {
     loading,
@@ -263,4 +305,11 @@ export function useDashboard() {
     kpis,
     alertas,
   };
+}
+
+function moneyPreview(v: number) {
+  return (v ?? 0).toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
 }

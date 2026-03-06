@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useAppAuth } from "@/react-app/contexts/AppAuthContext";
+import { useAppAuth } from "@/contexts/AppAuthContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/react-app/components/ui/card";
 import { Input } from "@/react-app/components/ui/input";
 import { Button } from "@/react-app/components/ui/button";

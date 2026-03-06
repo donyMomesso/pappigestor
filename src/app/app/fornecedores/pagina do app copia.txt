@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useAppAuth } from "@/react-app/contexts/AppAuthContext";
+import { useAppAuth } from "@/contexts/AppAuthContext";
 import { 
   ArrowRight, Sparkles, TrendingUp, ShieldCheck, 
   Crown, Loader2, Rocket, CheckCircle2, AlertTriangle, 

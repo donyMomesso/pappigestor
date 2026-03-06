@@ -9,9 +9,9 @@ import React, {
   ReactNode,
   useCallback,
 } from "react";
-import { getSupabaseClient } from "@/lib/supabaseClient";
 import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 
+import { getSupabaseClient } from "@/lib/supabaseClient";
 import type {
   LocalUser,
   NivelAcesso,
@@ -25,22 +25,21 @@ type MatchMode = "ANY" | "ALL";
 interface AppAuthContextValue {
   localUser: LocalUser | null;
   setLocalUser: React.Dispatch<React.SetStateAction<LocalUser | null>>;
+
+  // compatibilidade
   isLoading: boolean;
+  loading: boolean;
+
   error: string | null;
 
   signOut: () => Promise<void>;
   refreshUser: () => Promise<void>;
 
-  // SaaS: role e permission aceitam 1 ou várias
   hasRole: (allowed: NivelAcesso | NivelAcesso[], mode?: MatchMode) => boolean;
   hasPermission: (permission: string | string[], mode?: MatchMode) => boolean;
-
-  // Feature do plano
   hasFeature: (feature: Feature) => boolean;
 
-  // Conveniência
   isSuperAdmin: boolean;
-
   isSubscriptionExpired: () => boolean;
 }
 
@@ -62,9 +61,9 @@ function hasAny(userList: string[], required: string[]) {
 }
 
 // ----------------------------
-// Normalizadores (compatibilidade)
+// Normalizadores
 // ----------------------------
-function normalizePlan(raw: any): PlanoEmpresa {
+function normalizePlan(raw: unknown): PlanoEmpresa {
   const v = String(raw ?? "").trim().toLowerCase();
 
   if (v === "grátis" || v === "gratis") return "gratis";
@@ -75,14 +74,12 @@ function normalizePlan(raw: any): PlanoEmpresa {
   return "gratis";
 }
 
-function normalizeRole(raw: any): NivelAcesso {
+function normalizeRole(raw: unknown): NivelAcesso {
   const v = String(raw ?? "").trim().toLowerCase();
 
-  // compat antigos
   if (v === "admin_empresa") return "dono";
   if (v === "super_admin") return "admin";
 
-  // roles novas
   if (v === "dono") return "dono";
   if (v === "admin") return "admin";
   if (v === "financeiro") return "financeiro";
@@ -93,12 +90,14 @@ function normalizeRole(raw: any): NivelAcesso {
   return "operador";
 }
 
-function parseStringArray(raw: any): string[] {
+function parseStringArray(raw: unknown): string[] {
   try {
     if (!raw) return [];
     if (Array.isArray(raw)) return raw.map(String);
+
     const s = String(raw).trim();
     if (!s) return [];
+
     const parsed = JSON.parse(s);
     return Array.isArray(parsed) ? parsed.map(String) : [];
   } catch {
@@ -106,18 +105,116 @@ function parseStringArray(raw: any): string[] {
   }
 }
 
-function parseFeatureArray(raw: any): Feature[] {
-  const arr = parseStringArray(raw);
-  return arr as Feature[];
+function parseFeatureArray(raw: unknown): Feature[] {
+  return parseStringArray(raw) as Feature[];
+}
+
+// ----------------------------
+// localStorage helpers
+// ----------------------------
+function loadLocalUserFromStorage(): LocalUser | null {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const id = localStorage.getItem("user_id") || "";
+    const email = (localStorage.getItem("userEmail") || "").trim().toLowerCase();
+    const nome = localStorage.getItem("userName") || "Usuário";
+    const empresa_id =
+      localStorage.getItem("empresa_id") ||
+      localStorage.getItem("pId") ||
+      localStorage.getItem("pizzariaId") ||
+      null;
+
+    const nome_empresa =
+      localStorage.getItem("nome_empresa") ||
+      localStorage.getItem("empresa_nome") ||
+      "Minha Empresa";
+
+    const plano = normalizePlan(localStorage.getItem("plano"));
+    const nivel_acesso = normalizeRole(localStorage.getItem("nivel_acesso"));
+    const permissoes = parseStringArray(localStorage.getItem("permissoes"));
+    const featuresStorage = parseFeatureArray(localStorage.getItem("features"));
+    const foto = localStorage.getItem("userAvatar") || "";
+
+    if (!id && !email && !empresa_id) {
+      return null;
+    }
+
+    return {
+      id: id || "",
+      email,
+      nome,
+      nivel_acesso,
+      empresa_id,
+      nome_empresa,
+      plano,
+      permissoes,
+      features: featuresStorage.length ? featuresStorage : PLANO_FEATURES[plano],
+      foto,
+    };
+  } catch (error) {
+    console.error("Erro ao ler localStorage do auth:", error);
+    return null;
+  }
+}
+
+function persistLocalUserToStorage(user: LocalUser | null) {
+  if (typeof window === "undefined") return;
+
+  try {
+    if (!user) {
+      localStorage.removeItem("user_id");
+      localStorage.removeItem("userEmail");
+      localStorage.removeItem("userName");
+      localStorage.removeItem("empresa_id");
+      localStorage.removeItem("pId");
+      localStorage.removeItem("pizzariaId");
+      localStorage.removeItem("nome_empresa");
+      localStorage.removeItem("empresa_nome");
+      localStorage.removeItem("plano");
+      localStorage.removeItem("nivel_acesso");
+      localStorage.removeItem("permissoes");
+      localStorage.removeItem("features");
+      localStorage.removeItem("userAvatar");
+      return;
+    }
+
+    localStorage.setItem("user_id", String(user.id ?? ""));
+    localStorage.setItem("userEmail", String(user.email ?? ""));
+    localStorage.setItem("userName", String(user.nome ?? ""));
+    localStorage.setItem("empresa_id", String(user.empresa_id ?? ""));
+    localStorage.setItem("pId", String(user.empresa_id ?? ""));
+    localStorage.setItem("pizzariaId", String(user.empresa_id ?? ""));
+    localStorage.setItem("nome_empresa", String(user.nome_empresa ?? ""));
+    localStorage.setItem("empresa_nome", String(user.nome_empresa ?? ""));
+    localStorage.setItem("plano", String(user.plano ?? "gratis"));
+    localStorage.setItem("nivel_acesso", String(user.nivel_acesso ?? "operador"));
+    localStorage.setItem("permissoes", JSON.stringify(user.permissoes ?? []));
+    localStorage.setItem("features", JSON.stringify(user.features ?? []));
+    localStorage.setItem("userAvatar", String(user.foto ?? ""));
+  } catch (error) {
+    console.error("Erro ao salvar localStorage do auth:", error);
+  }
 }
 
 // ----------------------------
 // Provider
 // ----------------------------
 export function AppAuthProvider({ children }: { children: ReactNode }) {
-  const [localUser, setLocalUser] = useState<LocalUser | null>(null);
+  const [localUser, setLocalUserState] = useState<LocalUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const setLocalUser = useCallback(
+    (value: React.SetStateAction<LocalUser | null>) => {
+      setLocalUserState((prev) => {
+        const next = typeof value === "function" ? value(prev) : value;
+        persistLocalUserToStorage(next);
+        return next;
+      });
+    },
+    []
+  );
 
   const mapUser = useCallback((user: any): LocalUser | null => {
     if (!user) return null;
@@ -134,7 +231,7 @@ export function AppAuthProvider({ children }: { children: ReactNode }) {
       : PLANO_FEATURES[plano];
 
     return {
-      id: String(user.id),
+      id: String(user.id ?? ""),
       email,
       nome: String(meta.full_name || meta.name || "Usuário"),
       nivel_acesso,
@@ -150,11 +247,11 @@ export function AppAuthProvider({ children }: { children: ReactNode }) {
   const fetchSession = useCallback(async () => {
     const supabase = getSupabaseClient();
 
-    // modo sem Supabase configurado (não quebra build)
     if (!supabase) {
-      setLocalUser(null);
-      setIsLoading(false);
+      const fallbackUser = loadLocalUserFromStorage();
+      setLocalUserState(fallbackUser);
       setError(null);
+      setIsLoading(false);
       return;
     }
 
@@ -166,29 +263,46 @@ export function AppAuthProvider({ children }: { children: ReactNode }) {
       if (sessionError) throw sessionError;
 
       const mapped = mapUser(data.session?.user);
-      setLocalUser(mapped);
+
+      if (mapped) {
+        setLocalUser(mapped);
+      } else {
+        const fallbackUser = loadLocalUserFromStorage();
+        setLocalUserState(fallbackUser);
+      }
     } catch (err: any) {
       console.error("Auth error:", err);
       setError(err?.message || "Erro ao carregar sessão");
-      setLocalUser(null);
+
+      const fallbackUser = loadLocalUserFromStorage();
+      setLocalUserState(fallbackUser);
     } finally {
       setIsLoading(false);
     }
-  }, [mapUser]);
+  }, [mapUser, setLocalUser]);
 
   useEffect(() => {
+    const localFallback = loadLocalUserFromStorage();
+    if (localFallback) {
+      setLocalUserState(localFallback);
+    }
+
+    void fetchSession();
+
     const supabase = getSupabaseClient();
-
-    // sempre tenta carregar sessão (se tiver supabase)
-    fetchSession();
-
-    // sem supabase = modo offline
     if (!supabase) return;
 
     const { data } = supabase.auth.onAuthStateChange(
       (_event: AuthChangeEvent, session: Session | null) => {
         const mapped = mapUser(session?.user);
-        setLocalUser(mapped);
+
+        if (mapped) {
+          setLocalUser(mapped);
+        } else {
+          const fallbackUser = loadLocalUserFromStorage();
+          setLocalUserState(fallbackUser);
+        }
+
         setIsLoading(false);
       }
     );
@@ -196,72 +310,81 @@ export function AppAuthProvider({ children }: { children: ReactNode }) {
     return () => {
       data.subscription.unsubscribe();
     };
-  }, [fetchSession, mapUser]);
+  }, [fetchSession, mapUser, setLocalUser]);
 
-  // --- Computados de segurança (SaaS) ---
   const userPerms = localUser?.permissoes ?? [];
 
   const computedIsSuperAdmin =
     localUser?.nivel_acesso === "admin" || userPerms.includes("super_admin");
 
-  // Role (nivel_acesso) — aceita 1 ou vários, ANY/ALL
-  const hasRole = (allowed: NivelAcesso | NivelAcesso[], mode: MatchMode = "ANY") => {
-    if (!localUser) return false;
-    if (computedIsSuperAdmin) return true;
+  const hasRole = useCallback(
+    (allowed: NivelAcesso | NivelAcesso[], mode: MatchMode = "ANY") => {
+      if (!localUser) return false;
+      if (computedIsSuperAdmin) return true;
 
-    const required = toList(allowed);
+      const required = toList(allowed);
 
-    if (mode === "ALL") {
-      return required.length === 1 && required[0] === localUser.nivel_acesso;
-    }
-    return required.includes(localUser.nivel_acesso);
-  };
+      if (mode === "ALL") {
+        return required.length === 1 && required[0] === localUser.nivel_acesso;
+      }
 
-  // Permission — aceita 1 ou várias, ANY/ALL
-  const hasPermission = (permission: string | string[], mode: MatchMode = "ANY") => {
-    if (!localUser) return false;
-    if (computedIsSuperAdmin) return true;
+      return required.includes(localUser.nivel_acesso);
+    },
+    [localUser, computedIsSuperAdmin]
+  );
 
-    // dono passa tudo (se quiser tirar, remova)
-    if (localUser.nivel_acesso === "dono") return true;
+  const hasPermission = useCallback(
+    (permission: string | string[], mode: MatchMode = "ANY") => {
+      if (!localUser) return false;
+      if (computedIsSuperAdmin) return true;
+      if (localUser.nivel_acesso === "dono") return true;
 
-    const required = toList(permission);
+      const required = toList(permission);
+      if (required.length === 0) return true;
 
-    if (required.length === 0) return true;
+      return mode === "ALL" ? hasAll(userPerms, required) : hasAny(userPerms, required);
+    },
+    [localUser, computedIsSuperAdmin, userPerms]
+  );
 
-    return mode === "ALL" ? hasAll(userPerms, required) : hasAny(userPerms, required);
-  };
+  const hasFeature = useCallback(
+    (feature: Feature) => {
+      if (!localUser) return false;
+      const list = localUser.features ?? PLANO_FEATURES[localUser.plano];
+      return list.includes(feature);
+    },
+    [localUser]
+  );
 
-  const hasFeature = (feature: Feature) => {
-    if (!localUser) return false;
-    const list = localUser.features ?? PLANO_FEATURES[localUser.plano];
-    return list.includes(feature);
-  };
-
-  const isSubscriptionExpired = () => {
+  const isSubscriptionExpired = useCallback(() => {
     if (!localUser) return true;
-    // depois você pluga vencimento aqui
     return false;
-  };
+  }, [localUser]);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     const supabase = getSupabaseClient();
 
     try {
-      if (supabase) await supabase.auth.signOut();
+      if (supabase) {
+        await supabase.auth.signOut();
+      }
     } catch (err) {
       console.error("Erro ao sair:", err);
     } finally {
       setLocalUser(null);
-      window.location.href = "/login";
+
+      if (typeof window !== "undefined") {
+        window.location.href = "/login";
+      }
     }
-  };
+  }, [setLocalUser]);
 
   const value = useMemo<AppAuthContextValue>(
     () => ({
       localUser,
       setLocalUser,
       isLoading,
+      loading: isLoading,
       error,
       signOut,
       refreshUser: fetchSession,
@@ -271,7 +394,19 @@ export function AppAuthProvider({ children }: { children: ReactNode }) {
       isSuperAdmin: computedIsSuperAdmin,
       isSubscriptionExpired,
     }),
-    [localUser, isLoading, error, fetchSession, computedIsSuperAdmin]
+    [
+      localUser,
+      setLocalUser,
+      isLoading,
+      error,
+      signOut,
+      fetchSession,
+      hasRole,
+      hasFeature,
+      hasPermission,
+      computedIsSuperAdmin,
+      isSubscriptionExpired,
+    ]
   );
 
   return <AppAuthContext.Provider value={value}>{children}</AppAuthContext.Provider>;

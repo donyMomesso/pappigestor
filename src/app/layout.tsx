@@ -5,11 +5,12 @@ import { Providers } from "./providers";
 
 export const metadata: Metadata = {
   title: {
-    default: "PappiGestor",
-    template: "%s | PappiGestor",
+    default: "Pappi Gestor",
+    template: "%s | Pappi Gestor",
   },
-  description: "Gestão inteligente com IA para compras, estoque e financeiro.",
-  applicationName: "PappiGestor",
+  description:
+    "Gestão inteligente com IA para compras, estoque, financeiro e operação de food service.",
+  applicationName: "Pappi Gestor",
   manifest: "/manifest.json",
   icons: {
     icon: "/icon.png",
@@ -23,8 +24,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-br" suppressHydrationWarning>
-      <body className="min-h-dvh bg-black text-white">
+    <html lang="pt-BR" suppressHydrationWarning>
+      <body className="min-h-dvh bg-white text-gray-950 antialiased">
         <Providers>{children}</Providers>
       </body>
     </html>

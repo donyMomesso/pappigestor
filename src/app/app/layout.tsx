@@ -15,7 +15,9 @@ import {
   Menu,
   X,
   Settings,
-  Calculator, // Adicionado para o módulo de precificação
+  Calculator,
+  Brain,
+  ChevronDown,
 } from "lucide-react";
 
 type InboxCountResponse = { count: number };
@@ -45,7 +47,6 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
   const LOGO_URL =
     "https://019c7b56-2054-7d0b-9c55-e7a603c40ba8.mochausercontent.com/1771799343659.png";
 
-  // ✅ FAILSAFE: não derruba caso Provider não esteja acima
   let auth: any = null;
   try {
     auth = useAppAuth();
@@ -72,36 +73,36 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
     return n ? n.charAt(0).toUpperCase() : "P";
   }, [localUser]);
 
-  // ✅ Proteção real: se tiver provider mas não tiver usuário, redireciona
   useEffect(() => {
-    if (!auth) return; // ainda carregando provider
+    if (!auth) return;
     if (!localUser && pathname?.startsWith("/app")) {
       router.replace("/login");
     }
   }, [auth, localUser, pathname, router]);
 
-  // ✅ Fecha menu ao clicar fora e com ESC
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
       if (!menuOpen) return;
       if (!menuRef.current) return;
       if (!menuRef.current.contains(e.target as Node)) setMenuOpen(false);
     };
+
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         setMenuOpen(false);
         setMobileOpen(false);
       }
     };
+
     document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey);
+
     return () => {
       document.removeEventListener("mousedown", onDown);
       document.removeEventListener("keydown", onKey);
     };
   }, [menuOpen]);
 
-  // ✅ Inbox count com “anti-spam” e refresh
   useEffect(() => {
     let alive = true;
     let consecutiveFails = 0;
@@ -109,13 +110,17 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
     const fetchInboxCount = async () => {
       try {
         const res = await fetch("/api/ia/inbox-count", { cache: "no-store" });
+
         if (!res.ok) {
           consecutiveFails++;
-          if (consecutiveFails >= 3) return; 
+          if (consecutiveFails >= 3) return;
           return;
         }
+
         const data = (await res.json()) as InboxCountResponse;
+
         if (!alive) return;
+
         setInboxCount(Number(data?.count || 0));
         consecutiveFails = 0;
       } catch {
@@ -125,6 +130,7 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
 
     fetchInboxCount();
     const interval = setInterval(fetchInboxCount, 60000);
+
     return () => {
       alive = false;
       clearInterval(interval);
@@ -146,28 +152,38 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
 
   if (!auth) {
     return (
-      <div className="min-h-screen bg-gray-50/30">
-        <header className="bg-white/70 backdrop-blur-2xl border-b border-gray-100 sticky top-0 z-50">
+      <div className="min-h-screen bg-[#f8fafc]">
+        <header className="sticky top-0 z-50 border-b border-gray-100 bg-white/85 backdrop-blur-2xl">
           <div className="max-w-[1600px] mx-auto px-6 md:px-8 h-20 flex items-center justify-between">
-            <div className="flex items-center gap-4 md:gap-6">
+            <div className="flex items-center gap-4">
               <div className="p-2.5 bg-gradient-to-br from-orange-500 to-pink-500 rounded-[20px] shadow-lg shadow-orange-200/50">
-                <img src={LOGO_URL} alt="Logo" className="h-6 w-6 brightness-0 invert" />
+                <img
+                  src={LOGO_URL}
+                  alt="Logo"
+                  className="h-6 w-6 brightness-0 invert"
+                />
               </div>
+
               <div className="flex flex-col">
                 <span className="text-xl font-black italic uppercase tracking-tighter bg-gradient-to-r from-orange-600 to-pink-600 bg-clip-text text-transparent leading-none">
                   Pappi Gestor
                 </span>
-                <span className="text-[8px] font-black uppercase tracking-[0.4em] text-gray-400 italic leading-none mt-1">
-                  Central de Inteligência
+                <span className="text-[9px] font-black uppercase tracking-[0.34em] text-gray-400 italic mt-1">
+                  central inteligente
                 </span>
               </div>
             </div>
-            <div className="text-[10px] uppercase tracking-[0.2em] font-black text-gray-400 italic">
-              Carregando...
+
+            <div className="inline-flex items-center gap-2 rounded-full bg-orange-50 px-4 py-2">
+              <Sparkles className="w-4 h-4 text-orange-500" />
+              <span className="text-[10px] uppercase font-black tracking-[0.22em] italic text-orange-600">
+                carregando
+              </span>
             </div>
           </div>
         </header>
-        <main className="max-w-[1600px] mx-auto p-6 md:p-8 animate-in fade-in duration-700">
+
+        <main className="max-w-[1600px] mx-auto px-6 py-6 md:px-8 md:py-8 animate-in fade-in duration-500">
           {children}
         </main>
       </div>
@@ -175,31 +191,39 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50/30">
-      <header className="bg-white/70 backdrop-blur-2xl border-b border-gray-100 sticky top-0 z-50">
-        <div className="max-w-[1600px] mx-auto px-6 md:px-8 h-20 flex items-center justify-between">
-          <div className="flex items-center gap-4 md:gap-6">
+    <div className="min-h-screen bg-[#f8fafc]">
+      <header className="sticky top-0 z-50 border-b border-gray-100 bg-white/85 backdrop-blur-2xl">
+        <div className="max-w-[1600px] mx-auto px-6 md:px-8 h-20 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4 md:gap-6 min-w-0">
             <Link
               href="/app"
-              className="p-2.5 bg-gradient-to-br from-orange-500 to-pink-500 rounded-[20px] shadow-lg shadow-orange-200/50 transition-transform hover:scale-105 active:scale-95"
+              className="shrink-0 p-2.5 bg-gradient-to-br from-orange-500 to-pink-500 rounded-[20px] shadow-lg shadow-orange-200/50 transition-transform hover:scale-105 active:scale-95"
               onClick={() => setMobileOpen(false)}
             >
-              <img src={LOGO_URL} alt="Logo" className="h-6 w-6 brightness-0 invert" />
+              <img
+                src={LOGO_URL}
+                alt="Logo"
+                className="h-6 w-6 brightness-0 invert"
+              />
             </Link>
 
-            <div className="flex flex-col">
-              <span className="text-xl font-black italic uppercase tracking-tighter bg-gradient-to-r from-orange-600 to-pink-600 bg-clip-text text-transparent leading-none">
+            <div className="min-w-0 hidden sm:flex flex-col">
+              <span className="text-xl font-black italic uppercase tracking-tighter bg-gradient-to-r from-orange-600 to-pink-600 bg-clip-text text-transparent leading-none truncate">
                 {empresaNome}
               </span>
-              <span className="text-[8px] font-black uppercase tracking-[0.4em] text-gray-400 italic leading-none mt-1">
-                Central de Inteligência
+              <span className="text-[9px] font-black uppercase tracking-[0.34em] text-gray-400 italic mt-1">
+                central de inteligência
               </span>
             </div>
           </div>
 
-          {/* Menu Desktop - NavItem Precificação adicionado abaixo */}
-          <nav className="hidden lg:flex items-center gap-1 bg-gray-100/40 p-1.5 rounded-[28px] border border-gray-100 shadow-inner">
-            <NavItem href="/app" active={isActive("/app")} icon={<Home size={18} />} label="Dashboard" />
+          <nav className="hidden xl:flex items-center gap-1 bg-gray-100/70 p-1.5 rounded-[28px] border border-gray-100 shadow-inner">
+            <NavItem
+              href="/app"
+              active={isActive("/app")}
+              icon={<Home size={18} />}
+              label="Dashboard"
+            />
             <NavItem
               href="/app/caixa-entrada"
               active={isActive("/app/caixa-entrada")}
@@ -207,44 +231,89 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
               label="Inbox"
               badge={inboxCount}
             />
-            <NavItem href="/app/compras" active={isActive("/app/compras")} icon={<ShoppingCart size={18} />} label="Compras" />
-            <NavItem href="/app/financeiro" active={isActive("/app/financeiro")} icon={<DollarSign size={18} />} label="Financeiro" />
-            <NavItem href="/app/estoque" active={isActive("/app/estoque")} icon={<Package size={18} />} label="Estoque" />
-            <NavItem href="/app/precificacao" active={isActive("/app/precificacao")} icon={<Calculator size={18} />} label="Eng. Preços" />
+            <NavItem
+              href="/app/compras"
+              active={isActive("/app/compras")}
+              icon={<ShoppingCart size={18} />}
+              label="Compras"
+            />
+            <NavItem
+              href="/app/financeiro"
+              active={isActive("/app/financeiro")}
+              icon={<DollarSign size={18} />}
+              label="Financeiro"
+            />
+            <NavItem
+              href="/app/estoque"
+              active={isActive("/app/estoque")}
+              icon={<Package size={18} />}
+              label="Estoque"
+            />
+            <NavItem
+              href="/app/precificacao"
+              active={isActive("/app/precificacao")}
+              icon={<Calculator size={18} />}
+              label="Eng. Preços"
+            />
           </nav>
 
-          <div className="flex items-center gap-3 md:gap-4">
+          <div className="flex items-center gap-3">
             <button
-              className="lg:hidden w-11 h-11 rounded-[18px] bg-white border border-gray-100 shadow-sm flex items-center justify-center"
+              className="xl:hidden w-11 h-11 rounded-[18px] bg-white border border-gray-100 shadow-sm flex items-center justify-center text-gray-700"
               onClick={() => setMobileOpen((v) => !v)}
               aria-label="Abrir menu"
             >
               {mobileOpen ? <X size={18} /> : <Menu size={18} />}
             </button>
 
-            <div className="hidden md:block text-right">
-              <p className="text-xs font-black italic uppercase tracking-tighter text-gray-900 leading-none">
-                {nomeUser}
-              </p>
-              <p className="text-[9px] uppercase font-black text-orange-600 italic mt-1 tracking-widest leading-none">
-                Acesso Pro
-              </p>
+            <div className="hidden md:flex items-center gap-3 px-4 py-2 rounded-[22px] border border-gray-100 bg-white shadow-sm">
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-orange-500 to-pink-500 text-white flex items-center justify-center font-black italic">
+                {initialLetter}
+              </div>
+
+              <div className="text-left">
+                <p className="text-xs font-black italic uppercase tracking-tight text-gray-900 leading-none">
+                  {nomeUser}
+                </p>
+                <p className="text-[10px] uppercase font-black text-orange-600 italic mt-1 tracking-[0.18em] leading-none">
+                  ambiente ativo
+                </p>
+              </div>
             </div>
 
             <div className="relative" ref={menuRef}>
               <button
                 onClick={() => setMenuOpen((v) => !v)}
-                className="w-12 h-12 rounded-[18px] bg-gray-900 shadow-xl flex items-center justify-center text-white font-black italic text-lg hover:scale-105 transition-all border-4 border-white ring-1 ring-gray-100"
+                className="w-12 h-12 rounded-[18px] bg-gray-900 shadow-xl flex items-center justify-center text-white hover:scale-105 transition-all border-4 border-white ring-1 ring-gray-100"
                 aria-label="Menu do usuário"
               >
-                {initialLetter}
+                <ChevronDown size={18} />
               </button>
 
               {menuOpen && (
-                <div className="absolute right-0 mt-3 w-64 bg-white rounded-[28px] shadow-2xl border border-gray-100 p-3 z-50">
-                  <p className="px-4 py-2 text-[9px] font-black uppercase text-gray-400 italic tracking-[0.2em] border-b border-gray-50 mb-2">
-                    Sua Conta
-                  </p>
+                <div className="absolute right-0 mt-3 w-72 bg-white rounded-[28px] shadow-2xl border border-gray-100 p-3 z-50">
+                  <div className="px-4 py-3 border-b border-gray-50 mb-2">
+                    <p className="text-[9px] font-black uppercase text-gray-400 italic tracking-[0.2em]">
+                      sua conta
+                    </p>
+                    <p className="text-sm font-black italic uppercase tracking-tight text-gray-900 mt-2">
+                      {nomeUser}
+                    </p>
+                    <p className="text-[10px] text-gray-500 font-bold mt-1 truncate">
+                      {empresaNome}
+                    </p>
+                  </div>
+
+                  <Link
+                    href="/app/assessor-ia"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setMobileOpen(false);
+                    }}
+                    className="flex items-center gap-3 px-4 py-3 text-xs font-bold italic uppercase text-gray-600 hover:bg-gray-50 rounded-xl transition-all"
+                  >
+                    <Brain size={16} /> Assessor IA
+                  </Link>
 
                   <Link
                     href="/app/configuracoes"
@@ -261,7 +330,7 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
                     onClick={doSignOut}
                     className="w-full flex items-center gap-3 px-4 py-3 text-xs font-black italic uppercase text-red-500 hover:bg-red-50 rounded-xl transition-all"
                   >
-                    <LogOut size={16} /> Sair do Sistema
+                    <LogOut size={16} /> Sair do sistema
                   </button>
                 </div>
               )}
@@ -269,11 +338,16 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
           </div>
         </div>
 
-        {/* Menu Mobile - Item Precificação adicionado abaixo */}
         {mobileOpen && (
-          <div className="lg:hidden border-t border-gray-100 bg-white/70 backdrop-blur-2xl">
+          <div className="xl:hidden border-t border-gray-100 bg-white/90 backdrop-blur-2xl">
             <div className="max-w-[1600px] mx-auto px-6 py-4 flex flex-col gap-2">
-              <NavItem href="/app" active={isActive("/app")} icon={<Home size={18} />} label="Dashboard" onClick={() => setMobileOpen(false)} />
+              <NavItem
+                href="/app"
+                active={isActive("/app")}
+                icon={<Home size={18} />}
+                label="Dashboard"
+                onClick={() => setMobileOpen(false)}
+              />
               <NavItem
                 href="/app/caixa-entrada"
                 active={isActive("/app/caixa-entrada")}
@@ -282,20 +356,47 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
                 badge={inboxCount}
                 onClick={() => setMobileOpen(false)}
               />
-              <NavItem href="/app/compras" active={isActive("/app/compras")} icon={<ShoppingCart size={18} />} label="Compras" onClick={() => setMobileOpen(false)} />
-              <NavItem href="/app/financeiro" active={isActive("/app/financeiro")} icon={<DollarSign size={18} />} label="Financeiro" onClick={() => setMobileOpen(false)} />
-              <NavItem href="/app/estoque" active={isActive("/app/estoque")} icon={<Package size={18} />} label="Estoque" onClick={() => setMobileOpen(false)} />
-              <NavItem href="/app/precificacao" active={isActive("/app/precificacao")} icon={<Calculator size={18} />} label="Eng. Preços" onClick={() => setMobileOpen(false)} />
+              <NavItem
+                href="/app/compras"
+                active={isActive("/app/compras")}
+                icon={<ShoppingCart size={18} />}
+                label="Compras"
+                onClick={() => setMobileOpen(false)}
+              />
+              <NavItem
+                href="/app/financeiro"
+                active={isActive("/app/financeiro")}
+                icon={<DollarSign size={18} />}
+                label="Financeiro"
+                onClick={() => setMobileOpen(false)}
+              />
+              <NavItem
+                href="/app/estoque"
+                active={isActive("/app/estoque")}
+                icon={<Package size={18} />}
+                label="Estoque"
+                onClick={() => setMobileOpen(false)}
+              />
+              <NavItem
+                href="/app/precificacao"
+                active={isActive("/app/precificacao")}
+                icon={<Calculator size={18} />}
+                label="Eng. Preços"
+                onClick={() => setMobileOpen(false)}
+              />
             </div>
           </div>
         )}
       </header>
 
-      <main className="max-w-[1600px] mx-auto p-6 md:p-8 animate-in fade-in duration-700">
+      <main className="max-w-[1600px] mx-auto px-6 py-6 md:px-8 md:py-8 animate-in fade-in duration-500">
         {children}
       </main>
 
-      <Link href="/app/assessor-ia" className="fixed bottom-8 right-8 md:bottom-10 md:right-10 group z-50">
+      <Link
+        href="/app/assessor-ia"
+        className="fixed bottom-8 right-8 md:bottom-10 md:right-10 group z-50"
+      >
         <div className="absolute inset-0 bg-orange-500 blur-3xl opacity-20 group-hover:opacity-40 transition-all" />
         <button className="relative w-16 h-16 bg-gradient-to-br from-orange-600 to-pink-600 rounded-[22px] shadow-2xl flex items-center justify-center text-white border-2 border-white/20 hover:rotate-6 transition-transform hover:scale-110 active:scale-90">
           <Sparkles size={28} className="animate-pulse" />
@@ -306,19 +407,31 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
   );
 }
 
-function NavItem({ href, active, icon, label, badge = 0, onClick }: NavItemProps) {
+function NavItem({
+  href,
+  active,
+  icon,
+  label,
+  badge = 0,
+  onClick,
+}: NavItemProps) {
   return (
     <Link
       href={href}
       onClick={onClick}
-      className={`relative flex items-center gap-3 px-6 py-3 rounded-[22px] transition-all duration-300 ${
+      className={`relative flex items-center gap-3 px-5 py-3 rounded-[22px] transition-all duration-300 ${
         active
           ? "bg-white text-orange-600 font-black italic shadow-md shadow-orange-100/50 border border-orange-50"
           : "text-gray-400 hover:text-gray-700 hover:bg-white/60"
       }`}
     >
-      <span className={active ? "text-orange-600" : "text-gray-400"}>{icon}</span>
-      <span className="text-[10px] uppercase tracking-[0.2em] font-black leading-none">{label}</span>
+      <span className={active ? "text-orange-600" : "text-gray-400"}>
+        {icon}
+      </span>
+
+      <span className="text-[10px] uppercase tracking-[0.2em] font-black leading-none">
+        {label}
+      </span>
 
       {badge > 0 && (
         <span className="absolute -top-1 -right-1 flex h-5 min-w-5 px-1 items-center justify-center rounded-full bg-red-500 text-[9px] font-black text-white ring-4 ring-gray-50 shadow-lg">

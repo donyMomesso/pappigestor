@@ -1,5 +1,21 @@
-import { useState, useEffect, useCallback } from "react";
-import { Building2, Search, Wifi, WifiOff, RefreshCw, Trash2, ExternalLink, Download, AlertCircle, CheckCircle, User, Briefcase } from "lucide-react";
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Building2,
+  Search,
+  Wifi,
+  WifiOff,
+  RefreshCw,
+  Trash2,
+  ExternalLink,
+  Download,
+  AlertCircle,
+  CheckCircle,
+  User,
+  Briefcase,
+} from "lucide-react";
+
 import { Button } from "@/react-app/components/ui/button";
 import { Input } from "@/react-app/components/ui/input";
 import { Label } from "@/react-app/components/ui/label";
@@ -9,25 +25,27 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/react-app/components/ui/dialog";
-import { PluggyConnect } from "react-pluggy-connect";
-import { useAppAuth } from "@/contexts/AppAuthContext"; // ✅ IMPORTADO O CONTEXTO AQUI
+import { useAppAuth } from "@/react-app/contexts/AppAuthContext";
 
 interface Connector {
   id: number;
   name: string;
   imageUrl: string;
-  primaryColor: string;
-  type: string;
-  country: string;
+  primaryColor?: string;
+  type?: string;
+  country?: string;
 }
 
+type StatusConexao = "ativo" | "erro" | "pendente";
+
 interface ConexaoBancaria {
-  id: number;
+  id: string;
+  empresa_id: string;
   pluggy_item_id: string | null;
   banco_nome: string;
   banco_codigo: string | null;
   banco_logo_url: string | null;
-  status: string;
+  status: StatusConexao;
   ultima_sincronizacao: string | null;
   created_at: string;
 }
@@ -40,105 +58,130 @@ interface SyncResult {
   error?: string;
 }
 
+type DocType = "PF" | "PJ";
+
+function onlyDigits(value: string): string {
+  return value.replace(/\D/g, "");
+}
+
 export default function OpenFinance() {
-  const { localUser } = useAppAuth(); // ✅ PUXANDO O USUÁRIO
+  const { localUser } = useAppAuth();
+
   const [connectors, setConnectors] = useState<Connector[]>([]);
   const [conexoes, setConexoes] = useState<ConexaoBancaria[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadingConnectors, setLoadingConnectors] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [showConnectorDialog, setShowConnectorDialog] = useState(false);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [loadingConnectors, setLoadingConnectors] = useState<boolean>(false);
+  const [searchTerm, setSearchTerm] = useState<string>("");
+
+  const [showConnectorDialog, setShowConnectorDialog] = useState<boolean>(false);
   const [selectedConnector, setSelectedConnector] = useState<Connector | null>(null);
-  const [connecting, setConnecting] = useState(false);
-  const [syncing, setSyncing] = useState<number | null>(null);
+
+  const [connecting, setConnecting] = useState<boolean>(false);
+  const [syncing, setSyncing] = useState<string | null>(null);
   const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
+
   const [connectError, setConnectError] = useState<string | null>(null);
-  const [connectToken, setConnectToken] = useState<string | null>(null);
-  const [showPluggyWidget, setShowPluggyWidget] = useState(false);
-  
-  // Campos PF/PJ
-  const [docType, setDocType] = useState<"PF" | "PJ">("PF");
-  const [docNumber, setDocNumber] = useState("");
-  const [responsibleCpf, setResponsibleCpf] = useState("");
+
+  const [docType, setDocType] = useState<DocType>("PJ");
+  const [docNumber, setDocNumber] = useState<string>("");
+  const [responsibleCpf, setResponsibleCpf] = useState<string>("");
   const [docError, setDocError] = useState<string | null>(null);
 
-  // ✅ FUNÇÃO QUE GERA OS HEADERS COM O CRACHÁ
-  const getHeaders = useCallback(() => {
-    const pId = localStorage.getItem("pId") || localStorage.getItem("pizzariaId") || "";
-    const email = localUser?.email || localStorage.getItem("userEmail") || "";
-    return {
-      "Content-Type": "application/json",
-      "x-pizzaria-id": pId,
-      "x-empresa-id": pId,
-      "x-user-email": email
-    };
-  }, [localUser]);
+  const empresaId =
+    localUser?.empresa_id ||
+    localStorage.getItem("empresa_id") ||
+    localStorage.getItem("pId") ||
+    localStorage.getItem("pizzariaId") ||
+    "";
 
-  // Buscar conexões existentes
+  const userEmail = localUser?.email || localStorage.getItem("userEmail") || "";
+
+  const getHeaders = useCallback(
+    (withJson = true): HeadersInit => {
+      const headers: Record<string, string> = {
+        "x-empresa-id": empresaId,
+        "x-user-email": userEmail,
+      };
+
+      if (withJson) {
+        headers["Content-Type"] = "application/json";
+      }
+
+      return headers;
+    },
+    [empresaId, userEmail]
+  );
+
   const fetchConexoes = useCallback(async () => {
     try {
+      setLoading(true);
+
       const res = await fetch("/api/conexoes-bancarias", {
-        headers: getHeaders() // ✅ CABEÇALHOS APLICADOS
+        headers: getHeaders(false),
       });
-      if (res.ok) {
-        const data = await res.json();
-        setConexoes(data);
+
+      if (!res.ok) {
+        throw new Error("Falha ao buscar conexões bancárias");
       }
+
+      const data = (await res.json()) as ConexaoBancaria[];
+      setConexoes(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Erro ao buscar conexões:", error);
+      setConexoes([]);
     } finally {
       setLoading(false);
     }
   }, [getHeaders]);
 
-  // Buscar conectores da Pluggy via backend (evita CORS)
-  const fetchConnectors = async (accountType: "PF" | "PJ" = docType) => {
+  const fetchConnectors = useCallback(async () => {
     setLoadingConnectors(true);
     setSelectedConnector(null);
+
     try {
-      const res = await fetch(`/api/pluggy/connectors?accountType=${accountType}`, {
-        headers: getHeaders() // ✅ CABEÇALHOS APLICADOS
+      const res = await fetch("/api/pluggy/connectors", {
+        headers: getHeaders(false),
       });
-      if (res.ok) {
-        const data = await res.json();
-        setConnectors(data.results || []);
+
+      if (!res.ok) {
+        throw new Error("Falha ao buscar bancos");
       }
+
+      const data = await res.json();
+      setConnectors(Array.isArray(data?.results) ? data.results : []);
     } catch (error) {
-      console.error("Erro ao buscar conectores:", error);
+      console.error("Erro ao buscar bancos:", error);
+      setConnectors([]);
     } finally {
       setLoadingConnectors(false);
     }
-  };
+  }, [getHeaders]);
 
   useEffect(() => {
-    fetchConexoes();
+    void fetchConexoes();
   }, [fetchConexoes]);
 
-  const handleOpenConnectorList = () => {
+  function handleOpenConnectorList(): void {
     setShowConnectorDialog(true);
     setConnectError(null);
-    fetchConnectors(docType);
-  };
-  
-  const handleDocTypeChange = (newType: "PF" | "PJ") => {
+    void fetchConnectors();
+  }
+
+  function handleDocTypeChange(newType: DocType): void {
     setDocType(newType);
     setDocError(null);
-    setSelectedConnector(null);
-    if (showConnectorDialog) {
-      fetchConnectors(newType);
-    }
-  };
+  }
 
-  const handleSelectConnector = (connector: Connector) => {
+  function handleSelectConnector(connector: Connector): void {
     setSelectedConnector(connector);
     setConnectError(null);
-  };
+  }
 
-  // Validar documento
-  const validateDocument = (): boolean => {
+  function validateDocument(): boolean {
     setDocError(null);
-    const cleanDoc = docNumber.replace(/\D/g, '');
-    
+
+    const cleanDoc = onlyDigits(docNumber);
+
     if (docType === "PF") {
       if (cleanDoc.length !== 11) {
         setDocError("CPF deve ter 11 dígitos");
@@ -149,248 +192,208 @@ export default function OpenFinance() {
         setDocError("CNPJ deve ter 14 dígitos");
         return false;
       }
-      const cleanCpf = responsibleCpf.replace(/\D/g, '');
+
+      const cleanCpf = onlyDigits(responsibleCpf);
       if (cleanCpf.length !== 11) {
-        setDocError("Para conta PJ, informe CPF do responsável (11 dígitos)");
+        setDocError("Informe o CPF do responsável com 11 dígitos");
         return false;
       }
     }
-    return true;
-  };
 
-  // Iniciar conexão via Pluggy Connect Widget
-  const handleConnect = async () => {
+    return true;
+  }
+
+  async function handleConnect(): Promise<void> {
     if (!selectedConnector) return;
     if (!validateDocument()) return;
-    
-    setConnecting(true);
-    setConnectError(null);
 
     try {
-      const tokenRes = await fetch("/api/pluggy/connect-token", { 
+      setConnecting(true);
+      setConnectError(null);
+
+      const res = await fetch("/api/pluggy/conexao", {
         method: "POST",
-        headers: getHeaders(), // ✅ CABEÇALHOS APLICADOS
+        headers: getHeaders(true),
         body: JSON.stringify({
+          connectorId: selectedConnector.id,
+          connectorName: selectedConnector.name,
+          connectorLogo: selectedConnector.imageUrl,
+          bancoCodigo: String(selectedConnector.id),
           docType,
-          docNumber: docNumber.replace(/\D/g, ''),
-          responsibleCpf: docType === "PJ" ? responsibleCpf.replace(/\D/g, '') : undefined,
+          docNumber: onlyDigits(docNumber),
+          responsibleCpf: docType === "PJ" ? onlyDigits(responsibleCpf) : null,
         }),
       });
-      
-      if (!tokenRes.ok) {
-        const error = await tokenRes.json();
-        setConnectError(error.error || "Erro ao obter token de conexão");
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setConnectError(data?.error || "Erro ao salvar conexão");
         setConnecting(false);
         return;
       }
 
-      const { connectToken: token } = await tokenRes.json();
-      setConnectToken(token);
-      setShowPluggyWidget(true);
-    } catch (error) {
-      console.error("Erro ao conectar:", error);
-      setConnectError("Erro ao iniciar conexão");
-      setConnecting(false);
-    }
-  };
-
-  // Callback de sucesso do Pluggy Connect
-  const handlePluggySuccess = async (data: { item: { id: string; connector?: { name?: string; imageUrl?: string } } }) => {
-    try {
-      const connectorName = selectedConnector?.name || data.item.connector?.name || "Banco conectado";
-      const connectorLogo = selectedConnector?.imageUrl || data.item.connector?.imageUrl || "";
-      
-      await fetch("/api/pluggy/conexao", {
-        method: "POST",
-        headers: getHeaders(), // ✅ CABEÇALHOS APLICADOS
-        body: JSON.stringify({
-          itemId: data.item.id,
-          connectorName,
-          connectorLogo,
-        }),
-      });
-      
-      setShowPluggyWidget(false);
-      setConnectToken(null);
       setShowConnectorDialog(false);
       setSelectedConnector(null);
+      setDocNumber("");
+      setResponsibleCpf("");
+      setDocError(null);
       setConnecting(false);
-      fetchConexoes();
+
+      await fetchConexoes();
     } catch (error) {
-      console.error("Erro ao salvar conexão:", error);
-      setConnectError("Erro ao salvar conexão");
+      console.error("Erro ao conectar:", error);
+      setConnectError("Erro ao criar conexão bancária");
+      setConnecting(false);
     }
-  };
+  }
 
-  // Callback de erro do Pluggy Connect
-  const handlePluggyError = (error: { message?: string }) => {
-    console.error("Erro no Pluggy Connect:", error);
-    setConnectError(error.message || "Erro ao conectar com o banco");
-    setShowPluggyWidget(false);
-    setConnectToken(null);
-    setConnecting(false);
-  };
+  async function handleDelete(id: string): Promise<void> {
+    const confirmed = window.confirm("Deseja remover esta conexão bancária?");
+    if (!confirmed) return;
 
-  const handlePluggyClose = () => {
-    setShowPluggyWidget(false);
-    setConnectToken(null);
-    setConnecting(false);
-  };
-
-  const handleDelete = async (id: number) => {
-    if (!confirm("Deseja remover esta conexão bancária?")) return;
     try {
-      const res = await fetch(`/api/conexoes-bancarias/${id}`, { 
+      const res = await fetch(`/api/conexoes-bancarias/${id}`, {
         method: "DELETE",
-        headers: getHeaders() // ✅ CABEÇALHOS APLICADOS
+        headers: getHeaders(false),
       });
-      if (res.ok) {
-        fetchConexoes();
+
+      if (!res.ok) {
+        throw new Error("Erro ao remover conexão");
       }
+
+      await fetchConexoes();
     } catch (error) {
       console.error("Erro ao remover conexão:", error);
+      alert("Não foi possível remover a conexão bancária.");
     }
-  };
+  }
 
-  // Sincronizar boletos de uma conexão
-  const handleSyncBoletos = async (conexao: ConexaoBancaria) => {
-    if (!conexao.pluggy_item_id) {
-      setSyncResult({ success: false, error: "Conexão não possui itemId do Pluggy" });
-      return;
-    }
-
+  async function handleSyncBoletos(conexao: ConexaoBancaria): Promise<void> {
     setSyncing(conexao.id);
     setSyncResult(null);
 
     try {
-      const res = await fetch(`/api/pluggy/sincronizar-boletos/${conexao.pluggy_item_id}`, {
+      const res = await fetch(`/api/pluggy/sincronizar-boletos/${conexao.id}`, {
         method: "POST",
-        headers: getHeaders() // ✅ CABEÇALHOS APLICADOS
+        headers: getHeaders(false),
       });
 
       const data = await res.json();
-      
-      if (res.ok) {
+
+      if (!res.ok) {
         setSyncResult({
-          success: true,
-          importados: data.importados,
-          duplicados: data.duplicados,
-          total: data.total,
+          success: false,
+          error: data?.error || "Erro ao sincronizar boletos",
         });
-        fetchConexoes();
-      } else {
-        setSyncResult({ success: false, error: data.error || "Erro ao sincronizar" });
+        return;
       }
+
+      setSyncResult({
+        success: true,
+        importados: data.importados,
+        duplicados: data.duplicados,
+        total: data.total,
+      });
+
+      await fetchConexoes();
     } catch (error) {
       console.error("Erro ao sincronizar:", error);
-      setSyncResult({ success: false, error: "Erro de conexão" });
+      setSyncResult({
+        success: false,
+        error: "Erro ao sincronizar boletos",
+      });
     } finally {
       setSyncing(null);
     }
-  };
+  }
 
-  const filteredConnectors = connectors.filter((c) =>
-    c.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredConnectors = useMemo(() => {
+    return connectors.filter((c) =>
+      c.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [connectors, searchTerm]);
 
-  const getStatusBadge = (conexao: ConexaoBancaria) => {
-    if (conexao.status === "ativo" && conexao.pluggy_item_id) {
+  function getStatusBadge(conexao: ConexaoBancaria) {
+    if (conexao.status === "ativo") {
       return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
           <Wifi className="h-3 w-3" />
           Conectado
         </span>
       );
     }
+
     if (conexao.status === "erro") {
       return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
           <WifiOff className="h-3 w-3" />
           Erro
         </span>
       );
     }
+
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
         <AlertCircle className="h-3 w-3" />
-        Pendente Autorização
+        Pendente
       </span>
     );
-  };
+  }
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      {/* Pluggy Connect Widget */}
-      {showPluggyWidget && connectToken && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg w-full max-w-md max-h-[90vh] overflow-hidden">
-            <PluggyConnect
-              connectToken={connectToken}
-              connectorTypes={docType === "PJ" ? ["BUSINESS_BANK"] : ["PERSONAL_BANK"]}
-              onSuccess={handlePluggySuccess}
-              onError={handlePluggyError}
-              onClose={handlePluggyClose}
-            />
-            <div className="p-3 border-t bg-gray-50 text-center">
-              <button 
-                onClick={handlePluggyClose}
-                className="text-sm text-gray-600 hover:text-gray-900 underline"
-              >
-                Cancelar e fechar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Open Finance</h1>
           <p className="text-muted-foreground">
-            Conecte suas contas bancárias para importar boletos automaticamente via DDA
+            Conecte bancos manualmente e simule importação de boletos no Pappi Gestor
           </p>
         </div>
+
         <Button onClick={handleOpenConnectorList} className="gap-2">
           <Building2 className="h-4 w-4" />
           Conectar Banco
         </Button>
       </div>
 
-      {/* Sync Result Alert */}
       {syncResult && (
-        <div className={`p-4 rounded-lg border ${
-          syncResult.success 
-            ? "bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800" 
-            : "bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800"
-        }`}>
+        <div
+          className={`p-4 rounded-lg border ${
+            syncResult.success
+              ? "bg-green-50 border-green-200"
+              : "bg-red-50 border-red-200"
+          }`}
+        >
           <div className="flex items-center gap-2">
             {syncResult.success ? (
               <>
-                <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
-                <span className="text-green-800 dark:text-green-200">
-                  Sincronização concluída! {syncResult.importados} boleto(s) importado(s)
-                  {syncResult.duplicados ? `, ${syncResult.duplicados} já existente(s)` : ""}
-                </span>
+                <CheckCircle className="h-5 w-5 text-green-600" />
+                <span className="text-green-800">
+  Sincronização concluída. {syncResult.importados || 0} boleto(s) importado(s)
+  {syncResult.duplicados ? `, ${syncResult.duplicados} duplicado(s)` : ""}
+  {" total" in syncResult && syncResult.total ? ` de ${syncResult.total}` : ""}
+</span>
               </>
             ) : (
               <>
-                <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
-                <span className="text-red-800 dark:text-red-200">{syncResult.error}</span>
+                <AlertCircle className="h-5 w-5 text-red-600" />
+                <span className="text-red-800">{syncResult.error}</span>
               </>
             )}
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="ml-auto" 
+
+            <Button
+              variant="ghost"
+              size="sm"
+              className="ml-auto"
               onClick={() => setSyncResult(null)}
             >
               ✕
@@ -399,34 +402,33 @@ export default function OpenFinance() {
         </div>
       )}
 
-      {/* Info Card */}
-      <div className="bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-200 dark:border-purple-800 rounded-xl p-6">
+      <div className="bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-200 rounded-xl p-6">
         <div className="flex items-start gap-4">
-          <div className="p-3 bg-purple-100 dark:bg-purple-900/50 rounded-lg">
-            <Wifi className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+          <div className="p-3 bg-purple-100 rounded-lg">
+            <Wifi className="h-6 w-6 text-purple-600" />
           </div>
+
           <div className="flex-1">
-            <h3 className="font-semibold text-foreground mb-1">Como funciona?</h3>
+            <h3 className="font-semibold text-foreground mb-1">Modo atual do Open Finance</h3>
             <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
-              <li>Clique em "Conectar Banco" e selecione sua instituição financeira</li>
-              <li>Autorize o acesso via widget seguro do Pluggy</li>
-              <li>Seus boletos DDA serão importados automaticamente</li>
-              <li>Use o botão "Sincronizar" para buscar novos boletos</li>
+              <li>Você conecta o banco manualmente</li>
+              <li>O sistema salva a conexão por empresa</li>
+              <li>O botão importar gera boletos DDA de teste no banco de dados</li>
+              <li>Isso já permite validar o fluxo financeiro sem Pluggy</li>
             </ol>
           </div>
         </div>
       </div>
 
-      {/* Connected Banks */}
       <div>
         <h2 className="text-lg font-semibold mb-4">Bancos Conectados</h2>
-        
+
         {conexoes.length === 0 ? (
           <div className="text-center py-12 bg-card rounded-xl border">
             <Building2 className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
             <p className="text-muted-foreground">Nenhum banco conectado</p>
             <p className="text-sm text-muted-foreground mb-4">
-              Conecte um banco para começar a importar boletos automaticamente
+              Conecte um banco para começar a alimentar o financeiro
             </p>
             <Button onClick={handleOpenConnectorList} variant="outline">
               Conectar Primeiro Banco
@@ -452,50 +454,41 @@ export default function OpenFinance() {
                         <Building2 className="h-5 w-5 text-muted-foreground" />
                       </div>
                     )}
+
                     <div>
                       <h3 className="font-semibold">{conexao.banco_nome}</h3>
                       {getStatusBadge(conexao)}
                     </div>
                   </div>
                 </div>
-                
+
                 {conexao.ultima_sincronizacao && (
                   <p className="text-xs text-muted-foreground mb-3">
-                    Última sync: {new Date(conexao.ultima_sincronizacao).toLocaleString("pt-BR")}
+                    Última sync:{" "}
+                    {new Date(conexao.ultima_sincronizacao).toLocaleString("pt-BR")}
                   </p>
                 )}
-                
+
                 <div className="flex items-center gap-2">
-                  {conexao.pluggy_item_id ? (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleSyncBoletos(conexao)}
-                      disabled={syncing === conexao.id}
-                      className="flex-1 gap-1"
-                    >
-                      {syncing === conexao.id ? (
-                        <RefreshCw className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Download className="h-4 w-4" />
-                      )}
-                      {syncing === conexao.id ? "Sincronizando..." : "Importar Boletos"}
-                    </Button>
-                  ) : (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={handleOpenConnectorList}
-                      className="flex-1 gap-1"
-                    >
-                      <RefreshCw className="h-4 w-4" />
-                      Reconectar
-                    </Button>
-                  )}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void handleSyncBoletos(conexao)}
+                    disabled={syncing === conexao.id}
+                    className="flex-1 gap-1"
+                  >
+                    {syncing === conexao.id ? (
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Download className="h-4 w-4" />
+                    )}
+                    {syncing === conexao.id ? "Importando..." : "Importar Boletos"}
+                  </Button>
+
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={() => handleDelete(conexao.id)}
+                    onClick={() => void handleDelete(conexao.id)}
                     className="text-destructive hover:text-destructive"
                   >
                     <Trash2 className="h-4 w-4" />
@@ -507,13 +500,12 @@ export default function OpenFinance() {
         )}
       </div>
 
-      {/* Connector Selection Dialog */}
       <Dialog open={showConnectorDialog} onOpenChange={setShowConnectorDialog}>
         <DialogContent className="sm:max-w-2xl max-h-[90vh] sm:max-h-[80vh] overflow-hidden flex flex-col p-0">
           <DialogHeader className="px-6 pt-6 pb-4">
             <DialogTitle>Selecione seu Banco</DialogTitle>
           </DialogHeader>
-          
+
           {selectedConnector ? (
             <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-4">
               <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
@@ -525,12 +517,11 @@ export default function OpenFinance() {
                 <div>
                   <h3 className="font-semibold">{selectedConnector.name}</h3>
                   <p className="text-sm text-muted-foreground">
-                    Preencha os dados abaixo para autorizar acesso aos seus boletos
+                    Preencha os dados para cadastrar a conexão manual
                   </p>
                 </div>
               </div>
-              
-              {/* Seletor PF/PJ */}
+
               <div className="space-y-4">
                 <div>
                   <Label className="text-sm font-medium mb-2 block">Tipo de Conta</Label>
@@ -539,37 +530,41 @@ export default function OpenFinance() {
                       type="button"
                       variant={docType === "PF" ? "default" : "outline"}
                       onClick={() => handleDocTypeChange("PF")}
-                      className={`flex-1 gap-2 ${docType === "PF" ? "bg-primary" : ""}`}
+                      className="flex-1 gap-2"
                     >
                       <User className="h-4 w-4" />
-                      Pessoa Física (CPF)
+                      Pessoa Física
                     </Button>
+
                     <Button
                       type="button"
                       variant={docType === "PJ" ? "default" : "outline"}
                       onClick={() => handleDocTypeChange("PJ")}
-                      className={`flex-1 gap-2 ${docType === "PJ" ? "bg-primary" : ""}`}
+                      className="flex-1 gap-2"
                     >
                       <Briefcase className="h-4 w-4" />
-                      Empresa (CNPJ)
+                      Empresa
                     </Button>
                   </div>
                 </div>
-                
-                {/* Campo CPF ou CNPJ */}
+
                 <div>
                   <Label className="text-sm font-medium mb-2 block">
                     {docType === "PF" ? "CPF" : "CNPJ"}
                   </Label>
                   <Input
-                    placeholder={docType === "PF" ? "000.000.000-00" : "00.000.000/0001-00"}
+                    placeholder={
+                      docType === "PF" ? "000.000.000-00" : "00.000.000/0001-00"
+                    }
                     value={docNumber}
-                    onChange={(e) => { setDocNumber(e.target.value); setDocError(null); }}
+                    onChange={(e) => {
+                      setDocNumber(e.target.value);
+                      setDocError(null);
+                    }}
                     className="font-mono"
                   />
                 </div>
-                
-                {/* CPF do Responsável (apenas PJ) */}
+
                 {docType === "PJ" && (
                   <div>
                     <Label className="text-sm font-medium mb-2 block">
@@ -578,67 +573,60 @@ export default function OpenFinance() {
                     <Input
                       placeholder="000.000.000-00"
                       value={responsibleCpf}
-                      onChange={(e) => { setResponsibleCpf(e.target.value); setDocError(null); }}
+                      onChange={(e) => {
+                        setResponsibleCpf(e.target.value);
+                        setDocError(null);
+                      }}
                       className="font-mono"
                     />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      CPF do sócio ou responsável legal pela conta bancária
-                    </p>
                   </div>
                 )}
-                
-                {/* Erro de validação */}
+
                 {docError && (
-                  <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
-                    <div className="flex items-center gap-2 text-red-800 dark:text-red-200">
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                    <div className="flex items-center gap-2 text-red-800">
                       <AlertCircle className="h-4 w-4" />
                       <span className="text-sm">{docError}</span>
                     </div>
                   </div>
                 )}
               </div>
-              
-              {/* Instrução para PJ */}
-              {docType === "PJ" && (
-                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
-                  <p className="text-sm text-amber-800 dark:text-amber-200">
-                    <strong>📋 Importante:</strong> No Pluggy, selecione a aba <strong>EMPRESAS</strong> e 
-                    escolha o banco PJ (ex: Itaú Empresas, Bradesco PJ, Santander Empresas).
-                  </p>
-                </div>
-              )}
-              
+
               {connectError && (
-                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-                  <div className="flex items-center gap-2 text-red-800 dark:text-red-200">
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <div className="flex items-center gap-2 text-red-800">
                     <AlertCircle className="h-4 w-4" />
                     <span className="text-sm">{connectError}</span>
                   </div>
                 </div>
               )}
-              
-              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-                <p className="text-sm text-blue-800 dark:text-blue-200">
-                  <strong>🔒 Segurança:</strong> A conexão é feita via Pluggy, plataforma certificada 
-                  pelo Banco Central para Open Finance. Suas credenciais bancárias são processadas 
-                  diretamente pelo Pluggy e nunca ficam armazenadas em nosso sistema.
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm text-blue-800">
+                  Este modo funciona sem Pluggy. Ele cria a conexão bancária no banco e permite
+                  testar importação de boletos no financeiro do Pappi Gestor.
                 </p>
               </div>
-              
+
               <div className="sticky bottom-0 bg-background border-t pt-4 pb-2 mt-4 flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setSelectedConnector(null)}>
                   Voltar
                 </Button>
-                <Button onClick={handleConnect} disabled={connecting} size="lg" className="px-6">
+
+                <Button onClick={() => void handleConnect()} disabled={connecting} size="lg">
                   {connecting ? (
                     <>
                       <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                      Conectando...
+                      Salvando...
                     </>
                   ) : (
                     <>
-                      {docType === "PF" ? <User className="h-4 w-4 mr-2" /> : <Briefcase className="h-4 w-4 mr-2" />}
-                      {docType === "PF" ? "Conectar (CPF)" : "Conectar (CNPJ)"}
+                      {docType === "PF" ? (
+                        <User className="h-4 w-4 mr-2" />
+                      ) : (
+                        <Briefcase className="h-4 w-4 mr-2" />
+                      )}
+                      Conectar Banco
                     </>
                   )}
                 </Button>
@@ -655,40 +643,38 @@ export default function OpenFinance() {
                   className="pl-10"
                 />
               </div>
-              
-              <div className="min-h-0">
-                {loadingConnectors ? (
-                  <div className="flex items-center justify-center h-48">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                    {filteredConnectors.map((connector) => (
-                      <button
-                        key={connector.id}
-                        onClick={() => handleSelectConnector(connector)}
-                        className="flex flex-col items-center gap-2 p-4 rounded-lg border hover:border-primary hover:bg-primary/5 transition-colors text-center"
-                      >
-                        <img
-                          src={connector.imageUrl}
-                          alt={connector.name}
-                          className="w-10 h-10 rounded-lg object-contain"
-                        />
-                        <span className="text-sm font-medium line-clamp-2">
-                          {connector.name}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-                
-                {!loadingConnectors && filteredConnectors.length === 0 && (
-                  <div className="text-center py-8 text-muted-foreground">
-                    Nenhum banco encontrado
-                  </div>
-                )}
-              </div>
-              
+
+              {loadingConnectors ? (
+                <div className="flex items-center justify-center h-48">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {filteredConnectors.map((connector) => (
+                    <button
+                      key={connector.id}
+                      onClick={() => handleSelectConnector(connector)}
+                      className="flex flex-col items-center gap-2 p-4 rounded-lg border hover:border-primary hover:bg-primary/5 transition-colors text-center"
+                    >
+                      <img
+                        src={connector.imageUrl}
+                        alt={connector.name}
+                        className="w-10 h-10 rounded-lg object-contain"
+                      />
+                      <span className="text-sm font-medium line-clamp-2">
+                        {connector.name}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {!loadingConnectors && filteredConnectors.length === 0 && (
+                <div className="text-center py-8 text-muted-foreground">
+                  Nenhum banco encontrado
+                </div>
+              )}
+
               <div className="pt-4 border-t mt-4">
                 <a
                   href="https://pluggy.ai"
@@ -696,7 +682,7 @@ export default function OpenFinance() {
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
                 >
-                  Powered by Pluggy - Open Finance Brasil
+                  Preparado para futura integração real
                   <ExternalLink className="h-3 w-3" />
                 </a>
               </div>

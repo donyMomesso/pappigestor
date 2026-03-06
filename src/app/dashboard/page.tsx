@@ -1,10 +1,10 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useAppAuth } from "@/contexts/AppAuthContext";
 import { useDashboard } from "@/react-app/hooks/useDashboard";
-import { useABC, type ABCCategoria } from "@/hooks/useABC";;
+import { useABC, type ABCCategoria } from "@/hooks/useABC";
 import { Card, CardContent } from "@/react-app/components/ui/card";
 import { Button } from "@/react-app/components/ui/button";
 import {
@@ -23,6 +23,9 @@ import {
   ShieldAlert,
   CircleDollarSign,
   ClipboardCheck,
+  Brain,
+  CheckCircle2,
+  Clock3,
 } from "lucide-react";
 
 function moneyBRL(v: number) {
@@ -44,6 +47,11 @@ export default function DashboardPage() {
   const error = dashboard?.error ?? null;
   const refresh = dashboard?.refresh ?? (() => {});
   const rawKpis = dashboard?.kpis;
+
+  const firstName = useMemo(
+    () => localUser?.nome?.split(" ")[0] || "gestor",
+    [localUser?.nome],
+  );
 
   const kpis = {
     receitaTotal: rawKpis?.receitaTotal ?? 0,
@@ -69,38 +77,42 @@ export default function DashboardPage() {
     switch (dashboardMode) {
       case "estoque":
         return {
-          title: `Bom dia, ${localUser?.nome?.split(" ")[0] || "gestor"} 👋`,
+          title: `Bom dia, ${firstName} 👋`,
           subtitle:
-            "Alguns insumos e itens da sua operação pedem atenção agora. O sistema já separou a prioridade para você agir com rapidez.",
+            "Seu estoque já mostrou o que merece prioridade agora. Se agir nisso primeiro, você protege produção, compra e ritmo da operação.",
           cta: "Gerar lista inteligente",
           action: () => router.push("/app/lista-compras"),
+          tag: "prioridade do dia: reposição",
         };
       case "financeiro":
         return {
-          title: `Bom dia, ${localUser?.nome?.split(" ")[0] || "gestor"} 👋`,
+          title: `Bom dia, ${firstName} 👋`,
           subtitle:
-            "Seu financeiro pede atenção hoje. Organizar isso agora ajuda a proteger o caixa e manter a operação estável.",
+            "Seu financeiro está pedindo atenção. Resolver isso agora ajuda a proteger o caixa e sustentar melhor as próximas decisões.",
           cta: "Revisar financeiro",
           action: () => router.push("/app/financeiro"),
+          tag: "prioridade do dia: proteger caixa",
         };
       case "recebimento":
         return {
-          title: `Bom dia, ${localUser?.nome?.split(" ")[0] || "gestor"} 👋`,
+          title: `Bom dia, ${firstName} 👋`,
           subtitle:
-            "Existem recebimentos aguardando conferência. Resolver isso agora mantém compras, estoque e financeiro alinhados.",
+            "Há recebimentos aguardando conferência. Colocar isso em ordem agora mantém compras, estoque e financeiro alinhados.",
           cta: "Conferir recebimentos",
           action: () => router.push("/app/recebimento"),
+          tag: "prioridade do dia: concluir conferências",
         };
       default:
         return {
-          title: `Bom dia, ${localUser?.nome?.split(" ")[0] || "gestor"} 👋`,
+          title: `Bom dia, ${firstName} 👋`,
           subtitle:
-            "Sua operação está caminhando bem hoje. Encontramos sinais de estabilidade e oportunidades para economizar e melhorar decisões.",
+            "Sua operação mostra bons sinais hoje. Este é um ótimo momento para revisar oportunidades e deixar o sistema te ajudar a decidir melhor.",
           cta: "Ver recomendações da IA",
           action: () => router.push("/app/assessor-ia"),
+          tag: "prioridade do dia: aproveitar oportunidades",
         };
     }
-  }, [dashboardMode, localUser?.nome, router]);
+  }, [dashboardMode, firstName, router]);
 
   const fluxoLabel = useMemo(() => {
     if (kpis.lucro < 0) {
@@ -110,19 +122,21 @@ export default function DashboardPage() {
         tone: "text-red-600",
       };
     }
-    if (kpis.itensCriticos > 0) {
+
+    if (kpis.itensCriticos > 0 || kpis.recebimentosPendentes > 0) {
       return {
         text: "Fluxo: Atenção",
         color: "bg-yellow-500",
         tone: "text-yellow-600",
       };
     }
+
     return {
       text: "Fluxo: Saudável",
       color: "bg-green-500",
       tone: "text-green-600",
     };
-  }, [kpis.lucro, kpis.itensCriticos]);
+  }, [kpis.lucro, kpis.itensCriticos, kpis.recebimentosPendentes]);
 
   const progressoOperacao = useMemo(() => {
     const estoqueScore =
@@ -147,7 +161,7 @@ export default function DashboardPage() {
 
   const attentionItems = useMemo(() => {
     const items: Array<{
-      icon: React.ReactNode;
+      icon: ReactNode;
       title: string;
       description: string;
       button: string;
@@ -159,7 +173,7 @@ export default function DashboardPage() {
       items.push({
         icon: <ShieldAlert className="w-5 h-5" />,
         title: "Estoque pedindo atenção",
-        description: `${kpis.itensCriticos} itens estão abaixo do nível ideal e já podem impactar a operação.`,
+        description: `${kpis.itensCriticos} itens estão abaixo do nível ideal e já podem impactar sua operação.`,
         button: "Ver lista de compras",
         action: () => router.push("/app/lista-compras"),
         tone: "warning",
@@ -171,7 +185,7 @@ export default function DashboardPage() {
         icon: <CircleDollarSign className="w-5 h-5" />,
         title: "Financeiro sob pressão",
         description: `O lucro atual está em ${moneyBRL(
-          kpis.lucro
+          kpis.lucro,
         )}. Vale revisar despesas e vencimentos agora.`,
         button: "Abrir financeiro",
         action: () => router.push("/app/financeiro"),
@@ -205,6 +219,62 @@ export default function DashboardPage() {
     return items.slice(0, 3);
   }, [kpis.itensCriticos, kpis.lucro, kpis.recebimentosPendentes, router]);
 
+  const quickActions = useMemo(
+    () => [
+      {
+        label: "Lançar compra",
+        icon: <Package className="w-4 h-4" />,
+        action: () => router.push("/app/compras"),
+      },
+      {
+        label: "Ver estoque",
+        icon: <ShieldAlert className="w-4 h-4" />,
+        action: () => router.push("/app/estoque"),
+      },
+      {
+        label: "Abrir financeiro",
+        icon: <Wallet className="w-4 h-4" />,
+        action: () => router.push("/app/financeiro"),
+      },
+      {
+        label: "Assessor IA",
+        icon: <Brain className="w-4 h-4" />,
+        action: () => router.push("/app/assessor-ia"),
+      },
+    ],
+    [router],
+  );
+
+  const iaHeadline = useMemo(() => {
+    if (kpis.itensCriticos > 0) {
+      return {
+        title: "A IA viu risco de reposição",
+        text: `Existem ${kpis.itensCriticos} itens críticos no estoque. Gerar uma lista agora ajuda a evitar falta e compra no susto.`,
+      };
+    }
+
+    if (kpis.lucro < 0) {
+      return {
+        title: "A IA viu pressão no lucro",
+        text: `Seu lucro está em ${moneyBRL(
+          kpis.lucro,
+        )}. Pode ser um bom momento para revisar despesas e categorias com maior peso.`,
+      };
+    }
+
+    if (kpis.recebimentosPendentes > 0) {
+      return {
+        title: "A IA viu pendências operacionais",
+        text: `Há ${kpis.recebimentosPendentes} recebimentos aguardando conferência. Resolver isso melhora a consistência da operação.`,
+      };
+    }
+
+    return {
+      title: "A IA viu espaço para melhorar",
+      text: "Hoje o cenário está mais estável. Esse é um bom momento para revisar oportunidades e agir antes do problema aparecer.",
+    };
+  }, [kpis.itensCriticos, kpis.lucro, kpis.recebimentosPendentes]);
+
   const maxABC =
     abcData && abcData.length > 0
       ? Math.max(...abcData.map((item: ABCCategoria) => item.valor), 1)
@@ -214,65 +284,126 @@ export default function DashboardPage() {
     <div className="space-y-10 animate-in fade-in duration-700">
       <Card className="border-0 rounded-[40px] overflow-hidden bg-gradient-to-br from-gray-950 via-zinc-900 to-orange-950 text-white shadow-2xl">
         <CardContent className="p-8 md:p-10">
-          <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-8">
-            <div className="max-w-3xl">
-              <div className="inline-flex items-center gap-2 rounded-full border border-orange-500/20 bg-orange-500/10 px-4 py-2 mb-5">
-                <Sparkles className="w-4 h-4 text-orange-400" />
-                <span className="text-[10px] font-black uppercase tracking-[0.25em] text-orange-300 italic">
-                  Painel Inteligente Ativo
-                </span>
+          <div className="flex flex-col gap-8">
+            <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-8">
+              <div className="max-w-3xl">
+                <div className="inline-flex items-center gap-2 rounded-full border border-orange-500/20 bg-orange-500/10 px-4 py-2 mb-5">
+                  <Sparkles className="w-4 h-4 text-orange-400" />
+                  <span className="text-[10px] font-black uppercase tracking-[0.25em] text-orange-300 italic">
+                    painel inteligente ativo
+                  </span>
+                </div>
+
+                <h1 className="text-3xl md:text-5xl font-black italic uppercase tracking-tighter leading-none">
+                  {heroCopy.title}
+                </h1>
+
+                <p className="mt-5 text-sm md:text-base text-zinc-300 max-w-2xl leading-relaxed">
+                  {heroCopy.subtitle}
+                </p>
+
+                <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2">
+                  <Clock3 className="w-4 h-4 text-orange-300" />
+                  <span className="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-200 italic">
+                    {heroCopy.tag}
+                  </span>
+                </div>
+
+                <div className="mt-6 flex flex-wrap items-center gap-3">
+                  <Button
+                    onClick={heroCopy.action}
+                    className="bg-orange-600 hover:bg-orange-500 rounded-2xl h-14 px-7 text-xs md:text-sm font-black italic uppercase tracking-wider shadow-xl shadow-orange-950/40"
+                  >
+                    {heroCopy.cta}
+                    <ArrowRight className="ml-2 w-4 h-4" />
+                  </Button>
+
+                  <Button
+                    onClick={refresh}
+                    variant="outline"
+                    className="rounded-2xl h-14 px-5 gap-2 border-white/15 bg-white/5 text-white hover:bg-white/10 hover:text-white"
+                  >
+                    {loading ? (
+                      <Loader2 className="animate-spin" size={16} />
+                    ) : (
+                      <RefreshCcw size={16} />
+                    )}
+                    <span className="text-[10px] font-black uppercase tracking-widest italic">
+                      Atualizar painel
+                    </span>
+                  </Button>
+                </div>
               </div>
 
-              <h1 className="text-3xl md:text-5xl font-black italic uppercase tracking-tighter leading-none">
-                {heroCopy.title}
-              </h1>
-
-              <p className="mt-5 text-sm md:text-base text-zinc-300 max-w-2xl leading-relaxed">
-                {heroCopy.subtitle}
-              </p>
-
-              <div className="mt-6 flex flex-wrap items-center gap-3">
-                <Button
-                  onClick={heroCopy.action}
-                  className="bg-orange-600 hover:bg-orange-500 rounded-2xl h-14 px-7 text-xs md:text-sm font-black italic uppercase tracking-wider shadow-xl shadow-orange-950/40"
-                >
-                  {heroCopy.cta}
-                  <ArrowRight className="ml-2 w-4 h-4" />
-                </Button>
-
-                <Button
-                  onClick={refresh}
-                  variant="outline"
-                  className="rounded-2xl h-14 px-5 gap-2 border-white/15 bg-white/5 text-white hover:bg-white/10 hover:text-white"
-                >
-                  {loading ? (
-                    <Loader2 className="animate-spin" size={16} />
-                  ) : (
-                    <RefreshCcw size={16} />
-                  )}
-                  <span className="text-[10px] font-black uppercase tracking-widest italic">
-                    Atualizar painel
-                  </span>
-                </Button>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 min-w-full xl:min-w-[430px]">
+                <MiniPulseCard
+                  icon={<Package className="w-4 h-4" />}
+                  label="Estoque"
+                  value={`${kpis.itensCriticos} críticos`}
+                  helper="itens pedindo ação"
+                />
+                <MiniPulseCard
+                  icon={<Wallet className="w-4 h-4" />}
+                  label="Lucro"
+                  value={moneyBRL(kpis.lucro)}
+                  helper="resultado atual"
+                />
+                <MiniPulseCard
+                  icon={<Truck className="w-4 h-4" />}
+                  label="Recebimentos"
+                  value={`${kpis.recebimentosPendentes} pendentes`}
+                  helper="aguardando conferência"
+                />
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 min-w-full xl:min-w-[430px]">
-              <MiniPulseCard
-                icon={<Package className="w-4 h-4" />}
-                label="Estoque"
-                value={`${kpis.itensCriticos} críticos`}
-              />
-              <MiniPulseCard
-                icon={<Wallet className="w-4 h-4" />}
-                label="Lucro"
-                value={moneyBRL(kpis.lucro)}
-              />
-              <MiniPulseCard
-                icon={<Truck className="w-4 h-4" />}
-                label="Recebimentos"
-                value={`${kpis.recebimentosPendentes} pendentes`}
-              />
+            <div className="grid grid-cols-1 xl:grid-cols-[1.35fr_0.65fr] gap-4">
+              <div className="rounded-[30px] border border-white/10 bg-white/5 backdrop-blur-sm p-5">
+                <div className="flex items-start gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-500/15 border border-orange-500/20">
+                    <Brain className="w-6 h-6 text-orange-300" />
+                  </div>
+
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.24em] text-orange-300 italic mb-2">
+                      sugestão da ia
+                    </p>
+                    <h3 className="text-lg font-black italic uppercase tracking-tight text-white">
+                      {iaHeadline.title}
+                    </h3>
+                    <p className="text-sm text-zinc-300 leading-relaxed mt-2 max-w-2xl">
+                      {iaHeadline.text}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-[30px] border border-white/10 bg-white/5 backdrop-blur-sm p-5">
+                <p className="text-[10px] font-black uppercase tracking-[0.24em] text-zinc-300 italic mb-4">
+                  ações rápidas
+                </p>
+
+                <div className="grid grid-cols-2 gap-3">
+                  {quickActions.map((item) => (
+                    <button
+                      key={item.label}
+                      type="button"
+                      onClick={item.action}
+                      className="rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 transition-all px-4 py-4 text-left"
+                    >
+                      <div className="flex items-center gap-2 text-orange-300 mb-2">
+                        {item.icon}
+                        <span className="text-[10px] font-black uppercase tracking-[0.18em] italic">
+                          atalho
+                        </span>
+                      </div>
+                      <p className="text-sm font-black italic uppercase tracking-tight text-white">
+                        {item.label}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </CardContent>
@@ -309,7 +440,7 @@ export default function DashboardPage() {
             Painel Estratégico
           </h2>
           <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] mt-3 italic">
-            Métricas de performance da {localUser?.nome_empresa || "sua empresa"}
+            métricas de performance da {localUser?.nome_empresa || "sua empresa"}
           </p>
         </div>
 
@@ -379,10 +510,14 @@ export default function DashboardPage() {
             </div>
 
             <p className={`text-xs font-black uppercase italic ${fluxoLabel.tone}`}>
-              {dashboardMode === "estoque" && "Prioridade de hoje: proteger reposição e abastecimento"}
-              {dashboardMode === "financeiro" && "Prioridade de hoje: proteger o caixa"}
-              {dashboardMode === "recebimento" && "Prioridade de hoje: concluir conferências"}
-              {dashboardMode === "normal" && "Prioridade de hoje: aproveitar oportunidades"}
+              {dashboardMode === "estoque" &&
+                "Prioridade de hoje: proteger reposição e abastecimento"}
+              {dashboardMode === "financeiro" &&
+                "Prioridade de hoje: proteger o caixa"}
+              {dashboardMode === "recebimento" &&
+                "Prioridade de hoje: concluir conferências"}
+              {dashboardMode === "normal" &&
+                "Prioridade de hoje: aproveitar oportunidades"}
             </p>
           </div>
 
@@ -496,9 +631,7 @@ export default function DashboardPage() {
             ) : alertas.length === 0 ? (
               <AlertItem text="Nenhum alerta crítico agora. Tudo sob controle ✅" />
             ) : (
-              alertas.slice(0, 4).map((a, idx) => (
-                <AlertItem key={idx} text={a.texto} />
-              ))
+              alertas.slice(0, 4).map((a, idx) => <AlertItem key={idx} text={a.texto} />)
             )}
           </div>
 
@@ -506,7 +639,7 @@ export default function DashboardPage() {
             onClick={() => router.push("/app/assessor-ia")}
             className="w-full mt-12 bg-white/10 hover:bg-white/20 border border-white/20 rounded-2xl h-14 font-black italic uppercase text-[10px] tracking-widest transition-all"
           >
-            Ver Todos os Insights <ArrowRight size={14} className="ml-2" />
+            Ver todos os insights <ArrowRight size={14} className="ml-2" />
           </Button>
         </Card>
       </div>
@@ -522,7 +655,7 @@ function AttentionCard({
   onClick,
   tone,
 }: {
-  icon: React.ReactNode;
+  icon: ReactNode;
   title: string;
   description: string;
   button: string;
@@ -566,10 +699,12 @@ function MiniPulseCard({
   icon,
   label,
   value,
+  helper,
 }: {
-  icon: React.ReactNode;
+  icon: ReactNode;
   label: string;
   value: string;
+  helper: string;
 }) {
   return (
     <div className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-sm p-4">
@@ -581,6 +716,9 @@ function MiniPulseCard({
       </div>
       <p className="text-lg font-black italic uppercase tracking-tight text-white">
         {value}
+      </p>
+      <p className="text-[10px] text-zinc-400 mt-2 uppercase tracking-[0.16em] font-bold italic">
+        {helper}
       </p>
     </div>
   );

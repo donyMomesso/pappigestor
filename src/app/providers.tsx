@@ -1,16 +1,12 @@
 "use client";
 
-import { ReactNode } from "react";
-import { AppAuthProvider } from "@/contexts/AppAuthContext";
+import type { ReactNode } from "react";
+import { AppAuthProvider } from "@/react-app/contexts/AppAuthContext";
 
-/**
- * Este componente envolve a aplicação com todos os contextos necessários.
- * Ele deve ser um Client Component ("use client") para suportar o Context API.
- */
-export function Providers({ children }: { children: ReactNode }) {
-  return (
-    <AppAuthProvider>
-      {children}
-    </AppAuthProvider>
-  );
+interface ProvidersProps {
+  children: ReactNode;
+}
+
+export default function Providers({ children }: ProvidersProps) {
+  return <AppAuthProvider>{children}</AppAuthProvider>;
 }

@@ -14,7 +14,19 @@ function getSupabase() {
 }
 
 function getEmpresaId(req: NextRequest): string | null {
-  return req.headers.get("x-empresa-id");
+  const empresaId =
+    req.headers.get("x-empresa-id") ||
+    req.headers.get("x-pizzaria-id") ||
+    req.nextUrl.searchParams.get("empresa_id");
+
+  return empresaId && empresaId.trim() ? empresaId.trim() : null;
+}
+
+function toNumberOrNull(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 export async function PATCH(
@@ -27,7 +39,7 @@ export async function PATCH(
 
     if (!empresaId) {
       return NextResponse.json(
-        { error: "x-empresa-id não enviado" },
+        { error: "Empresa não informada. Envie x-empresa-id ou x-pizzaria-id." },
         { status: 400 }
       );
     }
@@ -40,28 +52,83 @@ export async function PATCH(
     }
 
     const body = await req.json();
-
     const updateData: Record<string, unknown> = {};
 
-    if ("fornecedor" in body) updateData.fornecedor = body.fornecedor;
-    if ("categoria" in body) updateData.categoria = body.categoria;
-    if ("valor_previsto" in body) updateData.valor_previsto = Number(body.valor_previsto);
-    if ("is_boleto_recebido" in body)
+    if ("fornecedor" in body) {
+      const fornecedor = String(body.fornecedor ?? "").trim();
+      if (!fornecedor) {
+        return NextResponse.json(
+          { error: "fornecedor inválido" },
+          { status: 400 }
+        );
+      }
+      updateData.fornecedor = fornecedor;
+    }
+
+    if ("categoria" in body) {
+      const categoria = String(body.categoria ?? "").trim();
+      if (!categoria) {
+        return NextResponse.json(
+          { error: "categoria inválida" },
+          { status: 400 }
+        );
+      }
+      updateData.categoria = categoria;
+    }
+
+    if ("valor_previsto" in body) {
+      const valorPrevisto = toNumberOrNull(body.valor_previsto);
+      if (valorPrevisto === null) {
+        return NextResponse.json(
+          { error: "valor_previsto inválido" },
+          { status: 400 }
+        );
+      }
+      updateData.valor_previsto = valorPrevisto;
+    }
+
+    if ("is_boleto_recebido" in body) {
       updateData.is_boleto_recebido = Boolean(body.is_boleto_recebido);
-    if ("valor_real" in body)
-      updateData.valor_real =
-        body.valor_real === null || body.valor_real === undefined
-          ? null
-          : Number(body.valor_real);
-    if ("vencimento_real" in body) updateData.vencimento_real = body.vencimento_real || null;
-    if ("data_pagamento" in body) updateData.data_pagamento = body.data_pagamento || null;
-    if ("anexo_url" in body) updateData.anexo_url = body.anexo_url || null;
-    if ("comprovante_url" in body)
-      updateData.comprovante_url = body.comprovante_url || null;
-    if ("observacao" in body) updateData.observacao = body.observacao || null;
+    }
+
+    if ("valor_real" in body) {
+      const valorReal = toNumberOrNull(body.valor_real);
+      if (body.valor_real !== null && body.valor_real !== undefined && valorReal === null) {
+        return NextResponse.json(
+          { error: "valor_real inválido" },
+          { status: 400 }
+        );
+      }
+      updateData.valor_real = valorReal;
+    }
+
+    if ("vencimento_real" in body) {
+      updateData.vencimento_real = body.vencimento_real || null;
+    }
 
     if ("data_pagamento" in body) {
+      updateData.data_pagamento = body.data_pagamento || null;
       updateData.status_pagamento = body.data_pagamento ? "pago" : "pendente";
+    }
+
+    if ("anexo_url" in body) {
+      updateData.anexo_url = body.anexo_url || null;
+    }
+
+    if ("comprovante_url" in body) {
+      updateData.comprovante_url = body.comprovante_url || null;
+    }
+
+    if ("observacao" in body) {
+      updateData.observacao = body.observacao || null;
+    }
+
+    if ("linha_digitavel" in body) {
+      updateData.linha_digitavel = body.linha_digitavel || null;
+    }
+
+    if ("arquivo_url_boleto" in body) {
+      updateData.arquivo_url_boleto = body.arquivo_url_boleto || null;
     }
 
     updateData.updated_at = new Date().toISOString();
@@ -74,12 +141,19 @@ export async function PATCH(
       .eq("id", id)
       .eq("empresa_id", empresaId)
       .select("*")
-      .single();
+      .maybeSingle();
 
     if (error) {
       return NextResponse.json(
         { error: error.message },
         { status: 500 }
+      );
+    }
+
+    if (!data) {
+      return NextResponse.json(
+        { error: "Lançamento não encontrado para esta empresa" },
+        { status: 404 }
       );
     }
 
@@ -103,7 +177,7 @@ export async function DELETE(
 
     if (!empresaId) {
       return NextResponse.json(
-        { error: "x-empresa-id não enviado" },
+        { error: "Empresa não informada. Envie x-empresa-id ou x-pizzaria-id." },
         { status: 400 }
       );
     }
@@ -116,6 +190,27 @@ export async function DELETE(
     }
 
     const supabase = getSupabase();
+
+    const { data: existente, error: findError } = await supabase
+      .from("lancamentos")
+      .select("id")
+      .eq("id", id)
+      .eq("empresa_id", empresaId)
+      .maybeSingle();
+
+    if (findError) {
+      return NextResponse.json(
+        { error: findError.message },
+        { status: 500 }
+      );
+    }
+
+    if (!existente) {
+      return NextResponse.json(
+        { error: "Lançamento não encontrado para esta empresa" },
+        { status: 404 }
+      );
+    }
 
     const { error } = await supabase
       .from("lancamentos")

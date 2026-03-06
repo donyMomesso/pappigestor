@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { useAppAuth } from "@/react-app/contexts/AppAuthContext";
+import { useAppAuth } from "@/contexts/AppAuthContext";
 import { Button } from "@/react-app/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/react-app/components/ui/card";
 import { Input } from "@/react-app/components/ui/input";
@@ -156,7 +156,7 @@ export function calcularStatus(lancamento: Lancamento): StatusLancamento {
 }
 
 export default function FinanceiroPage() {
-  const { localUser, loading: authLoading } = useAppAuth();
+  const { localUser, isLoading: authLoading } = useAppAuth();
 
   const [lancamentos, setLancamentos] = useState<Lancamento[]>([]);
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);

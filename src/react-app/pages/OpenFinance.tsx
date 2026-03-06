@@ -25,7 +25,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/react-app/components/ui/dialog";
-import { useAppAuth } from "@/react-app/contexts/AppAuthContext";
+import { useAppAuth } from "@/contexts/AppAuthContext";
 
 interface Connector {
   id: number;

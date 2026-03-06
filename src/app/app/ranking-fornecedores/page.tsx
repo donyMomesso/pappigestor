@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useState, useEffect } from "react";
 import { useAppAuth } from "@/contexts/AppAuthContext";
 import { Button } from "@/react-app/components/ui/button";

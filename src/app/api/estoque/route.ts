@@ -6,17 +6,17 @@ export const dynamic = "force-dynamic";
 type EstoquePosicaoRow = {
   estoque_item_id: string;
   empresa_id: string;
-  produto_id: number;
-  estoque_minimo: number;
-  estoque_maximo: number | null;
-  ponto_reposicao: number | null;
+  produto_id: string;
+  estoque_minimo: number | string;
+  estoque_maximo: number | string | null;
+  ponto_reposicao: number | string | null;
   fornecedor_padrao_id: string | null;
   unidade_medida: string | null;
   ativo: boolean;
   observacao: string | null;
-  saldo_atual: number;
-  custo_medio: number;
-  valor_estoque: number;
+  saldo_atual: number | string;
+  custo_medio: number | string;
+  valor_estoque: number | string;
   abaixo_minimo: boolean;
   abaixo_ponto_reposicao: boolean;
   ultima_movimentacao_em: string | null;
@@ -25,15 +25,17 @@ type EstoquePosicaoRow = {
 };
 
 type ProdutoRow = {
-  id: number;
-  nome_produto: string;
-  categoria_produto: string | null;
-  unidade_medida: string | null;
+  id: string;
+  nome: string;
+  categoria: string | null;
+  unidade: string | null;
+  empresa_id: string | null;
+  pizzaria_id: string | null;
 };
 
 type EstoqueResponseItem = {
   id: string;
-  produto_id: number;
+  produto_id: string;
   produto_nome: string;
   categoria_produto: string | null;
   unidade_medida: string;
@@ -97,9 +99,7 @@ export async function GET(req: NextRequest) {
 
     const supabase = getSupabaseAdmin();
 
-    const somenteBaixo =
-      req.nextUrl.searchParams.get("somente_baixo") === "true";
-
+    const somenteBaixo = req.nextUrl.searchParams.get("somente_baixo") === "true";
     const busca = (req.nextUrl.searchParams.get("busca") || "").trim();
 
     let estoqueQuery = supabase
@@ -118,7 +118,7 @@ export async function GET(req: NextRequest) {
     if (estoqueError) {
       console.error("Erro ao buscar posição de estoque:", estoqueError);
       return NextResponse.json(
-        { error: "Erro ao buscar posição de estoque." },
+        { error: "Erro ao buscar posição de estoque.", details: estoqueError.message },
         { status: 500 }
       );
     }
@@ -133,20 +133,19 @@ export async function GET(req: NextRequest) {
 
     const { data: produtosRows, error: produtosError } = await supabase
       .from("produtos")
-      .select("id, nome_produto, categoria_produto, unidade_medida")
-      .eq("empresa_id", empresaId)
+      .select("id, nome, categoria, unidade, empresa_id, pizzaria_id")
       .in("id", produtoIds);
 
     if (produtosError) {
       console.error("Erro ao buscar produtos do estoque:", produtosError);
       return NextResponse.json(
-        { error: "Erro ao buscar dados dos produtos." },
+        { error: "Erro ao buscar dados dos produtos.", details: produtosError.message },
         { status: 500 }
       );
     }
 
     const produtos = (produtosRows || []) as ProdutoRow[];
-    const produtosMap = new Map<number, ProdutoRow>(
+    const produtosMap = new Map<string, ProdutoRow>(
       produtos.map((produto) => [produto.id, produto])
     );
 
@@ -156,10 +155,9 @@ export async function GET(req: NextRequest) {
       return {
         id: item.estoque_item_id,
         produto_id: item.produto_id,
-        produto_nome: produto?.nome_produto || `Produto #${item.produto_id}`,
-        categoria_produto: produto?.categoria_produto || null,
-        unidade_medida:
-          item.unidade_medida || produto?.unidade_medida || "un",
+        produto_nome: produto?.nome || `Produto ${item.produto_id}`,
+        categoria_produto: produto?.categoria || null,
+        unidade_medida: item.unidade_medida || produto?.unidade || "un",
         quantidade_atual: toNumber(item.saldo_atual),
         estoque_minimo: toNumber(item.estoque_minimo),
         estoque_maximo:
@@ -190,7 +188,10 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     console.error("Erro interno GET /api/estoque:", error);
     return NextResponse.json(
-      { error: "Erro interno ao carregar estoque." },
+      {
+        error: "Erro interno ao carregar estoque.",
+        details: error instanceof Error ? error.message : "Erro desconhecido",
+      },
       { status: 500 }
     );
   }

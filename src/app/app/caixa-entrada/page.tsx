@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useState, useEffect, useRef, useCallback, type ReactNode } from "react";
 import {
   Trash2,
@@ -34,7 +36,7 @@ import {
 import { Field, FieldContent, FieldTitle } from "@/react-app/components/ui/field";
 import { Input } from "@/react-app/components/ui/input";
 import { Button } from "@/react-app/components/ui/button";
-import { useAppAuth } from "@/contexts/AppAuthContext";
+import { useAppAuthOptional } from "@/contexts/AppAuthContext";
 
 type InboxItem = {
   id: number | string;
@@ -52,7 +54,8 @@ const StatusBadge = ({ children }: { children: ReactNode }) => (
 );
 
 export default function InboxPage() {
-  const { localUser } = useAppAuth();
+  const auth = useAppAuthOptional();
+const localUser = auth?.localUser ?? null;
 
   const [items, setItems] = useState<InboxItem[]>([]);
   const [loading, setLoading] = useState(true);

@@ -35,7 +35,7 @@ import {
   DollarSign,
 } from "lucide-react";
 
-import { useAppAuth } from "@/contexts/AppAuthContext";
+import { useAppAuthOptional } from "@/contexts/AppAuthContext";
 import { NIVEL_LABELS } from "@/react-app/types/auth";
 
 interface ModuleCard {
@@ -250,7 +250,8 @@ type NeedItem = {
 
 export default function HomePage() {
   const router = useRouter();
-  const { localUser } = useAppAuth();
+  const auth = useAppAuthOptional();
+  const localUser = auth?.localUser ?? null;
 
   const [copiado, setCopiado] = useState(false);
   const [showEditor, setShowEditor] = useState(false);
@@ -444,15 +445,15 @@ export default function HomePage() {
 
         <div className="relative flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold">Olá, {localUser?.nome?.split(" ")[0]}! 👋</h1>
+            <h1 className="text-xl font-bold">Olá, {localUser?.nome?.split(" ")[0] || "Gestor"}! </h1>
             <p className="text-white/80 text-sm mt-0.5">
               {localUser?.nivel_acesso ? NIVEL_LABELS[localUser.nivel_acesso] : ""}
               {(localUser as any)?.empresa_nome ? ` • ${(localUser as any).empresa_nome}` : ""}
             </p>
           </div>
-          <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center text-lg font-bold shadow-lg">
-            {localUser?.nome?.charAt(0).toUpperCase()}
-          </div>
+          <div className="w-12 h-12 ...">
+  {localUser?.nome?.charAt(0)?.toUpperCase() || "P"}
+</div>
         </div>
 
         {/* Stats in Hero */}

@@ -33,7 +33,12 @@ function getSupabase() {
 }
 
 function getEmpresaId(req: NextRequest): string | null {
-  return req.headers.get("x-empresa-id");
+  const empresaId =
+    req.headers.get("x-empresa-id") ||
+    req.headers.get("x-pizzaria-id") ||
+    req.nextUrl.searchParams.get("empresa_id");
+
+  return empresaId && empresaId.trim() ? empresaId.trim() : null;
 }
 
 export async function GET(req: NextRequest) {

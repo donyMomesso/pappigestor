@@ -1,11 +1,22 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/react-app/components/ui/button";
 import { Input } from "@/react-app/components/ui/input";
 import { Card, CardContent } from "@/react-app/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/react-app/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/react-app/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/react-app/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/react-app/components/ui/select";
 import {
   AlertTriangle,
   Package,
@@ -20,25 +31,38 @@ import {
 } from "lucide-react";
 
 interface Produto {
-  id: number;
-  nome_produto: string;
-  categoria_produto: string;
-  unidade_medida: string;
+  id: string;
+  nome?: string;
+  categoria?: string | null;
+  unidade?: string | null;
+
+  // compatibilidade com formato antigo
+  nome_produto?: string;
+  categoria_produto?: string | null;
+  unidade_medida?: string | null;
 }
 
 interface Estoque {
-  id: number;
-  produto_id: number;
+  id: string;
+  produto_id: string;
   quantidade_atual: number;
   estoque_minimo: number;
-  quantidade_caixas?: number;
-  unidades_por_caixa?: number;
+  estoque_maximo?: number | null;
+  ponto_reposicao?: number | null;
+  custo_medio?: number;
+  valor_estoque?: number;
+  abaixo_minimo?: boolean;
+  abaixo_ponto_reposicao?: boolean;
   produto_nome?: string;
-  categoria_produto?: string;
+  categoria_produto?: string | null;
   unidade_medida?: string;
   data_validade?: string;
   lote?: string;
-  status_validade?: "vencido" | "vencendo" | "ok";
+  quantidade_caixas?: number;
+  unidades_por_caixa?: number;
+  ultima_movimentacao_em?: string | null;
+  ativo?: boolean;
+  observacao?: string | null;
 }
 
 interface EstoqueComProduto extends Estoque {
@@ -79,12 +103,21 @@ export default function EstoquePage() {
 
   const fetchEstoques = async () => {
     const pId = localStorage.getItem("pId") || "";
+
     try {
-      const res = await fetch("/api/estoque", { headers: { "x-pizzaria-id": pId } });
-      if (res.ok) {
-        const data = (await res.json()) as EstoqueComProduto[];
-        setEstoques(data);
+      const res = await fetch("/api/estoque", {
+        headers: { "x-pizzaria-id": pId },
+        cache: "no-store",
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        console.error("Erro ao buscar estoque:", data);
+        return;
       }
+
+      setEstoques(data as EstoqueComProduto[]);
     } catch (err) {
       console.error("Erro ao buscar estoque:", err);
     } finally {
@@ -94,12 +127,21 @@ export default function EstoquePage() {
 
   const fetchProdutos = async () => {
     const pId = localStorage.getItem("pId") || "";
+
     try {
-      const res = await fetch("/api/produtos", { headers: { "x-pizzaria-id": pId } });
-      if (res.ok) {
-        const data = (await res.json()) as Produto[];
-        setProdutos(data);
+      const res = await fetch("/api/produtos", {
+        headers: { "x-pizzaria-id": pId },
+        cache: "no-store",
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        console.error("Erro ao buscar produtos:", data);
+        return;
       }
+
+      setProdutos(data as Produto[]);
     } catch (err) {
       console.error("Erro ao buscar produtos:", err);
     }
@@ -110,6 +152,10 @@ export default function EstoquePage() {
     fetchProdutos();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  function getProdutoNome(produto: Produto) {
+    return produto.nome || produto.nome_produto || "Produto sem nome";
+  }
 
   function handleOpenAudit(estoque: EstoqueComProduto) {
     setSelectedEstoque(estoque);
@@ -124,35 +170,38 @@ export default function EstoquePage() {
 
   const handleSaveAudit = async () => {
     if (!selectedEstoque) return;
+
     const pId = localStorage.getItem("pId") || "";
 
     try {
-      const res = await fetch(`/api/estoque/${selectedEstoque.id}`, {
-        method: "PATCH",
+      const res = await fetch("/api/estoque/ajustar", {
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
           "x-pizzaria-id": pId,
         },
         body: JSON.stringify({
-          quantidade_atual: parseFloat(auditValue) || 0,
-          estoque_minimo: parseFloat(auditMinimoValue) || 0,
-          data_validade: auditValidadeValue || null,
-          lote: auditLoteValue || null,
-          quantidade_caixas: parseInt(auditCaixasValue) || 0,
-          unidades_por_caixa: parseInt(auditUnidadesPorCaixaValue) || 1,
+          produto_id: selectedEstoque.produto_id,
+          quantidade_real: parseFloat(auditValue) || 0,
+          observacao: "Auditoria física do estoque",
+          justificativa: "Ajuste realizado pela tela de auditoria",
         }),
       });
 
-      if (res.ok) {
-        setIsAuditDialogOpen(false);
-        setSelectedEstoque(null);
-        fetchEstoques();
-      } else {
-        const data = (await res.json()) as { error?: string };
-        alert(data.error || "Erro ao atualizar estoque");
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data?.error || "Erro ao ajustar estoque");
+        return;
       }
-    } catch {
-      alert("Erro de conexão");
+
+      setIsAuditDialogOpen(false);
+      setSelectedEstoque(null);
+      await fetchEstoques();
+      alert("Ajuste registrado com sucesso.");
+    } catch (error) {
+      console.error("Erro ao salvar auditoria:", error);
+      alert("Erro de conexão ao ajustar estoque.");
     }
   };
 
@@ -164,8 +213,6 @@ export default function EstoquePage() {
     try {
       const atual = parseFloat(auditValue) || 0;
       const minimo = parseFloat(auditMinimoValue) || 0;
-
-      // ✅ só sugere compra se estiver abaixo do mínimo
       const falta = minimo - atual;
       const quantidadeSolicitar = falta > 0 ? falta : 0;
 
@@ -215,7 +262,7 @@ export default function EstoquePage() {
           "x-pizzaria-id": pId,
         },
         body: JSON.stringify({
-          produto_id: parseInt(addForm.produto_id),
+          produto_id: addForm.produto_id,
           quantidade_atual: parseFloat(addForm.quantidade_atual) || 0,
           estoque_minimo: parseFloat(addForm.estoque_minimo) || 0,
           data_validade: addForm.data_validade || null,
@@ -272,14 +319,18 @@ export default function EstoquePage() {
   };
 
   const filteredEstoques = estoques.filter((e) => {
-    const matchesSearch = (e.produto_nome || "").toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = (e.produto_nome || "")
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase());
+
     if (filterStatus === "all") return matchesSearch;
-    if (filterStatus === "baixo") return matchesSearch && e.quantidade_atual <= e.estoque_minimo;
-    if (filterStatus === "ok") return matchesSearch && e.quantidade_atual > e.estoque_minimo;
+    if (filterStatus === "baixo") return matchesSearch && Boolean(e.abaixo_minimo);
+    if (filterStatus === "ok") return matchesSearch && !Boolean(e.abaixo_minimo);
+
     return matchesSearch;
   });
 
-  const estoqueBaixoCount = estoques.filter((e) => e.quantidade_atual <= e.estoque_minimo).length;
+  const estoqueBaixoCount = estoques.filter((e) => Boolean(e.abaixo_minimo)).length;
 
   if (isLoading) {
     return (
@@ -304,7 +355,11 @@ export default function EstoquePage() {
             className="w-full sm:w-auto border-orange-200 text-orange-700 hover:bg-orange-50"
             disabled={gerandoListaAuto}
           >
-            {gerandoListaAuto ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
+            {gerandoListaAuto ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Sparkles className="w-4 h-4 mr-2" />
+            )}
             Gerar Lista Automática
           </Button>
 
@@ -319,7 +374,6 @@ export default function EstoquePage() {
         </div>
       </div>
 
-      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <Card>
           <CardContent className="py-4 flex items-center gap-3">
@@ -340,11 +394,19 @@ export default function EstoquePage() {
                 estoqueBaixoCount > 0 ? "bg-red-100" : "bg-green-100"
               }`}
             >
-              <AlertTriangle className={`w-5 h-5 ${estoqueBaixoCount > 0 ? "text-red-600" : "text-green-600"}`} />
+              <AlertTriangle
+                className={`w-5 h-5 ${
+                  estoqueBaixoCount > 0 ? "text-red-600" : "text-green-600"
+                }`}
+              />
             </div>
             <div>
               <p className="text-xs text-gray-500">Estoque Baixo</p>
-              <p className={`text-xl font-bold ${estoqueBaixoCount > 0 ? "text-red-600" : "text-green-600"}`}>
+              <p
+                className={`text-xl font-bold ${
+                  estoqueBaixoCount > 0 ? "text-red-600" : "text-green-600"
+                }`}
+              >
                 {estoqueBaixoCount}
               </p>
             </div>
@@ -358,18 +420,25 @@ export default function EstoquePage() {
             </div>
             <div>
               <p className="text-xs text-gray-500">Estoque OK</p>
-              <p className="text-xl font-bold text-green-600">{estoques.length - estoqueBaixoCount}</p>
+              <p className="text-xl font-bold text-green-600">
+                {estoques.length - estoqueBaixoCount}
+              </p>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Filtros */}
       <div className="flex flex-col md:flex-row gap-4 mb-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <Input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Buscar produto..." className="pl-9" />
+          <Input
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Buscar produto..."
+            className="pl-9"
+          />
         </div>
+
         <Select value={filterStatus} onValueChange={setFilterStatus}>
           <SelectTrigger className="w-full md:w-48">
             <SelectValue placeholder="Filtrar status" />
@@ -399,13 +468,17 @@ export default function EstoquePage() {
                 <tr key={item.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 font-medium">{item.produto_nome}</td>
                   <td className="px-4 py-3 text-center">
-                    <span className={`font-bold ${item.quantidade_atual <= item.estoque_minimo ? "text-red-600" : ""}`}>
+                    <span className={`font-bold ${item.abaixo_minimo ? "text-red-600" : ""}`}>
                       {item.quantidade_atual} {item.unidade_medida}
                     </span>
                   </td>
-                  <td className="hidden md:table-cell px-4 py-3 text-center text-gray-500">{item.estoque_minimo}</td>
+                  <td className="hidden md:table-cell px-4 py-3 text-center text-gray-500">
+                    {item.estoque_minimo}
+                  </td>
                   <td className="hidden md:table-cell px-4 py-3 text-center">
-                    {item.data_validade ? new Date(item.data_validade).toLocaleDateString("pt-BR") : "-"}
+                    {item.data_validade
+                      ? new Date(item.data_validade).toLocaleDateString("pt-BR")
+                      : "-"}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <Button variant="ghost" size="sm" onClick={() => handleOpenAudit(item)}>
@@ -414,6 +487,7 @@ export default function EstoquePage() {
                   </td>
                 </tr>
               ))}
+
               {filteredEstoques.length === 0 && (
                 <tr>
                   <td className="px-4 py-6 text-center text-gray-500" colSpan={5}>
@@ -426,7 +500,6 @@ export default function EstoquePage() {
         </div>
       </div>
 
-      {/* Dialog de Auditoria */}
       <Dialog open={isAuditDialogOpen} onOpenChange={setIsAuditDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -438,10 +511,12 @@ export default function EstoquePage() {
               <Button variant="outline" size="icon" onClick={() => adjustQuantity(-1)}>
                 <Minus />
               </Button>
+
               <div className="text-center">
                 <span className="text-2xl font-bold">{auditValue}</span>
                 <p className="text-xs text-gray-500">{selectedEstoque?.unidade_medida}</p>
               </div>
+
               <Button variant="outline" size="icon" onClick={() => adjustQuantity(1)}>
                 <Plus />
               </Button>
@@ -450,11 +525,20 @@ export default function EstoquePage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <label className="text-xs font-medium">Estoque Mínimo</label>
-                <Input type="number" value={auditMinimoValue} onChange={(e) => setAuditMinimoValue(e.target.value)} />
+                <Input
+                  type="number"
+                  value={auditMinimoValue}
+                  onChange={(e) => setAuditMinimoValue(e.target.value)}
+                />
               </div>
+
               <div className="space-y-1">
                 <label className="text-xs font-medium">Validade</label>
-                <Input type="date" value={auditValidadeValue} onChange={(e) => setAuditValidadeValue(e.target.value)} />
+                <Input
+                  type="date"
+                  value={auditValidadeValue}
+                  onChange={(e) => setAuditValidadeValue(e.target.value)}
+                />
               </div>
             </div>
 
@@ -470,7 +554,11 @@ export default function EstoquePage() {
                 disabled={sendingToLista}
                 className="w-full text-blue-700 border-blue-200 hover:bg-blue-50"
               >
-                {sendingToLista ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <ShoppingCart className="mr-2 h-4 w-4" />}
+                {sendingToLista ? (
+                  <Loader2 className="animate-spin h-4 w-4 mr-2" />
+                ) : (
+                  <ShoppingCart className="mr-2 h-4 w-4" />
+                )}
                 Enviar para Compras
               </Button>
             </div>
@@ -478,7 +566,6 @@ export default function EstoquePage() {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog de Adicionar */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -488,14 +575,17 @@ export default function EstoquePage() {
           <form onSubmit={handleAddEstoque} className="space-y-4">
             <div className="space-y-1">
               <label className="text-xs font-medium">Produto</label>
-              <Select value={addForm.produto_id} onValueChange={(v) => setAddForm({ ...addForm, produto_id: v })}>
+              <Select
+                value={addForm.produto_id}
+                onValueChange={(v) => setAddForm({ ...addForm, produto_id: v })}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione..." />
                 </SelectTrigger>
                 <SelectContent>
                   {produtos.map((p) => (
-                    <SelectItem key={p.id} value={String(p.id)}>
-                      {p.nome_produto}
+                    <SelectItem key={p.id} value={p.id}>
+                      {getProdutoNome(p)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -517,7 +607,11 @@ export default function EstoquePage() {
               />
             </div>
 
-            <Button type="submit" className="w-full bg-orange-600 hover:bg-orange-700" disabled={!addForm.produto_id}>
+            <Button
+              type="submit"
+              className="w-full bg-orange-600 hover:bg-orange-700"
+              disabled={!addForm.produto_id}
+            >
               Adicionar
             </Button>
           </form>

@@ -1,24 +1,45 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { Button } from '@/react-app/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/react-app/components/ui/card';
-import { Input } from '@/react-app/components/ui/input';
-import { Label } from '@/react-app/components/ui/label';
-import { 
-  ArrowLeft, PackageCheck, Package, Check, AlertCircle, 
-  FileText, Receipt, Loader2, Sparkles, Camera, ScanBarcode, 
-  Image, X, Trash2, Shield, CheckCircle2 
-} from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/react-app/components/ui/dialog';
-import { useAppAuth } from '@/contexts/AppAuthContext';
+import { useState, useEffect } from "react";
+import { Button } from "@/react-app/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/react-app/components/ui/card";
+import { Input } from "@/react-app/components/ui/input";
+import { Label } from "@/react-app/components/ui/label";
+import {
+  ArrowLeft,
+  PackageCheck,
+  Package,
+  Check,
+  AlertCircle,
+  FileText,
+  Receipt,
+  Loader2,
+  Sparkles,
+  Camera,
+  ScanBarcode,
+  Image,
+  X,
+  Trash2,
+  Shield,
+  CheckCircle2,
+} from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/react-app/components/ui/dialog";
+import { useAppAuthOptional } from "@/contexts/AppAuthContext";
 
-const LOGO_URL = 'https://019c7b56-2054-7d0b-9c55-e7a603c40ba8.mochausercontent.com/1771799343659.png';
+const LOGO_URL =
+  "https://019c7b56-2054-7d0b-9c55-e7a603c40ba8.mochausercontent.com/1771799343659.png";
 
-// ✅ TIPAGENS ESTRITAS PARA O TYPESCRIPT
 interface ItemLancamento {
   id: number;
   produto: string;
+  produto_id?: string | null;
   quantidade_pedida: number;
   quantidade_recebida?: number | null;
   unidade: string;
@@ -26,8 +47,7 @@ interface ItemLancamento {
   qtd: number;
   preco_un: number;
   total?: number;
-
-};
+}
 
 interface LancamentoComItens {
   id: number;
@@ -45,21 +65,24 @@ export default function RecebimentoPage() {
   const [selectedLancamento, setSelectedLancamento] = useState<LancamentoComItens | null>(null);
   const [quantidades, setQuantidades] = useState<Record<number, string>>({});
   const [saving, setSaving] = useState(false);
-  
-  // Nota Fiscal e Boleto
+
+  const [gerarEntradaEstoque, setGerarEntradaEstoque] = useState(true);
+
   const [notaFiscal, setNotaFiscal] = useState({
-    numero_nota: '',
-    data_emissao: '',
-    chave_acesso: '',
+    numero_nota: "",
+    data_emissao: "",
+    chave_acesso: "",
     arquivo: null as File | null,
-    arquivo_url: '',
+    arquivo_url: "",
   });
+
   const [boleto, setBoleto] = useState({
-    valor_real: '',
-    vencimento_real: '',
-    arquivo_url: '',
-    linha_digitavel: '',
+    valor_real: "",
+    vencimento_real: "",
+    arquivo_url: "",
+    linha_digitavel: "",
   });
+
   const [uploadingNF, setUploadingNF] = useState(false);
   const [uploadingBoleto, setUploadingBoleto] = useState(false);
   const [readingWithIA, setReadingWithIA] = useState(false);
@@ -67,14 +90,14 @@ export default function RecebimentoPage() {
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  
-  // Dialogs de feedback
+
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [showErrorDialog, setShowErrorDialog] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
-  
-  const { localUser } = useAppAuth();
+  const [successMessage, setSuccessMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+
+  const auth = useAppAuthOptional();
+  const localUser = auth?.localUser ?? null;
 
   useEffect(() => {
     fetchLancamentos();
@@ -82,28 +105,31 @@ export default function RecebimentoPage() {
 
   const fetchLancamentos = async () => {
     const pId = localStorage.getItem("pId") || "";
+
     try {
-      const res = await fetch('/api/lancamentos', {
-        headers: { "x-pizzaria-id": pId }
+      const res = await fetch("/api/lancamentos", {
+        headers: { "x-pizzaria-id": pId },
       });
+
       const data = (await res.json()) as any[];
-      
+
       const lancamentosComItens = await Promise.all(
         data.map(async (l: any) => {
           const detalhes = (await fetch(`/api/lancamentos/${l.id}`, {
-            headers: { "x-pizzaria-id": pId }
-          }).then(r => r.json())) as LancamentoComItens;
+            headers: { "x-pizzaria-id": pId },
+          }).then((r) => r.json())) as LancamentoComItens;
+
           return detalhes;
         })
       );
-      
+
       const pendentes = lancamentosComItens.filter(
         (l: LancamentoComItens) => !l.data_pagamento
       );
-      
+
       setLancamentos(pendentes);
     } catch (error) {
-      console.error('Erro ao carregar lançamentos:', error);
+      console.error("Erro ao carregar lançamentos:", error);
     } finally {
       setLoading(false);
     }
@@ -111,92 +137,112 @@ export default function RecebimentoPage() {
 
   const handleSelectLancamento = (lancamento: LancamentoComItens) => {
     setSelectedLancamento(lancamento);
+
     const qtds: Record<number, string> = {};
-    lancamento.itens?.forEach(item => {
-      qtds[item.id] = item.quantidade_recebida?.toString() || '';
+    lancamento.itens?.forEach((item) => {
+      qtds[item.id] = item.quantidade_recebida?.toString() || "";
     });
     setQuantidades(qtds);
-    
+
+    setGerarEntradaEstoque(true);
+
     setNotaFiscal({
-      numero_nota: '',
-      data_emissao: new Date().toISOString().split('T')[0],
-      chave_acesso: '',
+      numero_nota: "",
+      data_emissao: new Date().toISOString().split("T")[0],
+      chave_acesso: "",
       arquivo: null,
-      arquivo_url: '',
+      arquivo_url: "",
     });
+
     setBoleto({
-      valor_real: lancamento.valor_previsto?.toString() || '',
-      vencimento_real: '',
-      arquivo_url: '',
-      linha_digitavel: '',
+      valor_real: lancamento.valor_previsto?.toString() || "",
+      vencimento_real: "",
+      arquivo_url: "",
+      linha_digitavel: "",
     });
   };
 
   const handleUploadNF = async (file: File) => {
     setUploadingNF(true);
     const pId = localStorage.getItem("pId") || "";
+
     try {
       const formData = new FormData();
-      formData.append('file', file);
-      formData.append('type', 'nota_fiscal');
-      
-      const res = await fetch('/api/upload', {
-        method: 'POST',
+      formData.append("file", file);
+      formData.append("type", "nota_fiscal");
+
+      const res = await fetch("/api/upload", {
+        method: "POST",
         headers: { "x-pizzaria-id": pId },
         body: formData,
       });
-      
+
       if (res.ok) {
         const data = (await res.json()) as { url: string };
-        setNotaFiscal(prev => ({ ...prev, arquivo_url: data.url, arquivo: file }));
+        setNotaFiscal((prev) => ({ ...prev, arquivo_url: data.url, arquivo: file }));
+      } else {
+        throw new Error("Falha ao enviar arquivo da nota fiscal");
       }
     } catch (error) {
-      alert('Erro ao enviar arquivo');
+      setErrorMessage("Erro ao enviar arquivo da nota fiscal.");
+      setShowErrorDialog(true);
     } finally {
       setUploadingNF(false);
     }
   };
 
   const handleReadWithIA = async () => {
-    if (!notaFiscal.arquivo_url) return alert('Anexe primeiro a imagem ou PDF da nota fiscal');
-    
+    if (!notaFiscal.arquivo_url) {
+      setErrorMessage("Anexe primeiro a imagem ou PDF da nota fiscal.");
+      setShowErrorDialog(true);
+      return;
+    }
+
     setReadingWithIA(true);
     const pId = localStorage.getItem("pId") || "";
+
     try {
-      const res = await fetch('/api/ia/ler-nota', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          "x-pizzaria-id": pId
+      const res = await fetch("/api/ia/ler-nota", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-pizzaria-id": pId,
         },
         body: JSON.stringify({ image_url: notaFiscal.arquivo_url }),
       });
-      
+
       if (res.ok) {
         const data = (await res.json()) as any;
+
         if (data.dados) {
-          setNotaFiscal(prev => ({
+          setNotaFiscal((prev) => ({
             ...prev,
             numero_nota: data.dados.numero_nota || prev.numero_nota,
             data_emissao: data.dados.data_emissao || prev.data_emissao,
             chave_acesso: data.dados.chave_acesso || prev.chave_acesso,
           }));
+
           if (data.dados.valor_total) {
-            setBoleto(prev => ({
+            setBoleto((prev) => ({
               ...prev,
-              valor_real: data.dados.valor_total.toString(),
+              valor_real: String(data.dados.valor_total),
             }));
           }
-          alert('Dados extraídos com sucesso!');
+
+          setSuccessMessage("Dados da nota extraídos com sucesso.");
+          setShowSuccessDialog(true);
         } else {
-          alert('Não foi possível extrair os dados.');
+          setErrorMessage("Não foi possível extrair os dados da nota.");
+          setShowErrorDialog(true);
         }
       } else {
         const error = (await res.json()) as any;
-        alert(error.error || 'Erro ao ler nota com IA');
+        setErrorMessage(error.error || "Erro ao ler nota com IA.");
+        setShowErrorDialog(true);
       }
     } catch (error) {
-      alert('Erro ao processar nota com IA');
+      setErrorMessage("Erro ao processar nota com IA.");
+      setShowErrorDialog(true);
     } finally {
       setReadingWithIA(false);
     }
@@ -205,23 +251,27 @@ export default function RecebimentoPage() {
   const handleUploadBoleto = async (file: File) => {
     setUploadingBoleto(true);
     const pId = localStorage.getItem("pId") || "";
+
     try {
       const formData = new FormData();
-      formData.append('file', file);
-      formData.append('type', 'boleto');
-      
-      const res = await fetch('/api/upload', {
-        method: 'POST',
+      formData.append("file", file);
+      formData.append("type", "boleto");
+
+      const res = await fetch("/api/upload", {
+        method: "POST",
         headers: { "x-pizzaria-id": pId },
         body: formData,
       });
-      
+
       if (res.ok) {
         const data = (await res.json()) as { url: string };
-        setBoleto(prev => ({ ...prev, arquivo_url: data.url }));
+        setBoleto((prev) => ({ ...prev, arquivo_url: data.url }));
+      } else {
+        throw new Error("Falha ao enviar arquivo do boleto");
       }
     } catch (error) {
-      alert('Erro ao enviar arquivo');
+      setErrorMessage("Erro ao enviar arquivo do boleto.");
+      setShowErrorDialog(true);
     } finally {
       setUploadingBoleto(false);
     }
@@ -230,195 +280,308 @@ export default function RecebimentoPage() {
   const handleScanBarcode = async (file: File) => {
     setScanningBarcode(true);
     const pId = localStorage.getItem("pId") || "";
+
     try {
       const formData = new FormData();
-      formData.append('file', file);
-      formData.append('type', 'barcode_scan');
-      
-      const uploadRes = await fetch('/api/upload', {
-        method: 'POST',
+      formData.append("file", file);
+      formData.append("type", "barcode_scan");
+
+      const uploadRes = await fetch("/api/upload", {
+        method: "POST",
         headers: { "x-pizzaria-id": pId },
         body: formData,
       });
-      
-      if (!uploadRes.ok) throw new Error('Erro ao fazer upload');
-      
+
+      if (!uploadRes.ok) {
+        throw new Error("Erro ao fazer upload");
+      }
+
       const uploadData = (await uploadRes.json()) as { url: string };
-      
-      const res = await fetch('/api/ia/ler-nota', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          "x-pizzaria-id": pId
+
+      const res = await fetch("/api/ia/ler-nota", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-pizzaria-id": pId,
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           image_url: uploadData.url,
-          extrair_apenas: 'chave_acesso'
+          extrair_apenas: "chave_acesso",
         }),
       });
-      
+
       if (res.ok) {
         const data = (await res.json()) as any;
+
         if (data.dados?.chave_acesso) {
-          setNotaFiscal(prev => ({
+          setNotaFiscal((prev) => ({
             ...prev,
             chave_acesso: data.dados.chave_acesso,
           }));
-          alert('Chave de acesso extraída com sucesso!');
+
+          setSuccessMessage("Chave de acesso extraída com sucesso.");
+          setShowSuccessDialog(true);
         } else {
-          alert('Não foi possível ler o código.');
+          setErrorMessage("Não foi possível ler o código.");
+          setShowErrorDialog(true);
         }
+      } else {
+        throw new Error("Falha ao processar leitura do código");
       }
     } catch (error) {
-      alert('Erro ao processar imagem');
+      setErrorMessage("Erro ao processar imagem do código de barras.");
+      setShowErrorDialog(true);
     } finally {
       setScanningBarcode(false);
     }
   };
 
+  const getQuantidadeRecebida = (itemId: number): number => {
+    const valor = quantidades[itemId];
+    if (valor === undefined || valor === null || valor === "") return 0;
+
+    const parsed = Number.parseFloat(valor);
+    return Number.isNaN(parsed) ? 0 : parsed;
+  };
+
   const getItemStatus = (item: ItemLancamento) => {
-    const recebido = quantidades[item.id] ? parseFloat(quantidades[item.id]) : null;
-    if (recebido === null || recebido === 0) return 'pendente';
-    if (recebido === item.quantidade_pedida) return 'ok';
-    if (recebido < item.quantidade_pedida) return 'faltando';
-    return 'excesso';
+    const recebido = getQuantidadeRecebida(item.id);
+
+    if (recebido === 0) return "pendente";
+    if (recebido === item.quantidade_pedida) return "ok";
+    if (recebido < item.quantidade_pedida) return "faltando";
+    return "excesso";
   };
 
   const handleSaveRecebimento = async () => {
     if (!selectedLancamento) return;
+
     setSaving(true);
     const pId = localStorage.getItem("pId") || "";
     const erros: string[] = [];
 
     try {
       for (const item of selectedLancamento.itens || []) {
-        const qtd = quantidades[item.id];
-        if (qtd !== undefined && qtd !== '') {
+        const qtdTexto = quantidades[item.id];
+
+        if (qtdTexto !== undefined && qtdTexto !== "") {
+          const quantidadeRecebida = Number.parseFloat(qtdTexto);
+
+          if (Number.isNaN(quantidadeRecebida) || quantidadeRecebida < 0) {
+            erros.push(`Item ${item.produto}: quantidade inválida.`);
+            continue;
+          }
+
           try {
             const res = await fetch(`/api/itens/${item.id}`, {
-              method: 'PATCH',
-              headers: { 
-                'Content-Type': 'application/json',
-                "x-pizzaria-id": pId
+              method: "PATCH",
+              headers: {
+                "Content-Type": "application/json",
+                "x-pizzaria-id": pId,
               },
-              body: JSON.stringify({ quantidade_recebida: parseFloat(qtd) })
+              body: JSON.stringify({
+                quantidade_recebida: quantidadeRecebida,
+              }),
             });
+
             if (!res.ok) {
-              const err = (await res.json().catch(() => ({ error: 'Erro desconhecido' }))) as any;
-              erros.push(`Item ${item.produto}: ${err.error || 'Erro ao atualizar'}`);
+              const err = (await res
+                .json()
+                .catch(() => ({ error: "Erro desconhecido" }))) as any;
+
+              erros.push(`Item ${item.produto}: ${err.error || "Erro ao atualizar"}`);
             }
-          } catch (e) {
-            erros.push(`Item ${item.produto}: Erro de conexão`);
+          } catch {
+            erros.push(`Item ${item.produto}: erro de conexão ao atualizar recebimento.`);
           }
         }
       }
 
-      if (notaFiscal.numero_nota) {
+      if (notaFiscal.numero_nota || notaFiscal.chave_acesso || notaFiscal.arquivo_url) {
         try {
-          const res = await fetch('/api/notas-fiscais', {
-            method: 'POST',
-            headers: { 
-              'Content-Type': 'application/json',
-              "x-pizzaria-id": pId
+          const res = await fetch("/api/notas-fiscais", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-pizzaria-id": pId,
             },
             body: JSON.stringify({
               lancamento_id: selectedLancamento.id,
-              numero_nota: notaFiscal.numero_nota,
+              numero_nota: notaFiscal.numero_nota || null,
               data_emissao: notaFiscal.data_emissao || null,
               chave_acesso: notaFiscal.chave_acesso || null,
               arquivo_url: notaFiscal.arquivo_url || null,
-            })
+            }),
           });
+
           if (!res.ok) {
-            const err = (await res.json().catch(() => ({ error: 'Erro desconhecido' }))) as any;
-            erros.push(`Nota Fiscal: ${err.error || 'Erro ao registrar'}`);
+            const err = (await res
+              .json()
+              .catch(() => ({ error: "Erro desconhecido" }))) as any;
+
+            erros.push(`Nota Fiscal: ${err.error || "Erro ao registrar"}`);
           }
-        } catch (e) {
-          erros.push('Nota Fiscal: Erro de conexão');
+        } catch {
+          erros.push("Nota Fiscal: erro de conexão.");
         }
       }
 
       if (boleto.valor_real && boleto.vencimento_real) {
         try {
           const res = await fetch(`/api/lancamentos/${selectedLancamento.id}`, {
-            method: 'PATCH',
-            headers: { 
-              'Content-Type': 'application/json',
-              "x-pizzaria-id": pId
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              "x-pizzaria-id": pId,
             },
             body: JSON.stringify({
               is_boleto_recebido: true,
-              valor_real: parseFloat(boleto.valor_real),
-              vencimento_real: boleto.vencimento_real
-            })
+              valor_real: Number.parseFloat(boleto.valor_real),
+              vencimento_real: boleto.vencimento_real,
+              linha_digitavel: boleto.linha_digitavel || null,
+              arquivo_url_boleto: boleto.arquivo_url || null,
+            }),
           });
+
           if (!res.ok) {
-            const err = (await res.json().catch(() => ({ error: 'Erro desconhecido' }))) as any;
-            erros.push(`Boleto: ${err.error || 'Erro ao registrar'}`);
+            const err = (await res
+              .json()
+              .catch(() => ({ error: "Erro desconhecido" }))) as any;
+
+            erros.push(`Boleto: ${err.error || "Erro ao registrar"}`);
           }
-        } catch (e) {
-          erros.push('Boleto: Erro de conexão');
+        } catch {
+          erros.push("Boleto: erro de conexão.");
+        }
+      }
+
+      if (gerarEntradaEstoque) {
+        for (const item of selectedLancamento.itens || []) {
+          const quantidadeRecebida = getQuantidadeRecebida(item.id);
+
+          if (quantidadeRecebida <= 0) {
+            continue;
+          }
+
+          if (!item.produto_id) {
+            erros.push(
+              `Estoque - ${item.produto}: item sem produto_id vinculado.`
+            );
+            continue;
+          }
+
+          try {
+            const res = await fetch("/api/estoque/movimentar", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "x-pizzaria-id": pId,
+  },
+  body: JSON.stringify({
+    produto_id: item.produto_id,
+    tipo: "entrada_compra",
+    origem: "recebimento",
+    quantidade: quantidadeRecebida,
+    unidade_medida: item.unidade || null,
+    custo_unitario: item.valor_unitario ?? item.preco_un ?? null,
+    referencia_tabela: "lancamentos",
+    referencia_id: String(selectedLancamento.id),
+    documento_numero: notaFiscal.numero_nota || null,
+    observacao: `Recebimento do fornecedor ${selectedLancamento.fornecedor}`,
+  }),
+});
+
+            if (!res.ok) {
+              const err = (await res
+                .json()
+                .catch(() => ({ error: "Erro desconhecido" }))) as any;
+
+              erros.push(
+                `Estoque - ${item.produto}: ${err.error || "Erro ao movimentar estoque"}`
+              );
+            }
+          } catch {
+            erros.push(
+              `Estoque - ${item.produto}: erro de conexão ao lançar entrada.`
+            );
+          }
         }
       }
 
       if (erros.length > 0) {
-        setErrorMessage(`Alguns itens tiveram problemas:\n${erros.join('\n')}`);
+        setErrorMessage(`Alguns itens tiveram problemas:\n${erros.join("\n")}`);
         setShowErrorDialog(true);
       } else {
-        setSuccessMessage('Recebimento registrado com sucesso!');
+        setSuccessMessage(
+          gerarEntradaEstoque
+            ? "Recebimento registrado e estoque atualizado com sucesso."
+            : "Recebimento registrado com sucesso."
+        );
         setShowSuccessDialog(true);
       }
     } catch (error) {
-      setErrorMessage('Erro inesperado ao salvar recebimento. Tente novamente.');
+      setErrorMessage("Erro inesperado ao salvar recebimento. Tente novamente.");
       setShowErrorDialog(true);
     } finally {
       setSaving(false);
     }
   };
 
-  const formatCurrency = (value: number | null) => {
-    if (value === null) return '-';
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+  const formatCurrency = (value: number | null | undefined) => {
+    if (value === null || value === undefined) return "-";
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    }).format(value);
   };
 
   const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString('pt-BR');
+    return new Date(date).toLocaleDateString("pt-BR");
   };
 
   const role = String(localUser?.nivel_acesso || "");
-  const isAdmin = role === 'admin' || role === 'master' || role === 'super_admin' || role === 'admin_empresa';
+  const isAdmin =
+    role === "admin" ||
+    role === "master" ||
+    role === "super_admin" ||
+    role === "admin_empresa";
 
   const handleDeleteClick = (e: React.MouseEvent, lancamentoId: number) => {
     e.stopPropagation();
+
     if (!isAdmin) {
-      alert('Apenas administradores podem excluir lançamentos');
+      setErrorMessage("Apenas administradores podem excluir lançamentos.");
+      setShowErrorDialog(true);
       return;
     }
+
     setDeletingId(lancamentoId);
     setDeleteConfirmOpen(true);
   };
 
   const handleConfirmDelete = async () => {
     if (!deletingId) return;
-    
+
     setDeleting(true);
     const pId = localStorage.getItem("pId") || "";
+
     try {
       const res = await fetch(`/api/lancamentos/${deletingId}`, {
-        method: 'DELETE',
-        headers: { "x-pizzaria-id": pId }
+        method: "DELETE",
+        headers: { "x-pizzaria-id": pId },
       });
-      
+
       if (!res.ok) {
         const error = (await res.json()) as any;
-        throw new Error(error.error || 'Erro ao excluir');
+        throw new Error(error.error || "Erro ao excluir");
       }
-      
+
       setDeleteConfirmOpen(false);
       setDeletingId(null);
       fetchLancamentos();
     } catch (error: any) {
-      alert(error.message || 'Erro ao excluir lançamento');
+      setErrorMessage(error.message || "Erro ao excluir lançamento.");
+      setShowErrorDialog(true);
     } finally {
       setDeleting(false);
     }
@@ -436,9 +599,15 @@ export default function RecebimentoPage() {
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50">
       <header className="bg-white/80 backdrop-blur-sm border-b border-green-100 sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => window.history.back()} className="p-2 hover:bg-green-100 rounded-lg transition-colors">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => window.history.back()}
+            className="p-2 hover:bg-green-100 rounded-lg transition-colors"
+          >
             <ArrowLeft className="w-5 h-5 text-gray-600" />
           </Button>
+
           <div className="flex items-center gap-2">
             <img src={LOGO_URL} alt="Pappi Gestor" className="w-10 h-10 object-contain" />
             <div>
@@ -459,28 +628,55 @@ export default function RecebimentoPage() {
                   Conferir Entrega - {selectedLancamento.fornecedor}
                 </CardTitle>
               </CardHeader>
+
               <CardContent className="pt-6">
                 <div className="mb-6 p-4 bg-gray-50 rounded-lg">
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
                       <span className="text-gray-500">Data do Pedido:</span>
-                      <p className="font-medium">{formatDate(selectedLancamento.data_pedido)}</p>
+                      <p className="font-medium">
+                        {formatDate(selectedLancamento.data_pedido)}
+                      </p>
                     </div>
+
                     <div>
                       <span className="text-gray-500">Categoria:</span>
                       <p className="font-medium">{selectedLancamento.categoria}</p>
                     </div>
+
                     <div>
                       <span className="text-gray-500">Valor Previsto:</span>
-                      <p className="font-medium">{formatCurrency(selectedLancamento.valor_previsto)}</p>
+                      <p className="font-medium">
+                        {formatCurrency(selectedLancamento.valor_previsto)}
+                      </p>
                     </div>
                   </div>
+                </div>
+
+                <div className="mb-6 p-4 border border-emerald-200 bg-emerald-50 rounded-lg">
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={gerarEntradaEstoque}
+                      onChange={(e) => setGerarEntradaEstoque(e.target.checked)}
+                      className="mt-1 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <div>
+                      <p className="font-medium text-emerald-900">Dar entrada no estoque</p>
+                      <p className="text-sm text-emerald-700">
+                        Ao confirmar, cada item recebido será enviado para
+                        <strong> /api/estoque/movimentar </strong>
+                        como entrada.
+                      </p>
+                    </div>
+                  </label>
                 </div>
 
                 {selectedLancamento.itens && selectedLancamento.itens.length > 0 ? (
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <h3 className="font-semibold text-gray-800">Itens para Conferência</h3>
+
                       <div className="flex gap-2 text-xs">
                         <span className="flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-full">
                           <Check className="w-3 h-3" /> OK
@@ -493,78 +689,120 @@ export default function RecebimentoPage() {
                         </span>
                       </div>
                     </div>
+
                     {selectedLancamento.itens.map((item) => {
                       const status = getItemStatus(item);
-                      const recebido = quantidades[item.id] ? parseFloat(quantidades[item.id]) : 0;
+                      const recebido = getQuantidadeRecebida(item.id);
                       const diferenca = item.quantidade_pedida - recebido;
-                      
+
                       return (
-                      <div key={item.id} className={`p-4 border rounded-lg transition-colors ${
-                        status === 'ok' ? 'bg-green-50 border-green-200' :
-                        status === 'faltando' ? 'bg-amber-50 border-amber-200' :
-                        status === 'excesso' ? 'bg-blue-50 border-blue-200' :
-                        'bg-white border-gray-200'
-                      }`}>
-                        <div className="flex justify-between items-start mb-3">
-                          <div className="flex-1">
-                            <p className="font-medium text-gray-800">{item.produto}</p>
-                            <div className="flex items-center gap-3 mt-1 text-sm">
-                              <span className="text-gray-600">
-                                Pedido: <strong>{item.quantidade_pedida}</strong> {item.unidade}
-                              </span>
-                              {item.valor_unitario && (
-                                <span className="text-gray-500">{formatCurrency(item.valor_unitario)}/un</span>
+                        <div
+                          key={item.id}
+                          className={`p-4 border rounded-lg transition-colors ${
+                            status === "ok"
+                              ? "bg-green-50 border-green-200"
+                              : status === "faltando"
+                              ? "bg-amber-50 border-amber-200"
+                              : status === "excesso"
+                              ? "bg-blue-50 border-blue-200"
+                              : "bg-white border-gray-200"
+                          }`}
+                        >
+                          <div className="flex justify-between items-start mb-3">
+                            <div className="flex-1">
+                              <p className="font-medium text-gray-800">{item.produto}</p>
+
+                              <div className="flex flex-wrap items-center gap-3 mt-1 text-sm">
+                                <span className="text-gray-600">
+                                  Pedido: <strong>{item.quantidade_pedida}</strong> {item.unidade}
+                                </span>
+
+                                {item.valor_unitario !== null && item.valor_unitario !== undefined && (
+                                  <span className="text-gray-500">
+                                    {formatCurrency(item.valor_unitario)}/un
+                                  </span>
+                                )}
+
+                                <span
+                                  className={`text-xs px-2 py-1 rounded-full ${
+                                    item.produto_id
+                                      ? "bg-emerald-100 text-emerald-700"
+                                      : "bg-red-100 text-red-700"
+                                  }`}
+                                >
+                                  {item.produto_id ? "Vinculado ao produto" : "Sem produto_id"}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              {status === "ok" && (
+                                <span className="flex items-center gap-1 px-2 py-1 bg-green-500 text-white text-xs font-medium rounded-full">
+                                  <Check className="w-3 h-3" /> OK
+                                </span>
+                              )}
+
+                              {status === "faltando" && (
+                                <span className="flex items-center gap-1 px-2 py-1 bg-amber-500 text-white text-xs font-medium rounded-full">
+                                  <AlertCircle className="w-3 h-3" /> Falta {diferenca} {item.unidade}
+                                </span>
+                              )}
+
+                              {status === "excesso" && (
+                                <span className="flex items-center gap-1 px-2 py-1 bg-blue-500 text-white text-xs font-medium rounded-full">
+                                  +{Math.abs(diferenca)} {item.unidade}
+                                </span>
                               )}
                             </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            {status === 'ok' && (
-                              <span className="flex items-center gap-1 px-2 py-1 bg-green-500 text-white text-xs font-medium rounded-full">
-                                <Check className="w-3 h-3" /> OK
-                              </span>
-                            )}
-                            {status === 'faltando' && (
-                              <span className="flex items-center gap-1 px-2 py-1 bg-amber-500 text-white text-xs font-medium rounded-full">
-                                <AlertCircle className="w-3 h-3" /> Falta {diferenca} {item.unidade}
-                              </span>
-                            )}
-                            {status === 'excesso' && (
-                              <span className="flex items-center gap-1 px-2 py-1 bg-blue-500 text-white text-xs font-medium rounded-full">
-                                +{Math.abs(diferenca)} {item.unidade}
-                              </span>
-                            )}
+
+                          <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2 flex-1">
+                              <label className="text-sm text-gray-600 whitespace-nowrap">
+                                Recebido:
+                              </label>
+
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                placeholder="0"
+                                value={quantidades[item.id] || ""}
+                                onChange={(e) =>
+                                  setQuantidades({
+                                    ...quantidades,
+                                    [item.id]: e.target.value,
+                                  })
+                                }
+                                className={`w-24 ${
+                                  status === "ok"
+                                    ? "border-green-300 bg-green-50"
+                                    : status === "faltando"
+                                    ? "border-amber-300 bg-amber-50"
+                                    : "border-gray-200"
+                                } focus:border-green-500 focus:ring-green-500`}
+                              />
+
+                              <span className="text-sm text-gray-500">{item.unidade}</span>
+                            </div>
+
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                setQuantidades({
+                                  ...quantidades,
+                                  [item.id]: item.quantidade_pedida.toString(),
+                                })
+                              }
+                              className="text-xs"
+                            >
+                              Qtd Correta
+                            </Button>
                           </div>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <div className="flex items-center gap-2 flex-1">
-                            <label className="text-sm text-gray-600 whitespace-nowrap">Recebido:</label>
-                            <Input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              placeholder="0"
-                              value={quantidades[item.id] || ''}
-                              onChange={(e) => setQuantidades({ ...quantidades, [item.id]: e.target.value })}
-                              className={`w-24 ${
-                                status === 'ok' ? 'border-green-300 bg-green-50' :
-                                status === 'faltando' ? 'border-amber-300 bg-amber-50' :
-                                'border-gray-200'
-                              } focus:border-green-500 focus:ring-green-500`}
-                            />
-                            <span className="text-sm text-gray-500">{item.unidade}</span>
-                          </div>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setQuantidades({ ...quantidades, [item.id]: item.quantidade_pedida.toString() })}
-                            className="text-xs"
-                          >
-                            Qtd Correta
-                          </Button>
-                        </div>
-                      </div>
-                    );
+                      );
                     })}
                   </div>
                 ) : (
@@ -583,31 +821,39 @@ export default function RecebimentoPage() {
                   Nota Fiscal
                 </CardTitle>
               </CardHeader>
+
               <CardContent className="pt-6 space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>Número da NF</Label>
                     <Input
                       value={notaFiscal.numero_nota}
-                      onChange={(e) => setNotaFiscal({ ...notaFiscal, numero_nota: e.target.value })}
+                      onChange={(e) =>
+                        setNotaFiscal({ ...notaFiscal, numero_nota: e.target.value })
+                      }
                       placeholder="000.000.000"
                     />
                   </div>
+
                   <div>
                     <Label>Data de Emissão</Label>
                     <Input
                       type="date"
                       value={notaFiscal.data_emissao}
-                      onChange={(e) => setNotaFiscal({ ...notaFiscal, data_emissao: e.target.value })}
+                      onChange={(e) =>
+                        setNotaFiscal({ ...notaFiscal, data_emissao: e.target.value })
+                      }
                     />
                   </div>
                 </div>
-                
+
                 <div>
                   <Label>Chave de Acesso (44 dígitos)</Label>
                   <Input
                     value={notaFiscal.chave_acesso}
-                    onChange={(e) => setNotaFiscal({ ...notaFiscal, chave_acesso: e.target.value })}
+                    onChange={(e) =>
+                      setNotaFiscal({ ...notaFiscal, chave_acesso: e.target.value })
+                    }
                     placeholder="0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000"
                     maxLength={54}
                   />
@@ -615,6 +861,7 @@ export default function RecebimentoPage() {
 
                 <div>
                   <Label>Foto ou PDF da Nota Fiscal</Label>
+
                   <div className="mt-2 space-y-3">
                     <div className="flex gap-2">
                       <label className="flex-1 flex items-center justify-center gap-2 p-3 border-2 border-dashed border-blue-300 rounded-lg cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors">
@@ -631,6 +878,7 @@ export default function RecebimentoPage() {
                           }}
                         />
                       </label>
+
                       <label className="flex-1 flex items-center justify-center gap-2 p-3 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-gray-400 hover:bg-gray-50 transition-colors">
                         {uploadingNF ? (
                           <Loader2 className="w-5 h-5 animate-spin text-gray-500" />
@@ -640,6 +888,7 @@ export default function RecebimentoPage() {
                             <span className="text-gray-600 text-sm">Galeria/PDF</span>
                           </>
                         )}
+
                         <input
                           type="file"
                           accept="image/*,application/pdf"
@@ -651,7 +900,7 @@ export default function RecebimentoPage() {
                         />
                       </label>
                     </div>
-                    
+
                     {notaFiscal.arquivo_url && (
                       <div className="flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded-lg">
                         <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
@@ -660,14 +909,20 @@ export default function RecebimentoPage() {
                           type="button"
                           variant="ghost"
                           size="sm"
-                          onClick={() => setNotaFiscal(prev => ({ ...prev, arquivo_url: '', arquivo: null }))}
+                          onClick={() =>
+                            setNotaFiscal((prev) => ({
+                              ...prev,
+                              arquivo_url: "",
+                              arquivo: null,
+                            }))
+                          }
                           className="h-6 w-6 p-0 text-gray-400 hover:text-red-500"
                         >
                           <X className="w-4 h-4" />
                         </Button>
                       </div>
                     )}
-                    
+
                     {notaFiscal.arquivo_url && (
                       <Button
                         type="button"
@@ -690,9 +945,10 @@ export default function RecebimentoPage() {
                     )}
                   </div>
                 </div>
-                
+
                 <div>
                   <Label>Escanear Chave de Acesso (44 dígitos)</Label>
+
                   <div className="mt-2">
                     <label className="flex items-center justify-center gap-2 p-3 border-2 border-dashed border-orange-300 rounded-lg cursor-pointer hover:border-orange-500 hover:bg-orange-50 transition-colors">
                       {scanningBarcode ? (
@@ -700,9 +956,12 @@ export default function RecebimentoPage() {
                       ) : (
                         <>
                           <ScanBarcode className="w-5 h-5 text-orange-500" />
-                          <span className="text-orange-600 font-medium text-sm">Escanear Código de Barras</span>
+                          <span className="text-orange-600 font-medium text-sm">
+                            Escanear Código de Barras
+                          </span>
                         </>
                       )}
+
                       <input
                         type="file"
                         accept="image/*"
@@ -714,9 +973,11 @@ export default function RecebimentoPage() {
                         }}
                       />
                     </label>
+
                     {notaFiscal.chave_acesso && (
                       <p className="mt-2 text-xs text-green-600 flex items-center gap-1">
-                        <Check className="w-3 h-3" /> Chave detectada: {notaFiscal.chave_acesso.slice(0, 20)}...
+                        <Check className="w-3 h-3" /> Chave detectada:{" "}
+                        {notaFiscal.chave_acesso.slice(0, 20)}...
                       </p>
                     )}
                   </div>
@@ -731,6 +992,7 @@ export default function RecebimentoPage() {
                   Boleto
                 </CardTitle>
               </CardHeader>
+
               <CardContent className="pt-6 space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -740,38 +1002,55 @@ export default function RecebimentoPage() {
                       step="0.01"
                       min="0"
                       value={boleto.valor_real}
-                      onChange={(e) => setBoleto({ ...boleto, valor_real: e.target.value })}
+                      onChange={(e) =>
+                        setBoleto({ ...boleto, valor_real: e.target.value })
+                      }
                       placeholder="0,00"
                     />
-                    {boleto.valor_real && parseFloat(boleto.valor_real) !== selectedLancamento.valor_previsto && (
-                      <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
-                        <AlertCircle className="w-3 h-3" />
-                        Diferença de {formatCurrency(Math.abs(parseFloat(boleto.valor_real) - selectedLancamento.valor_previsto))}
-                      </p>
-                    )}
+
+                    {boleto.valor_real &&
+                      Number.parseFloat(boleto.valor_real) !==
+                        selectedLancamento.valor_previsto && (
+                        <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" />
+                          Diferença de{" "}
+                          {formatCurrency(
+                            Math.abs(
+                              Number.parseFloat(boleto.valor_real) -
+                                selectedLancamento.valor_previsto
+                            )
+                          )}
+                        </p>
+                      )}
                   </div>
+
                   <div>
                     <Label>Data de Vencimento</Label>
                     <Input
                       type="date"
                       value={boleto.vencimento_real}
-                      onChange={(e) => setBoleto({ ...boleto, vencimento_real: e.target.value })}
+                      onChange={(e) =>
+                        setBoleto({ ...boleto, vencimento_real: e.target.value })
+                      }
                     />
                   </div>
                 </div>
-                
+
                 <div>
                   <Label>Linha Digitável (opcional)</Label>
                   <Input
                     value={boleto.linha_digitavel}
-                    onChange={(e) => setBoleto({ ...boleto, linha_digitavel: e.target.value })}
+                    onChange={(e) =>
+                      setBoleto({ ...boleto, linha_digitavel: e.target.value })
+                    }
                     placeholder="00000.00000 00000.000000 00000.000000 0 00000000000000"
                     maxLength={60}
                   />
                 </div>
-                
+
                 <div>
                   <Label>Foto do Boleto (para conferência)</Label>
+
                   <div className="mt-2 flex gap-2">
                     <label className="flex-1 flex items-center justify-center gap-2 p-3 border-2 border-dashed border-orange-300 rounded-lg cursor-pointer hover:border-orange-500 hover:bg-orange-50 transition-colors">
                       {uploadingBoleto ? (
@@ -779,9 +1058,12 @@ export default function RecebimentoPage() {
                       ) : (
                         <>
                           <Camera className="w-5 h-5 text-orange-500" />
-                          <span className="text-orange-600 font-medium text-sm">Tirar Foto</span>
+                          <span className="text-orange-600 font-medium text-sm">
+                            Tirar Foto
+                          </span>
                         </>
                       )}
+
                       <input
                         type="file"
                         accept="image/*"
@@ -793,6 +1075,7 @@ export default function RecebimentoPage() {
                         }}
                       />
                     </label>
+
                     <label className="flex-1 flex items-center justify-center gap-2 p-3 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-gray-400 hover:bg-gray-50 transition-colors">
                       <Image className="w-5 h-5 text-gray-500" />
                       <span className="text-gray-600 text-sm">Da Galeria</span>
@@ -807,15 +1090,18 @@ export default function RecebimentoPage() {
                       />
                     </label>
                   </div>
+
                   {boleto.arquivo_url && (
                     <div className="flex items-center gap-2 mt-2 p-2 bg-green-50 border border-green-200 rounded-lg">
                       <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
-                      <span className="text-sm text-green-700 flex-1">Boleto anexado para conferência</span>
+                      <span className="text-sm text-green-700 flex-1">
+                        Boleto anexado para conferência
+                      </span>
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
-                        onClick={() => setBoleto(prev => ({ ...prev, arquivo_url: '' }))}
+                        onClick={() => setBoleto((prev) => ({ ...prev, arquivo_url: "" }))}
                         className="h-6 w-6 p-0 text-gray-400 hover:text-red-500"
                       >
                         <X className="w-4 h-4" />
@@ -827,13 +1113,10 @@ export default function RecebimentoPage() {
             </Card>
 
             <div className="flex gap-3">
-              <Button
-                variant="outline"
-                onClick={() => setSelectedLancamento(null)}
-                className="flex-1"
-              >
+              <Button variant="outline" onClick={() => setSelectedLancamento(null)} className="flex-1">
                 Voltar
               </Button>
+
               <Button
                 onClick={handleSaveRecebimento}
                 disabled={saving}
@@ -847,7 +1130,9 @@ export default function RecebimentoPage() {
                 ) : (
                   <>
                     <Check className="w-4 h-4 mr-2" />
-                    Confirmar Recebimento
+                    {gerarEntradaEstoque
+                      ? "Confirmar Recebimento + Estoque"
+                      : "Confirmar Recebimento"}
                   </>
                 )}
               </Button>
@@ -870,8 +1155,8 @@ export default function RecebimentoPage() {
             ) : (
               <div className="space-y-4">
                 {lancamentos.map((lancamento) => (
-                  <Card 
-                    key={lancamento.id} 
+                  <Card
+                    key={lancamento.id}
                     className="border-0 shadow-lg hover:shadow-xl transition-all cursor-pointer group"
                     onClick={() => handleSelectLancamento(lancamento)}
                   >
@@ -881,19 +1166,22 @@ export default function RecebimentoPage() {
                           <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
                             <Package className="w-6 h-6 text-green-600" />
                           </div>
+
                           <div>
                             <h3 className="font-semibold text-gray-800">{lancamento.fornecedor}</h3>
                             <p className="text-sm text-gray-500">
                               {formatDate(lancamento.data_pedido)} • {lancamento.categoria}
                             </p>
                             <p className="text-xs text-gray-400">
-                              {lancamento.itens?.length || 0} itens • {formatCurrency(lancamento.valor_previsto)}
+                              {lancamento.itens?.length || 0} itens •{" "}
+                              {formatCurrency(lancamento.valor_previsto)}
                             </p>
                           </div>
                         </div>
+
                         <div className="flex items-center gap-2">
                           {isAdmin && (
-                            <Button 
+                            <Button
                               size="sm"
                               variant="ghost"
                               onClick={(e) => handleDeleteClick(e, lancamento.id)}
@@ -902,7 +1190,8 @@ export default function RecebimentoPage() {
                               <Trash2 className="w-4 h-4" />
                             </Button>
                           )}
-                          <Button 
+
+                          <Button
                             size="sm"
                             className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
                           >
@@ -930,11 +1219,13 @@ export default function RecebimentoPage() {
               Esta ação é irreversível. O lançamento e todos os seus itens serão removidos permanentemente.
             </DialogDescription>
           </DialogHeader>
+
           <div className="py-4">
             <p className="text-sm text-gray-600">
               Tem certeza que deseja excluir este lançamento?
             </p>
           </div>
+
           <DialogFooter className="gap-2 sm:gap-0">
             <Button
               variant="outline"
@@ -943,6 +1234,7 @@ export default function RecebimentoPage() {
             >
               Cancelar
             </Button>
+
             <Button
               variant="destructive"
               onClick={handleConfirmDelete}
@@ -973,9 +1265,11 @@ export default function RecebimentoPage() {
               Sucesso
             </DialogTitle>
           </DialogHeader>
+
           <div className="py-4">
-            <p className="text-sm text-gray-600">{successMessage}</p>
+            <p className="text-sm text-gray-600 whitespace-pre-line">{successMessage}</p>
           </div>
+
           <DialogFooter>
             <Button
               onClick={() => {
@@ -999,16 +1293,16 @@ export default function RecebimentoPage() {
               Atenção
             </DialogTitle>
           </DialogHeader>
+
           <div className="py-4">
             <p className="text-sm text-gray-600 whitespace-pre-line">{errorMessage}</p>
           </div>
+
           <DialogFooter className="gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setShowErrorDialog(false)}
-            >
-              Tentar Novamente
+            <Button variant="outline" onClick={() => setShowErrorDialog(false)}>
+              Fechar
             </Button>
+
             <Button
               onClick={() => {
                 setShowErrorDialog(false);

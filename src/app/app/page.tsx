@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useAppAuth } from "@/contexts/AppAuthContext";
+import { useAppAuthOptional } from "@/contexts/AppAuthContext";
 import {
   ShoppingCart,
   DollarSign,
@@ -113,7 +113,8 @@ const TODOS_MODULOS = [
 ];
 
 export default function Dashboard() {
-  const { localUser } = useAppAuth();
+  const auth = useAppAuthOptional();
+  const localUser = auth?.localUser ?? null;
 
   const [favoritos, setFavoritos] = useState(TODOS_MODULOS.slice(0, 4));
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -169,7 +170,7 @@ export default function Dashboard() {
               </div>
 
               <h1 className="text-4xl md:text-5xl font-black italic uppercase tracking-tighter leading-none">
-                Olá, {firstName} 👋
+                Olá, {firstName}
               </h1>
 
               <p className="mt-4 text-orange-100 text-sm md:text-base font-medium max-w-2xl leading-relaxed">

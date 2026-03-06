@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { usePrevisaoEstoque } from "@/hooks/usePrevisaoEstoque";
 import { Button } from "@/react-app/components/ui/button";
 import { Input } from "@/react-app/components/ui/input";
 import { Card, CardContent } from "@/react-app/components/ui/card";
@@ -87,6 +88,7 @@ interface EstoqueItem {
 export default function EstoquePage() {
   const [mounted, setMounted] = useState(false);
   const { localUser } = useAppAuth();
+  const { alertas: previsoesRuptura } = usePrevisaoEstoque();
 
   const [estoques, setEstoques] = useState<EstoqueItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -407,6 +409,92 @@ export default function EstoquePage() {
             <p className="text-3xl font-black">{estoqueBaixoCount > 0 ? estoqueBaixoCount : "100%"}</p>
           </Card>
         </div>
+        {/* PREVISÃO DE RUPTURA IA */}
+{previsoesRuptura.length > 0 && (
+  <Card className="rounded-[30px] border-none bg-gradient-to-r from-amber-50 to-red-50 shadow-sm overflow-hidden">
+    <CardContent className="p-6">
+      <div className="flex items-center justify-between gap-4 mb-5">
+        <div>
+          <div className="flex items-center gap-2">
+            <Sparkles className="text-amber-600" size={18} />
+            <h2 className="text-lg font-black italic uppercase tracking-tight text-gray-900">
+              Previsão de Ruptura
+            </h2>
+          </div>
+          <p className="text-xs text-gray-500 mt-1">
+            A IA separou os itens que podem faltar em breve e sugeriu reposição.
+          </p>
+        </div>
+
+        <Badge className="bg-amber-100 text-amber-700 border-0 rounded-full px-3 py-1">
+          {previsoesRuptura.length} alerta{previsoesRuptura.length > 1 ? "s" : ""}
+        </Badge>
+      </div>
+
+      <div className="grid gap-3">
+        {previsoesRuptura.slice(0, 5).map((item) => (
+          <div
+            key={item.id}
+            className="bg-white rounded-2xl border border-amber-100 p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4"
+          >
+            <div>
+              <p className="text-sm font-black uppercase tracking-tight text-gray-900">
+                {item.nome}
+              </p>
+              <p className="text-[10px] uppercase font-bold tracking-widest text-gray-400 mt-1">
+                {item.categoria}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 flex-1">
+              <div>
+                <p className="text-[9px] font-black uppercase text-gray-400 mb-1">
+                  Atual
+                </p>
+                <p className="font-black text-gray-900">
+                  {item.estoqueAtual} {item.unidade}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-[9px] font-black uppercase text-gray-400 mb-1">
+                  Mínimo
+                </p>
+                <p className="font-black text-gray-900">
+                  {item.estoqueMinimo} {item.unidade}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-[9px] font-black uppercase text-gray-400 mb-1">
+                  Dias restantes
+                </p>
+                <p
+                  className={`font-black ${
+                    item.criticidade === "alta"
+                      ? "text-red-600"
+                      : "text-amber-600"
+                  }`}
+                >
+                  {item.diasRestantes} dias
+                </p>
+              </div>
+
+              <div>
+                <p className="text-[9px] font-black uppercase text-gray-400 mb-1">
+                  Sugestão IA
+                </p>
+                <p className="font-black text-blue-600">
+                  {item.sugestaoCompra} {item.unidade}
+                </p>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </CardContent>
+  </Card>
+)}
 
         {/* FILTROS E BUSCA */}
         <div className="flex flex-wrap md:flex-nowrap gap-3 bg-white p-2 rounded-2xl border border-gray-100 shadow-sm">

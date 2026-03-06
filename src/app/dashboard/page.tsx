@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAppAuth } from "@/contexts/AppAuthContext";
 import { useDashboard } from "@/react-app/hooks/useDashboard";
-import { useABC, type ABCCategoria } from "@/react-app/hooks/useABC";
+import { useABC, type ABCCategoria } from "@/hooks/useABC";;
 import { Card, CardContent } from "@/react-app/components/ui/card";
 import { Button } from "@/react-app/components/ui/button";
 import {

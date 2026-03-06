@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useState, useRef, useEffect } from "react";
+import { ReactNode, useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -25,7 +25,6 @@ import {
 const LOGO_URL =
   "https://019c7b56-2054-7d0b-9c55-e7a603c40ba8.mochausercontent.com/1771799343659.png";
 
-// ✅ banner em /public → acessa assim
 const BANNER_URL = "/banner.png";
 
 interface AppLayoutProps {
@@ -121,6 +120,30 @@ const navGroups: NavGroup[] = [
   },
 ];
 
+// ===============================
+// HELPERS DE EMPRESA
+// ===============================
+function getEmpresaIdStorage(): string {
+  if (typeof window === "undefined") return "";
+
+  return (
+    localStorage.getItem("empresaId") ||
+    localStorage.getItem("companyId") ||
+    localStorage.getItem("empresa_id") ||
+    localStorage.getItem("company_id") ||
+    ""
+  );
+}
+
+function setEmpresaIdStorage(id: string) {
+  if (typeof window === "undefined" || !id) return;
+
+  localStorage.setItem("empresaId", id);
+  localStorage.setItem("companyId", id);
+  localStorage.setItem("empresa_id", id);
+  localStorage.setItem("company_id", id);
+}
+
 function DropdownMenu({
   group,
   hasPermission,
@@ -164,7 +187,6 @@ function DropdownMenu({
       {open && (
         <div className="absolute top-full left-0 mt-1 w-52 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
           {visibleItems.map((item) => {
-            // se tiver feature e não tiver acesso, esconde
             if (item.feature && !hasFeature(item.feature)) return null;
 
             const active = pathname === item.href;
@@ -189,12 +211,71 @@ function DropdownMenu({
 
 export default function AppLayout({ children }: AppLayoutProps) {
   const auth = useAppAuth() as any;
-  const { localUser, hasPermission, hasFeature, logout } = auth;
+  const { localUser, hasPermission, hasFeature, logout, signOut } = auth;
 
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const [inboxCount, setInboxCount] = useState(0);
+
+  // ===============================
+  // GARANTE EMPRESA NO STORAGE
+  // ===============================
+  const ensureEmpresaId = useCallback(async () => {
+    const jaTem = getEmpresaIdStorage();
+    if (jaTem) return jaTem;
+
+    const vindoDoUsuario = String(
+      localUser?.empresa_id ||
+        localUser?.company_id ||
+        localUser?.empresaId ||
+        localUser?.companyId ||
+        localUser?.empresa?.id ||
+        ""
+    ).trim();
+
+    if (vindoDoUsuario) {
+      setEmpresaIdStorage(vindoDoUsuario);
+      return vindoDoUsuario;
+    }
+
+    try {
+      const res = await fetch("/api/empresas/minhas", { cache: "no-store" });
+      if (!res.ok) return "";
+
+      const data = await res.json();
+      const lista = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.empresas)
+        ? data.empresas
+        : Array.isArray(data?.items)
+        ? data.items
+        : [];
+
+      const primeira = lista?.[0];
+      const id = String(
+        primeira?.id ||
+          primeira?.empresa_id ||
+          primeira?.company_id ||
+          ""
+      ).trim();
+
+      if (id) {
+        setEmpresaIdStorage(id);
+        return id;
+      }
+
+      return "";
+    } catch {
+      return "";
+    }
+  }, [localUser]);
+
+  useEffect(() => {
+    if (localUser) {
+      ensureEmpresaId();
+    }
+  }, [localUser, ensureEmpresaId]);
 
   useEffect(() => {
     const fetchInbox = async () => {
@@ -206,11 +287,20 @@ export default function AppLayout({ children }: AppLayoutProps) {
         // ignore
       }
     };
+
     if (localUser) fetchInbox();
   }, [pathname, localUser]);
 
   const handleLogout = async () => {
-    await logout?.();
+    if (logout) {
+      await logout();
+    } else if (signOut) {
+      await signOut();
+    } else {
+      window.location.href = "/login";
+      return;
+    }
+
     window.location.href = "/login";
   };
 
@@ -236,7 +326,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
                     key={item.href}
                     href={item.href}
                     className={`relative flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold uppercase italic transition-all ${
-                      active ? "bg-orange-600 text-white shadow-lg shadow-orange-500/20" : "text-gray-500 hover:bg-gray-100"
+                      active
+                        ? "bg-orange-600 text-white shadow-lg shadow-orange-500/20"
+                        : "text-gray-500 hover:bg-gray-100"
                     }`}
                   >
                     {item.icon} {item.label}
@@ -269,13 +361,17 @@ export default function AppLayout({ children }: AppLayoutProps) {
             </button>
           </nav>
 
-          <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="lg:hidden p-2" type="button">
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="lg:hidden p-2"
+            type="button"
+          >
             <Menu className="w-5 h-5" />
           </button>
         </div>
       </header>
 
-      {/* opcional: banner */}
+      {/* Banner */}
       <div className="max-w-7xl mx-auto px-4 pt-4">
         <img src={BANNER_URL} alt="Banner" className="w-full rounded-2xl border border-gray-200/60" />
       </div>

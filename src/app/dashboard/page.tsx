@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAppAuth } from "@/contexts/AppAuthContext";
 import { useDashboard } from "@/react-app/hooks/useDashboard";
+import { useABC, type ABCCategoria } from "@/react-app/hooks/useABC";
 import { Card, CardContent } from "@/react-app/components/ui/card";
 import { Button } from "@/react-app/components/ui/button";
 import {
@@ -19,6 +20,9 @@ import {
   Wallet,
   Package,
   Truck,
+  ShieldAlert,
+  CircleDollarSign,
+  ClipboardCheck,
 } from "lucide-react";
 
 function moneyBRL(v: number) {
@@ -34,27 +38,30 @@ export default function DashboardPage() {
   const router = useRouter();
   const { localUser } = useAppAuth();
   const dashboard = useDashboard();
+  const { data: abcData, loading: abcLoading } = useABC();
 
   const loading = dashboard?.loading ?? false;
   const error = dashboard?.error ?? null;
   const refresh = dashboard?.refresh ?? (() => {});
-const rawKpis = dashboard?.kpis;
+  const rawKpis = dashboard?.kpis;
 
-const kpis = {
-  receitaTotal: rawKpis?.receitaTotal ?? 0,
-  despesaTotal: rawKpis?.despesaTotal ?? 0,
-  lucro: rawKpis?.lucro ?? 0,
-  margem: rawKpis?.margem ?? 0,
-  itensCriticos: rawKpis?.itensCriticos ?? 0,
-  recebimentosPendentes:
-    (rawKpis as typeof rawKpis & { recebimentosPendentes?: number })?.recebimentosPendentes ?? 0,
-};
+  const kpis = {
+    receitaTotal: rawKpis?.receitaTotal ?? 0,
+    despesaTotal: rawKpis?.despesaTotal ?? 0,
+    lucro: rawKpis?.lucro ?? 0,
+    margem: rawKpis?.margem ?? 0,
+    itensCriticos: rawKpis?.itensCriticos ?? 0,
+    recebimentosPendentes:
+      (rawKpis as typeof rawKpis & { recebimentosPendentes?: number })
+        ?.recebimentosPendentes ?? 0,
+  };
+
   const alertas = dashboard?.alertas ?? [];
 
   const dashboardMode: DashboardMode = useMemo(() => {
-    if ((kpis.itensCriticos ?? 0) > 0) return "estoque";
-    if ((kpis.lucro ?? 0) < 0) return "financeiro";
-    if ((kpis.recebimentosPendentes ?? 0) > 0) return "recebimento";
+    if (kpis.itensCriticos > 0) return "estoque";
+    if (kpis.lucro < 0) return "financeiro";
+    if (kpis.recebimentosPendentes > 0) return "recebimento";
     return "normal";
   }, [kpis.itensCriticos, kpis.lucro, kpis.recebimentosPendentes]);
 
@@ -64,7 +71,7 @@ const kpis = {
         return {
           title: `Bom dia, ${localUser?.nome?.split(" ")[0] || "gestor"} 👋`,
           subtitle:
-            "Alguns itens do seu estoque pedem atenção agora. O sistema já separou o que priorizar para você agir rápido.",
+            "Alguns insumos e itens da sua operação pedem atenção agora. O sistema já separou a prioridade para você agir com rapidez.",
           cta: "Gerar lista inteligente",
           action: () => router.push("/app/lista-compras"),
         };
@@ -72,7 +79,7 @@ const kpis = {
         return {
           title: `Bom dia, ${localUser?.nome?.split(" ")[0] || "gestor"} 👋`,
           subtitle:
-            "Seu financeiro pede atenção hoje. Vamos organizar as pendências e proteger o caixa da operação.",
+            "Seu financeiro pede atenção hoje. Organizar isso agora ajuda a proteger o caixa e manter a operação estável.",
           cta: "Revisar financeiro",
           action: () => router.push("/app/financeiro"),
         };
@@ -80,15 +87,15 @@ const kpis = {
         return {
           title: `Bom dia, ${localUser?.nome?.split(" ")[0] || "gestor"} 👋`,
           subtitle:
-            "Existe uma entrega aguardando conferência. Resolver isso agora mantém estoque, compras e financeiro alinhados.",
-          cta: "Conferir recebimento",
+            "Existem recebimentos aguardando conferência. Resolver isso agora mantém compras, estoque e financeiro alinhados.",
+          cta: "Conferir recebimentos",
           action: () => router.push("/app/recebimento"),
         };
       default:
         return {
           title: `Bom dia, ${localUser?.nome?.split(" ")[0] || "gestor"} 👋`,
           subtitle:
-            "Sua operação está caminhando bem hoje. Encontramos oportunidades para economizar e manter tudo sob controle.",
+            "Sua operação está caminhando bem hoje. Encontramos sinais de estabilidade e oportunidades para economizar e melhorar decisões.",
           cta: "Ver recomendações da IA",
           action: () => router.push("/app/assessor-ia"),
         };
@@ -96,14 +103,14 @@ const kpis = {
   }, [dashboardMode, localUser?.nome, router]);
 
   const fluxoLabel = useMemo(() => {
-    if ((kpis.lucro ?? 0) < 0) {
+    if (kpis.lucro < 0) {
       return {
         text: "Fluxo: Negativo",
         color: "bg-red-500",
         tone: "text-red-600",
       };
     }
-    if ((kpis.itensCriticos ?? 0) > 0) {
+    if (kpis.itensCriticos > 0) {
       return {
         text: "Fluxo: Atenção",
         color: "bg-yellow-500",
@@ -119,15 +126,15 @@ const kpis = {
 
   const progressoOperacao = useMemo(() => {
     const estoqueScore =
-      (kpis.itensCriticos ?? 0) === 0 ? 92 : Math.max(35, 92 - kpis.itensCriticos * 18);
+      kpis.itensCriticos === 0 ? 92 : Math.max(35, 92 - kpis.itensCriticos * 18);
 
     const financeiroScore =
-      (kpis.lucro ?? 0) >= 0
+      kpis.lucro >= 0
         ? 82
         : Math.max(30, 82 - Math.min(40, Math.abs(kpis.lucro) / 100));
 
     const recebimentoScore =
-      (kpis.recebimentosPendentes ?? 0) === 0
+      kpis.recebimentosPendentes === 0
         ? 90
         : Math.max(45, 90 - kpis.recebimentosPendentes * 20);
 
@@ -138,9 +145,73 @@ const kpis = {
     };
   }, [kpis.itensCriticos, kpis.lucro, kpis.recebimentosPendentes]);
 
+  const attentionItems = useMemo(() => {
+    const items: Array<{
+      icon: React.ReactNode;
+      title: string;
+      description: string;
+      button: string;
+      action: () => void;
+      tone: "warning" | "danger" | "neutral";
+    }> = [];
+
+    if (kpis.itensCriticos > 0) {
+      items.push({
+        icon: <ShieldAlert className="w-5 h-5" />,
+        title: "Estoque pedindo atenção",
+        description: `${kpis.itensCriticos} itens estão abaixo do nível ideal e já podem impactar a operação.`,
+        button: "Ver lista de compras",
+        action: () => router.push("/app/lista-compras"),
+        tone: "warning",
+      });
+    }
+
+    if (kpis.lucro < 0) {
+      items.push({
+        icon: <CircleDollarSign className="w-5 h-5" />,
+        title: "Financeiro sob pressão",
+        description: `O lucro atual está em ${moneyBRL(
+          kpis.lucro
+        )}. Vale revisar despesas e vencimentos agora.`,
+        button: "Abrir financeiro",
+        action: () => router.push("/app/financeiro"),
+        tone: "danger",
+      });
+    }
+
+    if (kpis.recebimentosPendentes > 0) {
+      items.push({
+        icon: <ClipboardCheck className="w-5 h-5" />,
+        title: "Recebimentos aguardando conferência",
+        description: `${kpis.recebimentosPendentes} movimentações ainda precisam ser conferidas para manter tudo consistente.`,
+        button: "Conferir recebimentos",
+        action: () => router.push("/app/recebimento"),
+        tone: "warning",
+      });
+    }
+
+    if (items.length === 0) {
+      items.push({
+        icon: <Sparkles className="w-5 h-5" />,
+        title: "Operação em bom ritmo",
+        description:
+          "Hoje o cenário está mais estável. É um bom momento para aproveitar oportunidades e revisar recomendações da IA.",
+        button: "Ver recomendações",
+        action: () => router.push("/app/assessor-ia"),
+        tone: "neutral",
+      });
+    }
+
+    return items.slice(0, 3);
+  }, [kpis.itensCriticos, kpis.lucro, kpis.recebimentosPendentes, router]);
+
+  const maxABC =
+    abcData && abcData.length > 0
+      ? Math.max(...abcData.map((item: ABCCategoria) => item.valor), 1)
+      : 1;
+
   return (
     <div className="space-y-10 animate-in fade-in duration-700">
-      {/* HERO ACOLHEDOR */}
       <Card className="border-0 rounded-[40px] overflow-hidden bg-gradient-to-br from-gray-950 via-zinc-900 to-orange-950 text-white shadow-2xl">
         <CardContent className="p-8 md:p-10">
           <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-8">
@@ -190,24 +261,48 @@ const kpis = {
               <MiniPulseCard
                 icon={<Package className="w-4 h-4" />}
                 label="Estoque"
-                value={`${kpis.itensCriticos ?? 0} críticos`}
+                value={`${kpis.itensCriticos} críticos`}
               />
               <MiniPulseCard
                 icon={<Wallet className="w-4 h-4" />}
                 label="Lucro"
-                value={moneyBRL(kpis.lucro ?? 0)}
+                value={moneyBRL(kpis.lucro)}
               />
               <MiniPulseCard
                 icon={<Truck className="w-4 h-4" />}
                 label="Recebimentos"
-                value={`${kpis.recebimentosPendentes ?? 0} pendentes`}
+                value={`${kpis.recebimentosPendentes} pendentes`}
               />
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* TOPO OPERACIONAL */}
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-2xl md:text-3xl font-black italic uppercase tracking-tighter text-gray-900 leading-none">
+            Hoje merece sua atenção
+          </h2>
+          <p className="text-sm text-gray-500 mt-2">
+            O sistema separou o que pode gerar mais impacto agora para você agir com foco.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          {attentionItems.map((item, index) => (
+            <AttentionCard
+              key={index}
+              icon={item.icon}
+              title={item.title}
+              description={item.description}
+              button={item.button}
+              onClick={item.action}
+              tone={item.tone}
+            />
+          ))}
+        </div>
+      </div>
+
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
           <h2 className="text-3xl font-black italic uppercase tracking-tighter text-gray-900 leading-none">
@@ -228,52 +323,49 @@ const kpis = {
         </div>
       </div>
 
-      {/* ERRO */}
       {error && (
         <div className="rounded-2xl border border-red-100 bg-red-50 p-4 text-red-700">
           <p className="text-sm font-bold">Erro ao carregar dashboard: {error}</p>
         </div>
       )}
 
-      {/* KPIS */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           title="Receita Total"
-          value={moneyBRL(kpis.receitaTotal ?? 0)}
+          value={moneyBRL(kpis.receitaTotal)}
           trend={loading ? "Carregando..." : "Últimos lançamentos"}
           isPositive={true}
           loading={loading}
         />
         <StatCard
           title="Despesa Total"
-          value={moneyBRL(kpis.despesaTotal ?? 0)}
+          value={moneyBRL(kpis.despesaTotal)}
           trend={loading ? "Carregando..." : "Últimos lançamentos"}
           isPositive={false}
           loading={loading}
         />
         <StatCard
           title="Lucro"
-          value={moneyBRL(kpis.lucro ?? 0)}
-          trend={loading ? "..." : `Margem ${kpis.margem ?? 0}%`}
-          isPositive={(kpis.lucro ?? 0) >= 0}
+          value={moneyBRL(kpis.lucro)}
+          trend={loading ? "..." : `Margem ${kpis.margem}%`}
+          isPositive={kpis.lucro >= 0}
           loading={loading}
         />
         <StatCard
           title="Estoque Crítico"
-          value={String(kpis.itensCriticos ?? 0)}
+          value={String(kpis.itensCriticos)}
           trend={
             loading
               ? "..."
-              : (kpis.itensCriticos ?? 0) > 0
+              : kpis.itensCriticos > 0
                 ? "Atenção imediata"
                 : "Operação estável"
           }
-          isPositive={(kpis.itensCriticos ?? 0) === 0 ? true : null}
+          isPositive={kpis.itensCriticos === 0 ? true : null}
           loading={loading}
         />
       </div>
 
-      {/* FAIXA DE PROGRESSO */}
       <Card className="border-gray-100 rounded-[35px] bg-white shadow-sm p-8">
         <CardContent className="p-0">
           <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-6">
@@ -282,12 +374,12 @@ const kpis = {
                 Progresso da Operação
               </h3>
               <p className="text-sm text-gray-500 mt-1">
-                Um retrato rápido do quanto sua casa está organizada hoje.
+                Um retrato rápido do quanto sua rotina está organizada hoje.
               </p>
             </div>
 
             <p className={`text-xs font-black uppercase italic ${fluxoLabel.tone}`}>
-              {dashboardMode === "estoque" && "Prioridade de hoje: proteger o estoque"}
+              {dashboardMode === "estoque" && "Prioridade de hoje: proteger reposição e abastecimento"}
               {dashboardMode === "financeiro" && "Prioridade de hoje: proteger o caixa"}
               {dashboardMode === "recebimento" && "Prioridade de hoje: concluir conferências"}
               {dashboardMode === "normal" && "Prioridade de hoje: aproveitar oportunidades"}
@@ -315,7 +407,6 @@ const kpis = {
       </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* CURVA ABC */}
         <Card className="lg:col-span-2 border-gray-100 rounded-[45px] bg-white shadow-xl overflow-hidden p-10">
           <div className="flex items-center justify-between mb-8">
             <h3 className="text-xl font-black italic uppercase tracking-tighter text-gray-800 flex items-center gap-2">
@@ -326,24 +417,63 @@ const kpis = {
             </span>
           </div>
 
-          <div className="h-64 flex items-end gap-4 px-4">
-            <div className="flex-1 bg-gradient-to-t from-orange-500 to-pink-500 rounded-t-2xl h-[90%] relative group">
-              <span className="absolute -top-8 left-1/2 -translate-x-1/2 text-[10px] font-black opacity-0 group-hover:opacity-100 transition-opacity">
-                Proteínas
-              </span>
+          {abcLoading ? (
+            <div className="h-64 flex items-center justify-center">
+              <Loader2 className="animate-spin text-orange-500" size={28} />
             </div>
-            <div className="flex-1 bg-gray-100 rounded-t-2xl h-[60%] hover:bg-orange-200 transition-colors" />
-            <div className="flex-1 bg-gray-100 rounded-t-2xl h-[45%] hover:bg-orange-200 transition-colors" />
-            <div className="flex-1 bg-gray-100 rounded-t-2xl h-[30%] hover:bg-orange-200 transition-colors" />
-            <div className="flex-1 bg-gray-100 rounded-t-2xl h-[15%] hover:bg-orange-200 transition-colors" />
+          ) : (abcData ?? []).length === 0 ? (
+            <div className="h-64 flex items-center justify-center text-center">
+              <div>
+                <p className="text-sm font-bold text-gray-500">
+                  Ainda não há dados suficientes para montar a Curva ABC.
+                </p>
+                <p className="text-xs text-gray-400 mt-2">
+                  Cadastre produtos com categoria, custo e estoque para ativar esta visão.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="h-64 flex items-end gap-4 px-4">
+              {(abcData ?? []).slice(0, 6).map((item: ABCCategoria, i: number) => {
+                const height = (item.valor / maxABC) * 100;
+
+                return (
+                  <div
+                    key={i}
+                    className="flex-1 bg-gradient-to-t from-orange-500 to-pink-500 rounded-t-2xl relative group transition-all hover:opacity-90"
+                    style={{ height: `${Math.max(10, height)}%` }}
+                    title={`${item.categoria}: ${moneyBRL(item.valor)}`}
+                  >
+                    <span className="absolute -top-8 left-1/2 -translate-x-1/2 text-[10px] font-black opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                      {item.categoria}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {(abcData ?? []).slice(0, 6).map((item: ABCCategoria, i: number) => (
+              <div
+                key={i}
+                className="rounded-2xl bg-gray-50 border border-gray-100 px-4 py-3 flex items-center justify-between"
+              >
+                <span className="text-xs font-black uppercase italic text-gray-600">
+                  {item.categoria}
+                </span>
+                <span className="text-xs font-bold text-gray-500">
+                  {moneyBRL(item.valor)}
+                </span>
+              </div>
+            ))}
           </div>
 
           <p className="mt-6 text-[10px] font-bold uppercase tracking-widest text-gray-400 italic">
-            Próximo passo: ligar essa Curva ABC com seus lançamentos reais para mostrar as categorias com maior impacto financeiro.
+            Esta visão mostra onde o capital do estoque está mais concentrado por categoria.
           </p>
         </Card>
 
-        {/* ALERTAS IA */}
         <Card className="border-gray-100 rounded-[45px] bg-gray-900 text-white shadow-xl p-10 relative overflow-hidden">
           <div className="absolute top-0 right-0 p-8 opacity-10">
             <Target size={120} />
@@ -381,6 +511,54 @@ const kpis = {
         </Card>
       </div>
     </div>
+  );
+}
+
+function AttentionCard({
+  icon,
+  title,
+  description,
+  button,
+  onClick,
+  tone,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  button: string;
+  onClick: () => void;
+  tone: "warning" | "danger" | "neutral";
+}) {
+  const toneClasses =
+    tone === "danger"
+      ? "border-red-100 bg-red-50"
+      : tone === "warning"
+        ? "border-yellow-100 bg-yellow-50"
+        : "border-green-100 bg-green-50";
+
+  return (
+    <Card className={`rounded-[30px] shadow-sm border ${toneClasses}`}>
+      <CardContent className="p-6">
+        <div className="flex items-center gap-3 mb-4 text-gray-800">
+          <div className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center shadow-sm">
+            {icon}
+          </div>
+          <h3 className="text-base font-black italic uppercase tracking-tight">
+            {title}
+          </h3>
+        </div>
+
+        <p className="text-sm text-gray-600 leading-relaxed">{description}</p>
+
+        <Button
+          onClick={onClick}
+          variant="outline"
+          className="mt-5 rounded-2xl text-[10px] font-black uppercase italic tracking-widest"
+        >
+          {button}
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
 

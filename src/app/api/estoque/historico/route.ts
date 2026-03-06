@@ -84,27 +84,21 @@ function getQuantidadeAssinada(item: HistoricoRow): number {
   return -quantidade;
 }
 
-export async function GET(
-  req: NextRequest,
-  context: { params: Promise<{ produtoId: string }> }
-) {
+export async function GET(req: NextRequest) {
   try {
     const empresaId = parseEmpresaId(req);
+    const produtoId = req.nextUrl.searchParams.get("produto_id")?.trim();
 
     if (!empresaId) {
       return NextResponse.json(
-        {
-          error: "Empresa não informada. Envie x-empresa-id, x-pizzaria-id ou empresa_id.",
-        },
+        { error: "Empresa não informada. Envie x-empresa-id, x-pizzaria-id ou empresa_id." },
         { status: 400 }
       );
     }
 
-    const { produtoId } = await context.params;
-
-    if (!produtoId?.trim()) {
+    if (!produtoId) {
       return NextResponse.json(
-        { error: "produtoId é obrigatório." },
+        { error: "produto_id é obrigatório." },
         { status: 400 }
       );
     }
@@ -143,7 +137,6 @@ export async function GET(
       .order("created_at", { ascending: false });
 
     if (error) {
-      console.error("Erro ao buscar histórico de estoque:", error);
       return NextResponse.json(
         {
           error: "Erro ao buscar histórico do item.",
@@ -167,8 +160,6 @@ export async function GET(
 
     return NextResponse.json(historico);
   } catch (error) {
-    console.error("Erro interno GET /api/estoque/historico/[produtoId]:", error);
-
     return NextResponse.json(
       {
         error: "Erro interno ao buscar histórico do estoque.",

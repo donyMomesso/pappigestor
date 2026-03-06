@@ -35,8 +35,6 @@ interface Produto {
   nome?: string;
   categoria?: string | null;
   unidade?: string | null;
-
-  // compatibilidade com formato antigo
   nome_produto?: string;
   categoria_produto?: string | null;
   unidade_medida?: string | null;
@@ -101,8 +99,23 @@ export default function EstoquePage() {
     unidades_por_caixa: "1",
   });
 
+  function getEmpresaId() {
+    if (typeof window === "undefined") return "";
+    return (
+      localStorage.getItem("pId") ||
+      localStorage.getItem("empresaId") ||
+      ""
+    );
+  }
+
   const fetchEstoques = async () => {
-    const pId = localStorage.getItem("pId") || "";
+    const pId = getEmpresaId();
+
+    if (!pId) {
+      console.error("Empresa não encontrada no localStorage.");
+      setIsLoading(false);
+      return;
+    }
 
     try {
       const res = await fetch("/api/estoque", {
@@ -126,7 +139,12 @@ export default function EstoquePage() {
   };
 
   const fetchProdutos = async () => {
-    const pId = localStorage.getItem("pId") || "";
+    const pId = getEmpresaId();
+
+    if (!pId) {
+      console.error("Empresa não encontrada no localStorage para buscar produtos.");
+      return;
+    }
 
     try {
       const res = await fetch("/api/produtos", {
@@ -150,7 +168,6 @@ export default function EstoquePage() {
   useEffect(() => {
     fetchEstoques();
     fetchProdutos();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function getProdutoNome(produto: Produto) {
@@ -171,7 +188,12 @@ export default function EstoquePage() {
   const handleSaveAudit = async () => {
     if (!selectedEstoque) return;
 
-    const pId = localStorage.getItem("pId") || "";
+    const pId = getEmpresaId();
+
+    if (!pId) {
+      alert("Empresa não encontrada no navegador.");
+      return;
+    }
 
     try {
       const res = await fetch("/api/estoque/ajustar", {
@@ -207,7 +229,13 @@ export default function EstoquePage() {
 
   const handleEnviarParaLista = async () => {
     if (!selectedEstoque) return;
-    const pId = localStorage.getItem("pId") || "";
+
+    const pId = getEmpresaId();
+
+    if (!pId) {
+      alert("Empresa não encontrada no navegador.");
+      return;
+    }
 
     setSendingToLista(true);
     try {
@@ -252,7 +280,13 @@ export default function EstoquePage() {
 
   const handleAddEstoque = async (e: React.FormEvent) => {
     e.preventDefault();
-    const pId = localStorage.getItem("pId") || "";
+
+    const pId = getEmpresaId();
+
+    if (!pId) {
+      alert("Empresa não encontrada no navegador.");
+      return;
+    }
 
     try {
       const res = await fetch("/api/estoque", {
@@ -294,9 +328,21 @@ export default function EstoquePage() {
   };
 
   const handleGerarListaAutomatica = async () => {
+    const pId = getEmpresaId();
+
+    if (!pId) {
+      alert("Empresa não encontrada no navegador.");
+      return;
+    }
+
     setGerandoListaAuto(true);
     try {
-      const res = await fetch("/api/lista-compras/gerar-do-estoque", { method: "POST" });
+      const res = await fetch("/api/lista-compras/gerar-do-estoque", {
+        method: "POST",
+        headers: {
+          "x-pizzaria-id": pId,
+        },
+      });
       const data = await res.json();
 
       if (!res.ok) {

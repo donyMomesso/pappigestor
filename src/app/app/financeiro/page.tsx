@@ -156,7 +156,9 @@ export function calcularStatus(lancamento: Lancamento): StatusLancamento {
 }
 
 export default function FinanceiroPage() {
-  const { localUser, isLoading: authLoading } = useAppAuth();
+  const auth = useAppAuth() as any;
+  const localUser = auth?.localUser ?? null;
+  const authLoading = Boolean(auth?.isLoading ?? auth?.loading ?? false);
 
   const [lancamentos, setLancamentos] = useState<Lancamento[]>([]);
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
@@ -194,14 +196,26 @@ export default function FinanceiroPage() {
     vencimento_real: "",
   });
 
-  const empresaId =
-    localUser?.empresa_id ||
-    localStorage.getItem("empresa_id") ||
-    localStorage.getItem("pId") ||
-    localStorage.getItem("pizzariaId") ||
-    "";
+  const [empresaId, setEmpresaId] = useState<string>("");
+  const [userEmail, setUserEmail] = useState<string>("");
 
-  const userEmail = localUser?.email || localStorage.getItem("userEmail") || "";
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const empresaIdStorage =
+      localStorage.getItem("empresa_id") ||
+      localStorage.getItem("pId") ||
+      localStorage.getItem("pizzariaId") ||
+      "";
+
+    const userEmailStorage =
+      localStorage.getItem("userEmail") ||
+      localStorage.getItem("user_email") ||
+      "";
+
+    setEmpresaId(localUser?.empresa_id || empresaIdStorage);
+    setUserEmail(localUser?.email || userEmailStorage);
+  }, [localUser?.empresa_id, localUser?.email]);
 
   function getAuthHeaders(extra?: Record<string, string>): HeadersInit {
     return {
@@ -217,6 +231,7 @@ export default function FinanceiroPage() {
       setLoading(false);
       return;
     }
+
     void fetchData();
     void fetchBoletosDDA();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1082,7 +1097,10 @@ export default function FinanceiroPage() {
                   <div className="p-3 bg-gray-50 rounded-lg text-sm">
                     <p className="font-medium">{payingLancamento.fornecedor}</p>
                     <p className="text-gray-500">
-                      Valor: {formatCurrency(payingLancamento.valor_real || payingLancamento.valor_previsto)}
+                      Valor:{" "}
+                      {formatCurrency(
+                        payingLancamento.valor_real || payingLancamento.valor_previsto
+                      )}
                     </p>
                     <p className="text-gray-500">
                       Vencimento: {formatDate(payingLancamento.vencimento_real)}

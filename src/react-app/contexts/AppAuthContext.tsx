@@ -9,7 +9,7 @@ import React, {
   ReactNode,
   useCallback,
 } from "react";
-import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
+import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 
 import { getSupabaseClient } from "@/lib/supabaseClient";
 import type {
@@ -26,7 +26,6 @@ interface AppAuthContextValue {
   localUser: LocalUser | null;
   setLocalUser: React.Dispatch<React.SetStateAction<LocalUser | null>>;
 
-  // compatibilidade
   isLoading: boolean;
   loading: boolean;
 
@@ -43,11 +42,31 @@ interface AppAuthContextValue {
   isSubscriptionExpired: () => boolean;
 }
 
-const AppAuthContext = createContext<AppAuthContextValue | null>(null);
+const defaultAppAuthContextValue: AppAuthContextValue = {
+  localUser: null,
+  setLocalUser: () => {
+    // noop
+  },
+  isLoading: true,
+  loading: true,
+  error: null,
+  signOut: async () => {
+    // noop
+  },
+  refreshUser: async () => {
+    // noop
+  },
+  hasRole: () => false,
+  hasPermission: () => false,
+  hasFeature: () => false,
+  isSuperAdmin: false,
+  isSubscriptionExpired: () => true,
+};
 
-// ----------------------------
-// Helpers
-// ----------------------------
+const AppAuthContext = createContext<AppAuthContextValue>(
+  defaultAppAuthContextValue
+);
+
 function toList<T>(v: T | T[]): T[] {
   return Array.isArray(v) ? v : [v];
 }
@@ -60,9 +79,6 @@ function hasAny(userList: string[], required: string[]) {
   return required.some((r) => userList.includes(r));
 }
 
-// ----------------------------
-// Normalizadores
-// ----------------------------
 function normalizePlan(raw: unknown): PlanoEmpresa {
   const v = String(raw ?? "").trim().toLowerCase();
 
@@ -109,15 +125,14 @@ function parseFeatureArray(raw: unknown): Feature[] {
   return parseStringArray(raw) as Feature[];
 }
 
-// ----------------------------
-// localStorage helpers
-// ----------------------------
 function loadLocalUserFromStorage(): LocalUser | null {
   if (typeof window === "undefined") return null;
 
   try {
     const id = localStorage.getItem("user_id") || "";
-    const email = (localStorage.getItem("userEmail") || "").trim().toLowerCase();
+    const email = (localStorage.getItem("userEmail") || "")
+      .trim()
+      .toLowerCase();
     const nome = localStorage.getItem("userName") || "Usuário";
     const empresa_id =
       localStorage.getItem("empresa_id") ||
@@ -149,7 +164,9 @@ function loadLocalUserFromStorage(): LocalUser | null {
       nome_empresa,
       plano,
       permissoes,
-      features: featuresStorage.length ? featuresStorage : PLANO_FEATURES[plano],
+      features: featuresStorage.length
+        ? featuresStorage
+        : PLANO_FEATURES[plano],
       foto,
     };
   } catch (error) {
@@ -188,7 +205,10 @@ function persistLocalUserToStorage(user: LocalUser | null) {
     localStorage.setItem("nome_empresa", String(user.nome_empresa ?? ""));
     localStorage.setItem("empresa_nome", String(user.nome_empresa ?? ""));
     localStorage.setItem("plano", String(user.plano ?? "gratis"));
-    localStorage.setItem("nivel_acesso", String(user.nivel_acesso ?? "operador"));
+    localStorage.setItem(
+      "nivel_acesso",
+      String(user.nivel_acesso ?? "operador")
+    );
     localStorage.setItem("permissoes", JSON.stringify(user.permissoes ?? []));
     localStorage.setItem("features", JSON.stringify(user.features ?? []));
     localStorage.setItem("userAvatar", String(user.foto ?? ""));
@@ -197,9 +217,6 @@ function persistLocalUserToStorage(user: LocalUser | null) {
   }
 }
 
-// ----------------------------
-// Provider
-// ----------------------------
 export function AppAuthProvider({ children }: { children: ReactNode }) {
   const [localUser, setLocalUserState] = useState<LocalUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -216,10 +233,10 @@ export function AppAuthProvider({ children }: { children: ReactNode }) {
     []
   );
 
-  const mapUser = useCallback((user: any): LocalUser | null => {
+  const mapUser = useCallback((user: User | null): LocalUser | null => {
     if (!user) return null;
 
-    const meta = user.user_metadata ?? {};
+    const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
     const email = String(user.email ?? "").trim().toLowerCase();
 
     const plano = normalizePlan(meta.plano);
@@ -235,8 +252,10 @@ export function AppAuthProvider({ children }: { children: ReactNode }) {
       email,
       nome: String(meta.full_name || meta.name || "Usuário"),
       nivel_acesso,
-      empresa_id: meta.empresa_id ?? null,
-      nome_empresa: String(meta.nome_empresa || meta.empresa_nome || "Minha Empresa"),
+      empresa_id: (meta.empresa_id as string | null | undefined) ?? null,
+      nome_empresa: String(
+        meta.nome_empresa || meta.empresa_nome || "Minha Empresa"
+      ),
       plano,
       permissoes: parseStringArray(meta.permissoes),
       features,
@@ -262,7 +281,7 @@ export function AppAuthProvider({ children }: { children: ReactNode }) {
       const { data, error: sessionError } = await supabase.auth.getSession();
       if (sessionError) throw sessionError;
 
-      const mapped = mapUser(data.session?.user);
+      const mapped = mapUser(data.session?.user ?? null);
 
       if (mapped) {
         setLocalUser(mapped);
@@ -270,9 +289,9 @@ export function AppAuthProvider({ children }: { children: ReactNode }) {
         const fallbackUser = loadLocalUserFromStorage();
         setLocalUserState(fallbackUser);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Auth error:", err);
-      setError(err?.message || "Erro ao carregar sessão");
+      setError(err instanceof Error ? err.message : "Erro ao carregar sessão");
 
       const fallbackUser = loadLocalUserFromStorage();
       setLocalUserState(fallbackUser);
@@ -294,7 +313,7 @@ export function AppAuthProvider({ children }: { children: ReactNode }) {
 
     const { data } = supabase.auth.onAuthStateChange(
       (_event: AuthChangeEvent, session: Session | null) => {
-        const mapped = mapUser(session?.user);
+        const mapped = mapUser(session?.user ?? null);
 
         if (mapped) {
           setLocalUser(mapped);
@@ -342,7 +361,9 @@ export function AppAuthProvider({ children }: { children: ReactNode }) {
       const required = toList(permission);
       if (required.length === 0) return true;
 
-      return mode === "ALL" ? hasAll(userPerms, required) : hasAny(userPerms, required);
+      return mode === "ALL"
+        ? hasAll(userPerms, required)
+        : hasAny(userPerms, required);
     },
     [localUser, computedIsSuperAdmin, userPerms]
   );
@@ -409,16 +430,13 @@ export function AppAuthProvider({ children }: { children: ReactNode }) {
     ]
   );
 
-  return <AppAuthContext.Provider value={value}>{children}</AppAuthContext.Provider>;
+  return (
+    <AppAuthContext.Provider value={value}>{children}</AppAuthContext.Provider>
+  );
 }
 
-// ----------------------------
-// Hooks
-// ----------------------------
 export function useAppAuth() {
-  const ctx = useContext(AppAuthContext);
-  if (!ctx) throw new Error("useAppAuth deve ser usado dentro de AppAuthProvider");
-  return ctx;
+  return useContext(AppAuthContext);
 }
 
 export function useAppAuthOptional() {

@@ -47,6 +47,7 @@ import {
 import { Textarea } from "@/react-app/components/ui/textarea";
 import { Card, CardContent } from "@/react-app/components/ui/card";
 import Link from "next/link";
+import { useAppAuth } from "@/contexts/AppAuthContext";
 
 interface ProdutoFoodService {
   id: string;
@@ -180,6 +181,10 @@ type IAResponseLike = {
 };
 
 export default function ComprasPage() {
+  const { localUser } = useAppAuth();
+
+  const [mounted, setMounted] = useState(false);
+
   const [comprasHistorico, setComprasHistorico] = useState<CompraHistorico[]>([]);
   const [itensEmCotacao, setItensEmCotacao] = useState<ItemListaCompras[]>([]);
   const [dashboardLoading, setDashboardLoading] = useState(true);
@@ -233,8 +238,26 @@ export default function ComprasPage() {
   const streamRef = useRef<MediaStream | null>(null);
   const [qrError, setQrError] = useState<string | null>(null);
 
-  const pId =
-    typeof window !== "undefined" ? localStorage.getItem("pId") || "" : "";
+  const getHeaders = useCallback(() => {
+    const empresaId =
+      localUser?.empresa_id ||
+      localStorage.getItem("empresaId") ||
+      localStorage.getItem("companyId") ||
+      localStorage.getItem("empresa_id") ||
+      "";
+
+    const email = localUser?.email || localStorage.getItem("userEmail") || "";
+
+    const headers: Record<string, string> = {
+      "x-user-email": email,
+    };
+
+    if (empresaId) {
+      headers["x-empresa-id"] = empresaId;
+    }
+
+    return headers;
+  }, [localUser]);
 
   const normalizarLinkNfe = useCallback((valor: string): string => {
     let url = valor.trim();
@@ -284,9 +307,16 @@ export default function ComprasPage() {
   }, [previewUrl]);
 
   const fetchAllData = useCallback(async () => {
+    const headers = getHeaders();
+
+    if (!headers["x-empresa-id"]) {
+      setDashboardLoading(false);
+      console.warn("Empresa não identificada para carregar compras.");
+      return;
+    }
+
     try {
       setDashboardLoading(true);
-      const headers = { "x-pizzaria-id": pId };
 
       const [resForn, resCompras, resItens] = await Promise.all([
         fetch("/api/fornecedores", { headers }).catch(() => null),
@@ -303,7 +333,10 @@ export default function ComprasPage() {
         ]);
       }
 
-      if (resCompras?.ok) {
+      if (resCompras?.status === 401) {
+        console.error("401 Unauthorized em /api/compras");
+        setComprasHistorico([]);
+      } else if (resCompras?.ok) {
         const data = (await resCompras.json()) as CompraHistorico[];
         data.sort(
           (a, b) =>
@@ -325,11 +358,18 @@ export default function ComprasPage() {
     } finally {
       setDashboardLoading(false);
     }
-  }, [pId]);
+  }, [getHeaders]);
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+    if (!localUser) return;
+
     void fetchAllData();
-  }, [fetchAllData]);
+  }, [mounted, localUser, fetchAllData]);
 
   useEffect(() => {
     return () => {
@@ -431,7 +471,7 @@ export default function ComprasPage() {
 
       const uploadRes = await fetch("/api/upload", {
         method: "POST",
-        headers: { "x-pizzaria-id": pId },
+        headers: getHeaders(),
         body: uploadForm,
       });
 
@@ -443,7 +483,7 @@ export default function ComprasPage() {
 
       return uploadJson.url as string;
     },
-    [pId]
+    [getHeaders]
   );
 
   const extrairDadosIA = useCallback(
@@ -463,7 +503,7 @@ export default function ComprasPage() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "x-pizzaria-id": pId,
+            ...getHeaders(),
           },
           body: JSON.stringify({ image_url: fileUrl }),
         });
@@ -486,7 +526,7 @@ export default function ComprasPage() {
         setExtraindo(false);
       }
     },
-    [aplicarDadosDaIA, pId, uploadArquivo]
+    [aplicarDadosDaIA, getHeaders, uploadArquivo]
   );
 
   const extrairDadosPorLink = useCallback(async () => {
@@ -505,7 +545,7 @@ export default function ComprasPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-pizzaria-id": pId,
+          ...getHeaders(),
         },
         body: JSON.stringify({
           url: linkNormalizado,
@@ -531,7 +571,7 @@ export default function ComprasPage() {
     } finally {
       setExtraindo(false);
     }
-  }, [aplicarDadosDaIA, linkNfe, normalizarLinkNfe, pId]);
+  }, [aplicarDadosDaIA, getHeaders, linkNfe, normalizarLinkNfe]);
 
   const importarListaTexto = useCallback(async () => {
     if (!textoLista.trim()) return;
@@ -544,7 +584,7 @@ export default function ComprasPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-pizzaria-id": pId,
+          ...getHeaders(),
         },
         body: JSON.stringify({ texto: textoLista }),
       });
@@ -582,7 +622,7 @@ export default function ComprasPage() {
     } finally {
       setImportando(false);
     }
-  }, [pId, textoLista]);
+  }, [getHeaders, textoLista]);
 
   const handleFileChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -783,7 +823,7 @@ export default function ComprasPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-pizzaria-id": pId,
+          ...getHeaders(),
         },
         body: JSON.stringify({
           data_pedido: formData.data_pedido,
@@ -831,6 +871,8 @@ export default function ComprasPage() {
   );
 
   const sugestoesProduto = buscarProdutosFoodService(novoItem.produto);
+
+  if (!mounted) return null;
 
   if (success) {
     return (

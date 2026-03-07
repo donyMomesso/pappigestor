@@ -12,6 +12,10 @@ type ItemExtraido = {
   total_item: number | null;
 };
 
+function getErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
+}
+
 function normalizeUrl(input: string): string {
   const trimmed = input.trim().replace(/\s+/g, "");
 
@@ -49,8 +53,7 @@ function extractJsonFromModel(raw: string) {
   const lastBrace = text.lastIndexOf("}");
 
   if (firstBrace >= 0 && lastBrace > firstBrace) {
-    const sliced = text.slice(firstBrace, lastBrace + 1);
-    return JSON.parse(sliced);
+    return JSON.parse(text.slice(firstBrace, lastBrace + 1));
   }
 
   return JSON.parse(text);
@@ -62,7 +65,15 @@ function sanitizeHtml(html: string): string {
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
     .replace(/<style[\s\S]*?<\/style>/gi, " ")
     .replace(/&nbsp;/gi, " ")
-    .replace(/\s+/g, " ")
+    .replace(/&#160;/gi, " ")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n")
+    .replace(/<\/div>/gi, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\r/g, "")
+    .replace(/\t/g, " ")
+    .replace(/[ ]{2,}/g, " ")
+    .replace(/\n{2,}/g, "\n")
     .trim();
 }
 
@@ -73,33 +84,59 @@ function toNumberBR(value: string | null | undefined): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+function uniqueItems(items: ItemExtraido[]): ItemExtraido[] {
+  const seen = new Set<string>();
+  const out: ItemExtraido[] = [];
+
+  for (const item of items) {
+    const key = [
+      item.produto.toLowerCase(),
+      item.qtd,
+      item.unidade.toLowerCase(),
+      item.preco_un,
+      item.total_item ?? "null",
+    ].join("|");
+
+    if (!seen.has(key)) {
+      seen.add(key);
+      out.push(item);
+    }
+  }
+
+  return out;
+}
+
 function parseHtmlDirect(html: string) {
   const clean = html;
 
-  const fornecedorMatch = clean.match(
-    /DOCUMENTO AUXILIAR DA NOTA FISCAL DE CONSUMIDOR ELETRÔNICA\s+([^<\n]+?)\s+CNPJ:/i
-  );
+  const fornecedorMatch =
+    clean.match(
+      /DOCUMENTO AUXILIAR DA NOTA FISCAL DE CONSUMIDOR ELETRÔNICA\s+(.+?)\s+CNPJ:/i
+    ) || clean.match(/NOME\/RAZÃO SOCIAL\s+(.+?)\s+CNPJ:/i);
+
   const cnpjMatch = clean.match(/CNPJ:\s*([\d./-]+)/i);
-  const totalMatch = clean.match(/Valor total R\$\:\s*([\d.,]+)/i);
+  const totalMatch =
+    clean.match(/Valor total R\$\:?\s*([\d.,]+)/i) ||
+    clean.match(/Valor a pagar R\$\:?\s*([\d.,]+)/i);
+
   const numeroSerieEmissaoMatch = clean.match(
     /Número:\s*(\d+)\s+Série:\s*(\d+)\s+Emissão:\s*([0-9/: -]+)/i
   );
-  const chaveMatch = clean.match(
-    /Chave de acesso:\s*([0-9 ]{44,})/i
-  );
+
+  const chaveMatch = clean.match(/Chave de acesso:\s*([0-9 ]{44,})/i);
 
   const itens: ItemExtraido[] = [];
 
-  const itemRegex =
-    /([A-ZÀ-Ú0-9.,()\-\/ ]+?)\s*\(Código:\s*[\d ]+\)\s*Qtde\.\:([\d.,]+)\s*UN\:\s*([A-Za-z]+)\s*Vl\. Unit\.\:\s*([\d.,]+)\s*Vl\. Total\s*([\d.,]+)/gi;
+  const itemRegexA =
+    /([A-ZÀ-Ú0-9.,()\-\/%+ ]+?)\s*\(Código:\s*[\d ]+\)\s*Qtde\.:\s*([\d.,]+)\s*UN:\s*([A-Za-z]+)\s*Vl\. Unit\.:\s*([\d.,]+)\s*Vl\. Total\s*([\d.,]+)/gi;
 
-  let itemMatch: RegExpExecArray | null = null;
-  while ((itemMatch = itemRegex.exec(clean)) !== null) {
-    const produto = itemMatch[1]?.trim();
-    const qtd = toNumberBR(itemMatch[2]) ?? 1;
-    const unidade = itemMatch[3]?.trim() || "UN";
-    const precoUn = toNumberBR(itemMatch[4]) ?? 0;
-    const totalItem = toNumberBR(itemMatch[5]);
+  let matchA: RegExpExecArray | null = null;
+  while ((matchA = itemRegexA.exec(clean)) !== null) {
+    const produto = matchA[1]?.trim();
+    const qtd = toNumberBR(matchA[2]) ?? 1;
+    const unidade = matchA[3]?.trim() || "UN";
+    const precoUn = toNumberBR(matchA[4]) ?? 0;
+    const totalItem = toNumberBR(matchA[5]);
 
     if (produto) {
       itens.push({
@@ -112,11 +149,49 @@ function parseHtmlDirect(html: string) {
     }
   }
 
+  if (itens.length === 0) {
+    const lines = clean
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+
+      if (
+        /Qtde\.:\s*[\d.,]+/i.test(line) &&
+        /UN:\s*[A-Za-z]+/i.test(line) &&
+        /Vl\. Unit\.:\s*[\d.,]+/i.test(line)
+      ) {
+        const produto = (lines[i - 1] || "")
+          .replace(/\(Código:\s*[\d ]+\)/i, "")
+          .trim();
+
+        const qtdMatch = line.match(/Qtde\.:\s*([\d.,]+)/i);
+        const unMatch = line.match(/UN:\s*([A-Za-z]+)/i);
+        const unitMatch = line.match(/Vl\. Unit\.:\s*([\d.,]+)/i);
+        const totalMatchItem = line.match(/Vl\. Total\s*([\d.,]+)/i);
+
+        if (produto) {
+          itens.push({
+            produto,
+            qtd: toNumberBR(qtdMatch?.[1]) ?? 1,
+            unidade: unMatch?.[1] || "UN",
+            preco_un: toNumberBR(unitMatch?.[1]) ?? 0,
+            total_item: toNumberBR(totalMatchItem?.[1]),
+          });
+        }
+      }
+    }
+  }
+
   return {
     fornecedor: fornecedorMatch?.[1]?.trim() || null,
     cnpj: cnpjMatch?.[1]?.trim() || null,
     total: toNumberBR(totalMatch?.[1]) ?? null,
-    itens,
+    itens: uniqueItems(
+      itens.filter((item) => item.produto && item.produto.trim().length > 1)
+    ),
     numero_nota: numeroSerieEmissaoMatch?.[1] || null,
     serie: numeroSerieEmissaoMatch?.[2] || null,
     emissao: numeroSerieEmissaoMatch?.[3]?.trim() || null,
@@ -146,8 +221,8 @@ export async function POST(req: Request) {
     let url: string;
     try {
       url = normalizeUrl(rawUrl);
-    } catch (err: any) {
-      return errorResponse(err?.message || "URL inválida", 400);
+    } catch (error: unknown) {
+      return errorResponse(getErrorMessage(error, "URL inválida"), 400);
     }
 
     const htmlRes = await fetch(url, {
@@ -166,16 +241,19 @@ export async function POST(req: Request) {
     });
 
     if (!htmlRes.ok) {
-      return errorResponse("Não consegui acessar o link (bloqueado ou inválido).", 400, {
-        status: htmlRes.status,
-        statusText: htmlRes.statusText,
-      });
+      return errorResponse(
+        "Não consegui acessar o link (bloqueado ou inválido).",
+        400,
+        {
+          status: htmlRes.status,
+          statusText: htmlRes.statusText,
+        }
+      );
     }
 
     const htmlRaw = await htmlRes.text();
     const html = sanitizeHtml(htmlRaw);
 
-    // 1) Tenta parser direto primeiro
     const direct = parseHtmlDirect(html);
 
     if (hasUsefulDirectData(direct)) {
@@ -193,7 +271,6 @@ export async function POST(req: Request) {
       });
     }
 
-    // 2) Fallback para IA
     const model = getGeminiModel("gemini-2.5-flash");
 
     const prompt = `
@@ -235,15 +312,72 @@ ${html.slice(0, 180000)}
     let parsed: any;
     try {
       parsed = extractJsonFromModel(raw);
-    } catch (err: any) {
-      return errorResponse("A IA retornou um formato inválido ao ler o link.", 500, {
-        rawPreview: raw.slice(0, 1000),
-        message: err?.message || null,
-      });
+    } catch (error: unknown) {
+      return errorResponse(
+        "A IA retornou um formato inválido ao ler o link.",
+        500,
+        {
+          rawPreview: raw.slice(0, 1000),
+          message: getErrorMessage(error, "Falha ao interpretar JSON da IA"),
+        }
+      );
     }
 
-    return jsonResponse({ data: parsed });
-  } catch (e: any) {
-    return errorResponse("Falha ao ler link", 500, { message: e?.message || null });
+    const itens = Array.isArray(parsed?.itens)
+      ? parsed.itens
+          .map((item: any) => ({
+            produto: String(item?.produto || item?.nome || "").trim(),
+            qtd:
+              item?.qtd != null && !Number.isNaN(Number(item.qtd))
+                ? Number(item.qtd)
+                : item?.quantidade != null &&
+                    !Number.isNaN(Number(item.quantidade))
+                  ? Number(item.quantidade)
+                  : 1,
+            unidade: String(item?.unidade || "UN").trim(),
+            preco_un:
+              item?.preco_un != null && !Number.isNaN(Number(item.preco_un))
+                ? Number(item.preco_un)
+                : item?.preco != null && !Number.isNaN(Number(item.preco))
+                  ? Number(item.preco)
+                  : item?.valor_unitario != null &&
+                      !Number.isNaN(Number(item.valor_unitario))
+                    ? Number(item.valor_unitario)
+                    : 0,
+            total_item:
+              item?.total_item != null &&
+              !Number.isNaN(Number(item.total_item))
+                ? Number(item.total_item)
+                : null,
+          }))
+          .filter((item: any) => item.produto)
+      : [];
+
+    return jsonResponse({
+      data: {
+        fornecedor:
+          typeof parsed?.fornecedor === "string"
+            ? parsed.fornecedor.trim()
+            : null,
+        cnpj: typeof parsed?.cnpj === "string" ? parsed.cnpj.trim() : null,
+        total:
+          parsed?.total != null && !Number.isNaN(Number(parsed.total))
+            ? Number(parsed.total)
+            : null,
+        itens,
+        numero_nota:
+          parsed?.numero_nota != null ? String(parsed.numero_nota).trim() : null,
+        serie: parsed?.serie != null ? String(parsed.serie).trim() : null,
+        emissao: parsed?.emissao != null ? String(parsed.emissao).trim() : null,
+        chave_acesso:
+          parsed?.chave_acesso != null
+            ? String(parsed.chave_acesso).trim()
+            : null,
+      },
+    });
+  } catch (error: unknown) {
+    return errorResponse("Falha ao ler link", 500, {
+      message: getErrorMessage(error, "Erro interno"),
+    });
   }
 }

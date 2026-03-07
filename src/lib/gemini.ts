@@ -1,25 +1,43 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenerativeAI, GenerativeModel } from "@google/generative-ai";
+import { NextResponse } from "next/server";
 
-const apiKey = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY;
+let cachedClient: GoogleGenerativeAI | null = null;
 
-export function getGeminiModel(modelName = "gemini-2.5-flash") {
+function getGeminiClient(): GoogleGenerativeAI {
+  const apiKey = process.env.GEMINI_API_KEY;
+
   if (!apiKey) {
-    throw new Error("Falta GOOGLE_API_KEY (ou GEMINI_API_KEY) no .env.local");
+    throw new Error("GEMINI_API_KEY não configurada.");
   }
-  const genAI = new GoogleGenerativeAI(apiKey);
-  return genAI.getGenerativeModel({ model: modelName });
+
+  if (!cachedClient) {
+    cachedClient = new GoogleGenerativeAI(apiKey);
+  }
+
+  return cachedClient;
 }
 
-export function jsonResponse(data: any, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { "Content-Type": "application/json; charset=utf-8" },
-  });
+export function getGeminiModel(
+  model = "gemini-1.5-flash"
+): GenerativeModel {
+  const client = getGeminiClient();
+  return client.getGenerativeModel({ model });
 }
 
-export function errorResponse(message: string, status = 500, extra?: any) {
-  return jsonResponse(
-    { error: message, ...(extra ? { extra } : {}) },
-    status
+export function jsonResponse(data: unknown, init?: ResponseInit) {
+  return NextResponse.json(data, init);
+}
+
+export function errorResponse(
+  message: string,
+  status = 500,
+  details?: unknown
+) {
+  return NextResponse.json(
+    {
+      error: message,
+      ...(details !== undefined ? { details } : {}),
+    },
+    { status }
   );
 }

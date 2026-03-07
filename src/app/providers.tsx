@@ -1,7 +1,7 @@
 "use client";
 
-import type { ReactNode } from "react";
-import { AppAuthProvider } from "@/contexts/AppAuthContext";
+import { ReactNode } from "react";
+import { AppAuthProvider } from "@/react-app/contexts/AppAuthContext";
 
 interface ProvidersProps {
   children: ReactNode;

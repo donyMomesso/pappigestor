@@ -4,6 +4,14 @@ type LinkBody = {
   url?: string;
 };
 
+type ItemExtraido = {
+  produto: string;
+  qtd: number;
+  unidade: string;
+  preco_un: number;
+  total_item: number | null;
+};
+
 function normalizeUrl(input: string): string {
   const trimmed = input.trim().replace(/\s+/g, "");
 
@@ -32,13 +40,11 @@ function normalizeUrl(input: string): string {
 function extractJsonFromModel(raw: string) {
   const text = raw.trim();
 
-  // Caso venha em bloco ```json ... ```
   const fencedMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
   if (fencedMatch?.[1]) {
     return JSON.parse(fencedMatch[1]);
   }
 
-  // Caso venha texto antes/depois do JSON
   const firstBrace = text.indexOf("{");
   const lastBrace = text.lastIndexOf("}");
 
@@ -47,7 +53,6 @@ function extractJsonFromModel(raw: string) {
     return JSON.parse(sliced);
   }
 
-  // Fallback direto
   return JSON.parse(text);
 }
 
@@ -56,25 +61,80 @@ function sanitizeHtml(html: string): string {
     .replace(/\u0000/g, "")
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
     .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/\s+/g, " ")
     .trim();
 }
 
-function looksBlockedOrInvalid(html: string): boolean {
-  const lower = html.toLowerCase();
+function toNumberBR(value: string | null | undefined): number | null {
+  if (!value) return null;
+  const normalized = value.replace(/\./g, "").replace(",", ".").trim();
+  const n = Number(normalized);
+  return Number.isFinite(n) ? n : null;
+}
 
-  return (
-    lower.includes("captcha") ||
-    lower.includes("access denied") ||
-    lower.includes("forbidden") ||
-    lower.includes("temporarily unavailable") ||
-    lower.includes("cloudflare") ||
-    lower.includes("incapsula") ||
-    lower.includes("bot detection") ||
-    lower.includes("erro 403") ||
-    lower.includes("erro 404") ||
-    lower.includes("não autorizado") ||
-    lower.includes("pagina não encontrada") ||
-    html.length < 200
+function parseHtmlDirect(html: string) {
+  const clean = html;
+
+  const fornecedorMatch = clean.match(
+    /DOCUMENTO AUXILIAR DA NOTA FISCAL DE CONSUMIDOR ELETRÔNICA\s+([^<\n]+?)\s+CNPJ:/i
+  );
+  const cnpjMatch = clean.match(/CNPJ:\s*([\d./-]+)/i);
+  const totalMatch = clean.match(/Valor total R\$\:\s*([\d.,]+)/i);
+  const numeroSerieEmissaoMatch = clean.match(
+    /Número:\s*(\d+)\s+Série:\s*(\d+)\s+Emissão:\s*([0-9/: -]+)/i
+  );
+  const chaveMatch = clean.match(
+    /Chave de acesso:\s*([0-9 ]{44,})/i
+  );
+
+  const itens: ItemExtraido[] = [];
+
+  const itemRegex =
+    /([A-ZÀ-Ú0-9.,()\-\/ ]+?)\s*\(Código:\s*[\d ]+\)\s*Qtde\.\:([\d.,]+)\s*UN\:\s*([A-Za-z]+)\s*Vl\. Unit\.\:\s*([\d.,]+)\s*Vl\. Total\s*([\d.,]+)/gi;
+
+  let itemMatch: RegExpExecArray | null = null;
+  while ((itemMatch = itemRegex.exec(clean)) !== null) {
+    const produto = itemMatch[1]?.trim();
+    const qtd = toNumberBR(itemMatch[2]) ?? 1;
+    const unidade = itemMatch[3]?.trim() || "UN";
+    const precoUn = toNumberBR(itemMatch[4]) ?? 0;
+    const totalItem = toNumberBR(itemMatch[5]);
+
+    if (produto) {
+      itens.push({
+        produto,
+        qtd,
+        unidade,
+        preco_un: precoUn,
+        total_item: totalItem,
+      });
+    }
+  }
+
+  return {
+    fornecedor: fornecedorMatch?.[1]?.trim() || null,
+    cnpj: cnpjMatch?.[1]?.trim() || null,
+    total: toNumberBR(totalMatch?.[1]) ?? null,
+    itens,
+    numero_nota: numeroSerieEmissaoMatch?.[1] || null,
+    serie: numeroSerieEmissaoMatch?.[2] || null,
+    emissao: numeroSerieEmissaoMatch?.[3]?.trim() || null,
+    chave_acesso: chaveMatch?.[1]?.replace(/\s+/g, "") || null,
+  };
+}
+
+function hasUsefulDirectData(parsed: {
+  fornecedor: string | null;
+  cnpj: string | null;
+  total: number | null;
+  itens: ItemExtraido[];
+}) {
+  return Boolean(
+    parsed.fornecedor ||
+      parsed.cnpj ||
+      parsed.total !== null ||
+      (Array.isArray(parsed.itens) && parsed.itens.length > 0)
   );
 }
 
@@ -90,40 +150,20 @@ export async function POST(req: Request) {
       return errorResponse(err?.message || "URL inválida", 400);
     }
 
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
-
-    let htmlRes: Response;
-    try {
-      htmlRes = await fetch(url, {
-        method: "GET",
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36",
-          Accept:
-            "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-          "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
-          "Cache-Control": "no-cache",
-          Pragma: "no-cache",
-          Referer: url,
-        },
-        redirect: "follow",
-        cache: "no-store",
-        signal: controller.signal,
-      });
-    } catch (err: any) {
-      clearTimeout(timeout);
-
-      if (err?.name === "AbortError") {
-        return errorResponse("Tempo esgotado ao acessar o link.", 408);
-      }
-
-      return errorResponse("Não consegui acessar o link informado.", 400, {
-        message: err?.message || null,
-      });
-    }
-
-    clearTimeout(timeout);
+    const htmlRes = await fetch(url, {
+      method: "GET",
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36",
+        Accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache",
+      },
+      redirect: "follow",
+      cache: "no-store",
+    });
 
     if (!htmlRes.ok) {
       return errorResponse("Não consegui acessar o link (bloqueado ou inválido).", 400, {
@@ -132,23 +172,28 @@ export async function POST(req: Request) {
       });
     }
 
-    const contentType = htmlRes.headers.get("content-type") || "";
-    if (!contentType.includes("text/html")) {
-      return errorResponse("O link não retornou uma página HTML válida.", 400, {
-        contentType,
-      });
-    }
-
     const htmlRaw = await htmlRes.text();
     const html = sanitizeHtml(htmlRaw);
 
-    if (looksBlockedOrInvalid(html)) {
-      return errorResponse(
-        "O site retornou uma página bloqueada, incompleta ou inválida para leitura automática.",
-        400
-      );
+    // 1) Tenta parser direto primeiro
+    const direct = parseHtmlDirect(html);
+
+    if (hasUsefulDirectData(direct)) {
+      return jsonResponse({
+        data: {
+          fornecedor: direct.fornecedor,
+          cnpj: direct.cnpj,
+          total: direct.total,
+          itens: direct.itens,
+          numero_nota: direct.numero_nota,
+          serie: direct.serie,
+          emissao: direct.emissao,
+          chave_acesso: direct.chave_acesso,
+        },
+      });
     }
 
+    // 2) Fallback para IA
     const model = getGeminiModel("gemini-2.5-flash");
 
     const prompt = `
@@ -167,7 +212,11 @@ Retorne JSON EXATAMENTE neste formato:
       "preco_un": number,
       "total_item": number | null
     }
-  ]
+  ],
+  "numero_nota": string | null,
+  "serie": string | null,
+  "emissao": string | null,
+  "chave_acesso": string | null
 }
 
 Regras:
@@ -193,51 +242,8 @@ ${html.slice(0, 180000)}
       });
     }
 
-    const safeResponse = {
-      fornecedor:
-        typeof parsed?.fornecedor === "string" && parsed.fornecedor.trim()
-          ? parsed.fornecedor.trim()
-          : null,
-      cnpj:
-        typeof parsed?.cnpj === "string" && parsed.cnpj.trim()
-          ? parsed.cnpj.trim()
-          : null,
-      total:
-        typeof parsed?.total === "number"
-          ? parsed.total
-          : parsed?.total != null && !Number.isNaN(Number(parsed.total))
-          ? Number(parsed.total)
-          : null,
-      itens: Array.isArray(parsed?.itens)
-        ? parsed.itens.map((item: any) => ({
-            produto:
-              typeof item?.produto === "string" && item.produto.trim()
-                ? item.produto.trim()
-                : "",
-            qtd:
-              item?.qtd != null && !Number.isNaN(Number(item.qtd))
-                ? Number(item.qtd)
-                : 1,
-            unidade:
-              typeof item?.unidade === "string" && item.unidade.trim()
-                ? item.unidade.trim()
-                : "un",
-            preco_un:
-              item?.preco_un != null && !Number.isNaN(Number(item.preco_un))
-                ? Number(item.preco_un)
-                : 0,
-            total_item:
-              item?.total_item != null && !Number.isNaN(Number(item.total_item))
-                ? Number(item.total_item)
-                : null,
-          }))
-        : [],
-    };
-
-    return jsonResponse({ data: safeResponse });
+    return jsonResponse({ data: parsed });
   } catch (e: any) {
-    return errorResponse("Falha ao ler link", 500, {
-      message: e?.message || null,
-    });
+    return errorResponse("Falha ao ler link", 500, { message: e?.message || null });
   }
 }

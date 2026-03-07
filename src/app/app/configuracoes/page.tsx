@@ -3,15 +3,13 @@
 export const dynamic = "force-dynamic";
 
 import { useState, useEffect, type ReactNode } from "react";
-import { useAppAuth } from "@/contexts/AppAuthContext";
+import { useAppAuth } from "@/react-app/contexts/AppAuthContext";
 import {
-  Settings,
   Sparkles,
   CreditCard,
   ShieldCheck,
   Database,
   Bot,
-  Zap,
   ChevronRight,
   Building2,
   Save,
@@ -57,11 +55,19 @@ export default function ConfiguracoesPage() {
   });
 
   const fetchConfig = async () => {
-    const pId = localStorage.getItem("pId") || "";
+    const pId =
+      localUser?.empresa_id ||
+      localStorage.getItem("pId") ||
+      localStorage.getItem("empresa_id") ||
+      "";
 
     try {
       const res = await fetch("/api/empresa-config", {
-        headers: { "x-pizzaria-id": pId },
+        headers: {
+          "x-pizzaria-id": String(pId),
+          "x-empresa-id": String(pId),
+        },
+        cache: "no-store",
       });
 
       if (res.ok) {
@@ -84,8 +90,9 @@ export default function ConfiguracoesPage() {
   };
 
   useEffect(() => {
-    fetchConfig();
-  }, []);
+    void fetchConfig();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [localUser?.empresa_id]);
 
   const buscarCNPJ = async () => {
     const cnpjNumeros = empresaForm.cnpj.replace(/\D/g, "");
@@ -99,7 +106,7 @@ export default function ConfiguracoesPage() {
 
     try {
       const response = await fetch(
-        `https://brasilapi.com.br/api/cnpj/v1/${cnpjNumeros}`,
+        `https://brasilapi.com.br/api/cnpj/v1/${cnpjNumeros}`
       );
 
       if (!response.ok) {
@@ -118,12 +125,16 @@ export default function ConfiguracoesPage() {
           data.nome_fantasia || data.razao_social || prev.nome_fantasia,
         cnpj: cnpjNumeros.replace(
           /^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/,
-          "$1.$2.$3/$4-$5",
+          "$1.$2.$3/$4-$5"
         ),
       }));
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Erro na busca de CNPJ:", error);
-      alert(error.message || "Erro ao consultar CNPJ. Tente preencher manualmente.");
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Erro ao consultar CNPJ. Tente preencher manualmente."
+      );
     } finally {
       setLoadingCnpj(false);
     }
@@ -133,14 +144,19 @@ export default function ConfiguracoesPage() {
     setSaving(true);
     setSaved(false);
 
-    const pId = localStorage.getItem("pId") || "";
+    const pId =
+      localUser?.empresa_id ||
+      localStorage.getItem("pId") ||
+      localStorage.getItem("empresa_id") ||
+      "";
 
     try {
       const res = await fetch("/api/empresa-config", {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          "x-pizzaria-id": pId,
+          "x-pizzaria-id": String(pId),
+          "x-empresa-id": String(pId),
         },
         body: JSON.stringify({
           razao_social: empresaForm.razao_social || null,
@@ -414,8 +430,8 @@ export default function ConfiguracoesPage() {
                   {saving
                     ? "Gravando..."
                     : saved
-                      ? "Salvo com sucesso"
-                      : "Salvar alterações"}
+                    ? "Salvo com sucesso"
+                    : "Salvar alterações"}
                 </button>
               </div>
             </section>
@@ -487,7 +503,8 @@ export default function ConfiguracoesPage() {
                     Nenhum banco conectado
                   </h4>
                   <p className="text-sm text-gray-500 mb-6">
-                    Conecte sua conta bancária via Open Finance para buscar boletos DDA automaticamente.
+                    Conecte sua conta bancária via Open Finance para buscar
+                    boletos DDA automaticamente.
                   </p>
 
                   <button
@@ -670,7 +687,9 @@ function ConfigTab({
       <div className="flex items-center gap-4">
         <span
           className={`${
-            active ? "text-orange-500" : "text-gray-400 group-hover:text-orange-500"
+            active
+              ? "text-orange-500"
+              : "text-gray-400 group-hover:text-orange-500"
           } transition-colors`}
         >
           {icon}
@@ -692,7 +711,9 @@ function ConfigTab({
 
       <ChevronRight
         size={16}
-        className={`${active ? "text-orange-500" : "text-gray-200"} transition-all`}
+        className={`${
+          active ? "text-orange-500" : "text-gray-200"
+        } transition-all`}
       />
     </button>
   );

@@ -461,40 +461,71 @@ export default function ComprasPage() {
     [aplicarDadosDaIA, pId, uploadArquivo]
   );
 
-  const extrairDadosPorLink = useCallback(async () => {
-    if (!linkNfe.trim()) return;
+const normalizarLinkNfe = (valor: string): string => {
+  let url = valor.trim();
 
-    setExtraindo(true);
-    setErroExtracao(null);
+  // remove espaços e quebras
+  url = url.replace(/\s+/g, "");
 
-    try {
-      const response = await fetch("/api/ia/ler-link", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-pizzaria-id": pId,
-        },
-        body: JSON.stringify({ url: linkNfe.trim() }),
-      });
+  // tenta extrair a primeira URL válida dentro do texto
+  const match = url.match(/https?:\/\/[^\s]+/i);
+  if (match?.[0]) {
+    url = match[0];
+  }
 
-      const dados = await response.json().catch(() => null);
+  // se vier sem protocolo, tenta completar
+  if (url && !/^https?:\/\//i.test(url)) {
+    url = `https://${url}`;
+  }
 
-      if (!response.ok) {
-        throw new Error(dados?.error || "Falha ao ler link da NFC-e.");
-      }
+  return url;
+};
 
-      aplicarDadosDaIA(dados);
-      setLinkNfe("");
-      setShowLinkInput(false);
-    } catch (err: any) {
-      setErroExtracao(
-        err?.message ||
-          "Não foi possível ler a nota a partir deste link. Verifique se é um link válido da Sefaz."
+
+const extrairDadosPorLink = useCallback(async () => {
+  const linkNormalizado = normalizarLinkNfe(linkNfe);
+
+  if (!linkNormalizado) {
+    setErroExtracao("Cole um link válido da NFC-e.");
+    return;
+  }
+
+  setExtraindo(true);
+  setErroExtracao(null);
+
+  try {
+    const response = await fetch("/api/ia/ler-link", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-pizzaria-id": pId,
+      },
+      body: JSON.stringify({
+        url: linkNormalizado,
+      }),
+    });
+
+    const dados = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      throw new Error(
+        dados?.error ||
+          dados?.details ||
+          "Falha ao ler link da NFC-e."
       );
-    } finally {
-      setExtraindo(false);
     }
-  }, [aplicarDadosDaIA, linkNfe, pId]);
+
+    aplicarDadosDaIA(dados);
+    setLinkNfe(linkNormalizado);
+  } catch (err: any) {
+    setErroExtracao(
+      err?.message ||
+        "Não foi possível ler a nota a partir deste link. Verifique se é um link válido da Sefaz."
+    );
+  } finally {
+    setExtraindo(false);
+  }
+}, [aplicarDadosDaIA, linkNfe, pId]);
 
   const importarListaTexto = useCallback(async () => {
     if (!textoLista.trim()) return;
@@ -714,11 +745,6 @@ export default function ComprasPage() {
     if (!showQrDialog) stopQr();
   }, [showQrDialog, stopQr]);
 
-  useEffect(() => {
-    if (showLinkInput && linkNfe.trim().startsWith("http")) {
-      void extrairDadosPorLink();
-    }
-  }, [extrairDadosPorLink, linkNfe, showLinkInput]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

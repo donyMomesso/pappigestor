@@ -109,6 +109,9 @@ export async function POST(req: Request) {
 
     return jsonResponse({ sugestoes });
   } catch (e: any) {
-    return jsonResponse({ sugestoes: [], error: e?.message || "Erro interno" }, 500);
+    jsonResponse(
+  { sugestoes: [], error: e instanceof Error ? e.message : "Erro interno" },
+  { status: 500 }
+)
   }
 }

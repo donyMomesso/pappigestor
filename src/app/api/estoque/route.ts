@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { createServerClient } from "@supabase/ssr";
 
 export const dynamic = "force-dynamic";
 
@@ -52,18 +53,46 @@ type EstoqueResponseItem = {
   observacao: string | null;
 };
 
+type UsuarioEmpresaRow = {
+  empresa_id: string | null;
+};
+
 function getSupabaseAdmin() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error("Supabase não configurado. Verifique NEXT_PUBLIC_SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY.");
+    throw new Error(
+      "Supabase não configurado. Verifique NEXT_PUBLIC_SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY."
+    );
   }
 
   return createClient(supabaseUrl, serviceRoleKey, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
+    },
+  });
+}
+
+function getSupabaseFromRequest(req: NextRequest) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !anonKey) {
+    throw new Error(
+      "Supabase não configurado. Verifique NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY."
+    );
+  }
+
+  return createServerClient(supabaseUrl, anonKey, {
+    cookies: {
+      getAll() {
+        return req.cookies.getAll();
+      },
+      setAll() {
+        // rota GET não precisa persistir cookies aqui
+      },
     },
   });
 }
@@ -77,6 +106,45 @@ function parseEmpresaId(req: NextRequest): string | null {
   return empresaId && empresaId.trim() ? empresaId.trim() : null;
 }
 
+async function resolveEmpresaId(req: NextRequest): Promise<string | null> {
+  const fromRequest = parseEmpresaId(req);
+  if (fromRequest) return fromRequest;
+
+  const supabaseAuth = getSupabaseFromRequest(req);
+  const {
+    data: { user },
+    error: userError,
+  } = await supabaseAuth.auth.getUser();
+
+  if (userError || !user) {
+    return null;
+  }
+
+  const supabaseAdmin = getSupabaseAdmin();
+
+  const { data: usuarioRow } = await supabaseAdmin
+    .from("usuarios")
+    .select("empresa_id")
+    .eq("id", user.id)
+    .maybeSingle<UsuarioEmpresaRow>();
+
+  if (usuarioRow?.empresa_id) {
+    return usuarioRow.empresa_id;
+  }
+
+  const { data: vinculoRow } = await supabaseAdmin
+    .from("usuarios_empresa")
+    .select("empresa_id")
+    .eq("usuario_id", user.id)
+    .maybeSingle<UsuarioEmpresaRow>();
+
+  if (vinculoRow?.empresa_id) {
+    return vinculoRow.empresa_id;
+  }
+
+  return null;
+}
+
 function toNumber(value: unknown, fallback = 0): number {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string") {
@@ -88,18 +156,22 @@ function toNumber(value: unknown, fallback = 0): number {
 
 export async function GET(req: NextRequest) {
   try {
-    const empresaId = parseEmpresaId(req);
+    const empresaId = await resolveEmpresaId(req);
 
     if (!empresaId) {
       return NextResponse.json(
-        { error: "Empresa não informada. Envie x-empresa-id ou x-pizzaria-id no header." },
+        {
+          error:
+            "Empresa não informada. Envie x-empresa-id, x-pizzaria-id, ?empresa_id=... ou acesse autenticado com vínculo de empresa.",
+        },
         { status: 400 }
       );
     }
 
     const supabase = getSupabaseAdmin();
 
-    const somenteBaixo = req.nextUrl.searchParams.get("somente_baixo") === "true";
+    const somenteBaixo =
+      req.nextUrl.searchParams.get("somente_baixo") === "true";
     const busca = (req.nextUrl.searchParams.get("busca") || "").trim();
 
     let estoqueQuery = supabase
@@ -118,7 +190,10 @@ export async function GET(req: NextRequest) {
     if (estoqueError) {
       console.error("Erro ao buscar posição de estoque:", estoqueError);
       return NextResponse.json(
-        { error: "Erro ao buscar posição de estoque.", details: estoqueError.message },
+        {
+          error: "Erro ao buscar posição de estoque.",
+          details: estoqueError.message,
+        },
         { status: 500 }
       );
     }
@@ -139,7 +214,10 @@ export async function GET(req: NextRequest) {
     if (produtosError) {
       console.error("Erro ao buscar produtos do estoque:", produtosError);
       return NextResponse.json(
-        { error: "Erro ao buscar dados dos produtos.", details: produtosError.message },
+        {
+          error: "Erro ao buscar dados dos produtos.",
+          details: produtosError.message,
+        },
         { status: 500 }
       );
     }

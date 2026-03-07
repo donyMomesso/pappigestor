@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { useAppAuth } from "@/contexts/AppAuthContext";
+import { useAppAuth } from "@/react-app/contexts/AppAuthContext";
 import { Button } from "@/react-app/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/react-app/components/ui/card";
 import { Input } from "@/react-app/components/ui/input";
@@ -45,6 +45,12 @@ import {
   SelectValue,
 } from "@/react-app/components/ui/select";
 import { Textarea } from "@/react-app/components/ui/textarea";
+
+type LocalUserMinimo = {
+  empresa_id?: string;
+  email?: string;
+  nivel_acesso?: string;
+};
 
 export interface Lancamento {
   id: string;
@@ -156,7 +162,12 @@ export function calcularStatus(lancamento: Lancamento): StatusLancamento {
 }
 
 export default function FinanceiroPage() {
-  const auth = useAppAuth() as any;
+  const auth = useAppAuth() as {
+    localUser?: LocalUserMinimo | null;
+    isLoading?: boolean;
+    loading?: boolean;
+  };
+
   const localUser = auth?.localUser ?? null;
   const authLoading = Boolean(auth?.isLoading ?? auth?.loading ?? false);
 
@@ -834,8 +845,8 @@ export default function FinanceiroPage() {
                           boleto.status_pagamento === "pago"
                             ? "bg-green-50 border-green-200"
                             : vencido
-                            ? "bg-red-50 border-red-200"
-                            : "bg-white border-gray-200"
+                              ? "bg-red-50 border-red-200"
+                              : "bg-white border-gray-200"
                         }`}
                       >
                         <div className="flex items-center justify-between">

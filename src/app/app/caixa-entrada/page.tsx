@@ -22,7 +22,6 @@ import {
   Sparkles,
   DollarSign,
   Brain,
-  CheckCircle2,
   Clock3,
 } from "lucide-react";
 import {
@@ -38,13 +37,29 @@ import { Input } from "@/react-app/components/ui/input";
 import { Button } from "@/react-app/components/ui/button";
 import { useAppAuthOptional } from "@/contexts/AppAuthContext";
 
+type ProdutoExtraido = {
+  produto?: string;
+  nome?: string;
+  qtd?: number | string;
+  quantidade?: number | string;
+  preco_un?: number | string;
+  preco?: number | string;
+  valor_unitario?: number | string;
+};
+
 type InboxItem = {
   id: number | string;
   fornecedor_nome?: string;
   valor_total?: number;
-  json_extraido?: any[] | string;
+  json_extraido?: ProdutoExtraido[] | string;
   criado_em: string;
   isTemp?: boolean;
+};
+
+type LerIAResponse = {
+  error?: string;
+  dados?: any;
+  data?: any;
 };
 
 const StatusBadge = ({ children }: { children: ReactNode }) => (
@@ -53,9 +68,44 @@ const StatusBadge = ({ children }: { children: ReactNode }) => (
   </span>
 );
 
+function normalizarLinkNfe(valor: string): string {
+  let url = valor.trim();
+  url = url.replace(/\s+/g, "");
+
+  const match = url.match(/https?:\/\/[^\s]+/i);
+  if (match?.[0]) {
+    url = match[0];
+  }
+
+  if (url && !/^https?:\/\//i.test(url)) {
+    url = `https://${url}`;
+  }
+
+  return url;
+}
+
+function extrairPayloadIA(payload: LerIAResponse | any) {
+  return payload?.dados || payload?.data || payload || {};
+}
+
+function parseItensExtraidos(raw: unknown): ProdutoExtraido[] {
+  if (Array.isArray(raw)) return raw;
+
+  if (typeof raw === "string") {
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  return [];
+}
+
 export default function InboxPage() {
   const auth = useAppAuthOptional();
-const localUser = auth?.localUser ?? null;
+  const localUser = auth?.localUser ?? null;
 
   const [items, setItems] = useState<InboxItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,6 +121,7 @@ const localUser = auth?.localUser ?? null;
   const [showLinkInput, setShowLinkInput] = useState(false);
   const [linkNfe, setLinkNfe] = useState("");
   const [showQrDialog, setShowQrDialog] = useState(false);
+  const [linkError, setLinkError] = useState<string | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const qrLoopRef = useRef<number | null>(null);
@@ -94,7 +145,7 @@ const localUser = auth?.localUser ?? null;
 
       return headers;
     },
-    [localUser?.email],
+    [localUser?.email]
   );
 
   const fetchInbox = useCallback(async () => {
@@ -104,7 +155,7 @@ const localUser = auth?.localUser ?? null;
       });
 
       const data = (await res.json()) as InboxItem[] | { results?: InboxItem[] };
-      const extractedData = Array.isArray(data) ? data : (data?.results || []);
+      const extractedData = Array.isArray(data) ? data : data?.results || [];
       setItems(extractedData);
     } catch (e) {
       console.error("Erro ao carregar Inbox", e);
@@ -114,85 +165,141 @@ const localUser = auth?.localUser ?? null;
   }, [getHeaders]);
 
   useEffect(() => {
-    fetchInbox();
+    void fetchInbox();
   }, [fetchInbox]);
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setUploading(true);
-
-    try {
+  const uploadArquivo = useCallback(
+    async (file: File) => {
       const formData = new FormData();
       formData.append("file", file);
+      formData.append("type", "nota_fiscal");
 
-      const response = await fetch("/api/ia/ler-nota", {
+      const response = await fetch("/api/upload", {
         method: "POST",
         headers: getHeaders(true),
         body: formData,
       });
 
-      if (!response.ok) {
-        throw new Error("Erro ao processar arquivo");
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok || !payload?.url) {
+        throw new Error(payload?.error || "Falha ao enviar arquivo.");
       }
 
-      await fetchInbox();
-    } catch (error) {
-      console.error(error);
-      alert("Falha ao enviar documento para a IA.");
-    } finally {
-      setUploading(false);
+      return payload.url as string;
+    },
+    [getHeaders]
+  );
 
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      if (cameraInputRef.current) cameraInputRef.current.value = "";
-    }
-  };
+  const montarItemTemporario = useCallback((payload: any): InboxItem => {
+    const responseIA = extrairPayloadIA(payload);
+    const itensExtraidos = Array.isArray(responseIA?.itens) ? responseIA.itens : [];
+    const valorTotal =
+      Number(responseIA?.valor_total ?? responseIA?.total ?? 0) || 0;
+
+    return {
+      id: `tmp-${Date.now()}`,
+      fornecedor_nome:
+        responseIA?.fornecedor ||
+        responseIA?.emitente ||
+        "Documento lido pela IA",
+      valor_total: valorTotal,
+      json_extraido: itensExtraidos,
+      criado_em: new Date().toISOString(),
+      isTemp: true,
+    };
+  }, []);
+
+  const processarLeituraPorArquivo = useCallback(
+    async (file: File) => {
+      setUploading(true);
+      setLinkError(null);
+
+      try {
+        const fileUrl = await uploadArquivo(file);
+
+        const response = await fetch("/api/ia/ler-nota", {
+          method: "POST",
+          headers: getHeaders(),
+          body: JSON.stringify({ image_url: fileUrl }),
+        });
+
+        const payload = await response.json().catch(() => null);
+
+        if (!response.ok) {
+          throw new Error(payload?.error || "Erro ao ler documento.");
+        }
+
+        const itemTemporario = montarItemTemporario(payload);
+        setItems((prev) => [itemTemporario, ...prev]);
+      } catch (error: any) {
+        console.error(error);
+        alert(error?.message || "Falha ao enviar documento para a IA.");
+      } finally {
+        setUploading(false);
+
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        if (cameraInputRef.current) cameraInputRef.current.value = "";
+      }
+    },
+    [getHeaders, montarItemTemporario, uploadArquivo]
+  );
+
+  const handleFileUpload = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      await processarLeituraPorArquivo(file);
+    },
+    [processarLeituraPorArquivo]
+  );
 
   const extrairDadosPorLink = useCallback(async () => {
-    if (!linkNfe.trim()) return;
+    const linkNormalizado = normalizarLinkNfe(linkNfe);
+
+    if (!linkNormalizado) {
+      setLinkError("Cole um link válido da NFC-e.");
+      return;
+    }
 
     setExtraindo(true);
+    setLinkError(null);
 
     try {
       const response = await fetch("/api/ia/ler-link", {
         method: "POST",
         headers: getHeaders(),
-        body: JSON.stringify({ url: linkNfe }),
+        body: JSON.stringify({ url: linkNormalizado }),
       });
 
-      const dados = (await response.json()) as any;
+      const dados = await response.json().catch(() => null);
 
       if (!response.ok) {
-        throw new Error(dados?.error || "Falha na API");
+        throw new Error(dados?.error || dados?.details || "Falha ao ler link da NFC-e.");
       }
 
-      const responseIA = dados?.data || dados;
-
-      const mockItem: InboxItem = {
-        id: `link-${Date.now()}`,
-        fornecedor_nome: responseIA.fornecedor || "Nota via link (NFC-e)",
-        valor_total: responseIA.total || 0,
-        json_extraido: responseIA.itens || [],
-        criado_em: new Date().toISOString(),
-        isTemp: true,
-      };
-
+      const mockItem = montarItemTemporario(dados);
       setItems((prev) => [mockItem, ...prev]);
       setLinkNfe("");
       setShowLinkInput(false);
     } catch (err: any) {
-      alert(err?.message || "Não foi possível ler a nota a partir deste link.");
+      setLinkError(err?.message || "Não foi possível ler a nota a partir deste link.");
     } finally {
       setExtraindo(false);
     }
-  }, [getHeaders, linkNfe]);
+  }, [getHeaders, linkNfe, montarItemTemporario]);
 
   const stopQr = useCallback(() => {
-    if (qrLoopRef.current) cancelAnimationFrame(qrLoopRef.current);
+    if (qrLoopRef.current) {
+      cancelAnimationFrame(qrLoopRef.current);
+      qrLoopRef.current = null;
+    }
+
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
     }
+
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
@@ -221,7 +328,6 @@ const localUser = auth?.localUser ?? null;
       await videoRef.current.play();
 
       const hasDetector = "BarcodeDetector" in window;
-
       if (!hasDetector) {
         setQrError("Leitor QR não disponível. Use o botão de Colar Link Sefaz.");
         return;
@@ -244,14 +350,13 @@ const localUser = auth?.localUser ?? null;
               stopQr();
               setShowQrDialog(false);
               setShowLinkInput(true);
-              setLinkNfe(raw);
-              setTimeout(() => {
-                void extrairDadosPorLink();
-              }, 50);
+              setLinkNfe(normalizarLinkNfe(raw));
               return;
             }
           }
-        } catch {}
+        } catch {
+          // ignora
+        }
 
         qrLoopRef.current = requestAnimationFrame(scan);
       };
@@ -260,7 +365,7 @@ const localUser = auth?.localUser ?? null;
     } catch (err: any) {
       setQrError(err?.message || "Erro ao abrir a câmera.");
     }
-  }, [extrairDadosPorLink, stopQr]);
+  }, [stopQr]);
 
   useEffect(() => {
     if (!showQrDialog) {
@@ -272,27 +377,31 @@ const localUser = auth?.localUser ?? null;
     setProcessingId(item.id);
 
     try {
+      const jsonExtraido =
+        typeof item.json_extraido === "string"
+          ? item.json_extraido
+          : JSON.stringify(item.json_extraido || []);
+
       const res = await fetch("/api/ia/inbox/approve", {
         method: "POST",
         headers: getHeaders(),
         body: JSON.stringify({
           id: item.id,
-          json_extraido:
-            typeof item.json_extraido === "string"
-              ? item.json_extraido
-              : JSON.stringify(item.json_extraido || []),
+          json_extraido: jsonExtraido,
         }),
       });
 
+      const payload = await res.json().catch(() => null);
+
       if (!res.ok) {
-        throw new Error("Falha ao aprovar");
+        throw new Error(payload?.error || "Falha ao aprovar");
       }
 
       alert("Nota lançada no estoque com sucesso! Custos atualizados.");
       setItems((prev) => prev.filter((i) => i.id !== item.id));
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      alert("Ocorreu um erro ao processar a nota para o estoque.");
+      alert(e?.message || "Ocorreu um erro ao processar a nota para o estoque.");
     } finally {
       setProcessingId(null);
     }
@@ -433,14 +542,14 @@ const localUser = auth?.localUser ?? null;
         <input
           type="file"
           ref={fileInputRef}
-          onChange={handleFileUpload}
+          onChange={(e) => void handleFileUpload(e)}
           accept="image/*,application/pdf"
           className="hidden"
         />
         <input
           type="file"
           ref={cameraInputRef}
-          onChange={handleFileUpload}
+          onChange={(e) => void handleFileUpload(e)}
           accept="image/*"
           capture="environment"
           className="hidden"
@@ -488,7 +597,10 @@ const localUser = auth?.localUser ?? null;
 
           {!showLinkInput ? (
             <button
-              onClick={() => setShowLinkInput(true)}
+              onClick={() => {
+                setShowLinkInput(true);
+                setLinkError(null);
+              }}
               disabled={uploading || extraindo}
               className="col-span-2 md:col-span-1 rounded-[24px] border border-gray-200 bg-gray-50/50 flex flex-col items-center justify-center gap-3 py-6 hover:bg-gray-100 transition-colors text-gray-600 disabled:opacity-50"
             >
@@ -515,21 +627,35 @@ const localUser = auth?.localUser ?? null;
                 <Button
                   type="button"
                   onClick={() => void extrairDadosPorLink()}
-                  disabled={!linkNfe || extraindo}
+                  disabled={!normalizarLinkNfe(linkNfe) || extraindo}
                   className="flex-1 h-10 rounded-xl bg-blue-600 text-white hover:bg-blue-700"
                 >
-                  <Check size={14} />
+                  {extraindo ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    <Check size={14} />
+                  )}
                 </Button>
 
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setShowLinkInput(false)}
+                  onClick={() => {
+                    setShowLinkInput(false);
+                    setLinkNfe("");
+                    setLinkError(null);
+                  }}
                   className="flex-1 h-10 rounded-xl border-gray-200 text-gray-500"
                 >
                   <X size={14} />
                 </Button>
               </div>
+
+              {linkError && (
+                <div className="text-[10px] font-bold text-red-500 bg-red-50 p-2 rounded-xl">
+                  {linkError}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -548,9 +674,8 @@ const localUser = auth?.localUser ?? null;
       ) : (
         <div className="grid gap-4">
           {items.map((item) => {
-            const produtosDetectados = Array.isArray(item.json_extraido)
-              ? item.json_extraido.length
-              : 0;
+            const produtosLista = parseItensExtraidos(item.json_extraido);
+            const produtosDetectados = produtosLista.length;
 
             return (
               <div
@@ -573,7 +698,7 @@ const localUser = auth?.localUser ?? null;
                       </span>
 
                       <StatusBadge>
-                        {item.isTemp ? "prévia por link" : "processado pela ia"}
+                        {item.isTemp ? "prévia por link/arquivo" : "processado pela ia"}
                       </StatusBadge>
 
                       <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md uppercase tracking-[0.12em]">
@@ -640,8 +765,13 @@ const localUser = auth?.localUser ?? null;
                         </p>
 
                         <div className="space-y-3">
-                          {Array.isArray(item.json_extraido) &&
-                            item.json_extraido.map((prod: any, idx: number) => (
+                          {produtosLista.map((prod, idx) => {
+                            const nomeProduto = prod.produto || prod.nome || "Produto";
+                            const qtd = prod.qtd ?? prod.quantidade ?? 1;
+                            const preco =
+                              prod.preco_un ?? prod.preco ?? prod.valor_unitario;
+
+                            return (
                               <div
                                 key={idx}
                                 className="flex flex-col md:flex-row md:justify-between md:items-center bg-white p-4 rounded-xl shadow-sm border border-gray-50 gap-3"
@@ -649,24 +779,25 @@ const localUser = auth?.localUser ?? null;
                                 <div className="flex items-center gap-3">
                                   <Package size={16} className="text-orange-500" />
                                   <span className="text-xs font-bold uppercase italic">
-                                    {prod.produto}
+                                    {nomeProduto}
                                   </span>
                                 </div>
 
                                 <div className="flex items-center gap-4 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200">
-                                  {prod.preco_un && (
+                                  {preco !== undefined && preco !== null && (
                                     <span className="text-xs font-black text-green-600 flex items-center gap-1">
                                       <DollarSign size={12} className="text-green-500" />
-                                      {parseFloat(prod.preco_un).toFixed(2)} unit.
+                                      {Number.parseFloat(String(preco)).toFixed(2)} unit.
                                     </span>
                                   )}
 
                                   <span className="text-xs font-black text-gray-600 border-l border-gray-300 pl-4">
-                                    Qtd: {prod.qtd || 1}
+                                    Qtd: {qtd}
                                   </span>
                                 </div>
                               </div>
-                            ))}
+                            );
+                          })}
                         </div>
                       </div>
 

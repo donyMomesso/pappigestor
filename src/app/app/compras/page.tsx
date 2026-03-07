@@ -236,7 +236,27 @@ export default function ComprasPage() {
   const pId =
     typeof window !== "undefined" ? localStorage.getItem("pId") || "" : "";
 
+  const normalizarLinkNfe = useCallback((valor: string): string => {
+    let url = valor.trim();
+    url = url.replace(/\s+/g, "");
+
+    const match = url.match(/https?:\/\/[^\s]+/i);
+    if (match?.[0]) {
+      url = match[0];
+    }
+
+    if (url && !/^https?:\/\//i.test(url)) {
+      url = `https://${url}`;
+    }
+
+    return url;
+  }, []);
+
   const resetFormulario = useCallback(() => {
+    if (previewUrl?.startsWith("blob:")) {
+      URL.revokeObjectURL(previewUrl);
+    }
+
     setItens([]);
     setSelectedFile(null);
     setPreviewUrl(null);
@@ -261,7 +281,7 @@ export default function ComprasPage() {
       cnpj: "",
       categoria: "",
     });
-  }, []);
+  }, [previewUrl]);
 
   const fetchAllData = useCallback(async () => {
     try {
@@ -308,8 +328,16 @@ export default function ComprasPage() {
   }, [pId]);
 
   useEffect(() => {
-    fetchAllData();
+    void fetchAllData();
   }, [fetchAllData]);
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl?.startsWith("blob:")) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
 
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat("pt-BR", {
@@ -461,71 +489,49 @@ export default function ComprasPage() {
     [aplicarDadosDaIA, pId, uploadArquivo]
   );
 
-const normalizarLinkNfe = (valor: string): string => {
-  let url = valor.trim();
+  const extrairDadosPorLink = useCallback(async () => {
+    const linkNormalizado = normalizarLinkNfe(linkNfe);
 
-  // remove espaços e quebras
-  url = url.replace(/\s+/g, "");
-
-  // tenta extrair a primeira URL válida dentro do texto
-  const match = url.match(/https?:\/\/[^\s]+/i);
-  if (match?.[0]) {
-    url = match[0];
-  }
-
-  // se vier sem protocolo, tenta completar
-  if (url && !/^https?:\/\//i.test(url)) {
-    url = `https://${url}`;
-  }
-
-  return url;
-};
-
-
-const extrairDadosPorLink = useCallback(async () => {
-  const linkNormalizado = normalizarLinkNfe(linkNfe);
-
-  if (!linkNormalizado) {
-    setErroExtracao("Cole um link válido da NFC-e.");
-    return;
-  }
-
-  setExtraindo(true);
-  setErroExtracao(null);
-
-  try {
-    const response = await fetch("/api/ia/ler-link", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-pizzaria-id": pId,
-      },
-      body: JSON.stringify({
-        url: linkNormalizado,
-      }),
-    });
-
-    const dados = await response.json().catch(() => null);
-
-    if (!response.ok) {
-      throw new Error(
-        dados?.error ||
-          dados?.details ||
-          "Falha ao ler link da NFC-e."
-      );
+    if (!linkNormalizado) {
+      setErroExtracao("Cole um link válido da NFC-e.");
+      return;
     }
 
-    aplicarDadosDaIA(dados);
-    setLinkNfe(linkNormalizado);
-  } catch (err: any) {
-    setErroExtracao(
-      err?.message ||
-        "Não foi possível ler a nota a partir deste link. Verifique se é um link válido da Sefaz."
-    );
-  } finally {
-    setExtraindo(false);
-  }
-}, [aplicarDadosDaIA, linkNfe, pId]);
+    setExtraindo(true);
+    setErroExtracao(null);
+
+    try {
+      const response = await fetch("/api/ia/ler-link", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-pizzaria-id": pId,
+        },
+        body: JSON.stringify({
+          url: linkNormalizado,
+        }),
+      });
+
+      const dados = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(
+          dados?.error || dados?.details || "Falha ao ler link da NFC-e."
+        );
+      }
+
+      aplicarDadosDaIA(dados);
+      setLinkNfe(linkNormalizado);
+      setShowLinkInput(false);
+    } catch (err: any) {
+      setErroExtracao(
+        err?.message ||
+          "Não foi possível ler a nota a partir deste link. Verifique se é um link válido da Sefaz."
+      );
+    } finally {
+      setExtraindo(false);
+    }
+  }, [aplicarDadosDaIA, linkNfe, normalizarLinkNfe, pId]);
 
   const importarListaTexto = useCallback(async () => {
     if (!textoLista.trim()) return;
@@ -583,6 +589,10 @@ const extrairDadosPorLink = useCallback(async () => {
       const file = e.target.files?.[0];
       if (!file) return;
 
+      if (previewUrl?.startsWith("blob:")) {
+        URL.revokeObjectURL(previewUrl);
+      }
+
       setSelectedFile(file);
       setErroExtracao(null);
 
@@ -595,16 +605,8 @@ const extrairDadosPorLink = useCallback(async () => {
 
       void extrairDadosIA(file);
     },
-    [extrairDadosIA]
+    [extrairDadosIA, previewUrl]
   );
-
-  useEffect(() => {
-    return () => {
-      if (previewUrl?.startsWith("blob:")) {
-        URL.revokeObjectURL(previewUrl);
-      }
-    };
-  }, [previewUrl]);
 
   const adicionarItem = () => {
     if (!novoItem.produto || !novoItem.quantidade || !novoItem.valor_unitario) return;
@@ -720,11 +722,12 @@ const extrairDadosPorLink = useCallback(async () => {
 
           if (barcodes && barcodes.length > 0) {
             const raw = barcodes[0]?.rawValue || "";
+
             if (raw) {
               stopQr();
               setShowQrDialog(false);
               setShowLinkInput(true);
-              setLinkNfe(raw);
+              setLinkNfe(normalizarLinkNfe(raw));
               return;
             }
           }
@@ -739,12 +742,11 @@ const extrairDadosPorLink = useCallback(async () => {
     } catch (err: any) {
       setQrError(err?.message || "Não foi possível abrir a câmera.");
     }
-  }, [stopQr]);
+  }, [normalizarLinkNfe, stopQr]);
 
   useEffect(() => {
     if (!showQrDialog) stopQr();
   }, [showQrDialog, stopQr]);
-
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1003,8 +1005,7 @@ const extrairDadosPorLink = useCallback(async () => {
                             <div className="flex-1 p-6 w-full">
                               <div className="flex justify-between items-start mb-2">
                                 <h3 className="font-black italic uppercase text-gray-900 tracking-tight text-xl leading-none">
-                                  {compra.fornecedor_nome ||
-                                    "Fornecedor não identificado"}
+                                  {compra.fornecedor_nome || "Fornecedor não identificado"}
                                 </h3>
                                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
                                   ID: #{compra.id}
@@ -1019,9 +1020,7 @@ const extrairDadosPorLink = useCallback(async () => {
                                   {statusInfo.label}
                                 </span>
                                 <span className="text-xs font-bold text-gray-500 bg-gray-100 px-3 py-1.5 rounded-xl">
-                                  {new Date(compra.data_pedido).toLocaleDateString(
-                                    "pt-BR"
-                                  )}
+                                  {new Date(compra.data_pedido).toLocaleDateString("pt-BR")}
                                 </span>
                               </div>
                             </div>
@@ -1033,13 +1032,10 @@ const extrairDadosPorLink = useCallback(async () => {
                                 </p>
                                 <p className="font-black italic text-2xl text-gray-900">
                                   R${" "}
-                                  {Number(compra.valor_total).toLocaleString(
-                                    "pt-BR",
-                                    {
-                                      minimumFractionDigits: 2,
-                                      maximumFractionDigits: 2,
-                                    }
-                                  )}
+                                  {Number(compra.valor_total).toLocaleString("pt-BR", {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                  })}
                                 </p>
                               </div>
                             </div>
@@ -1065,6 +1061,7 @@ const extrairDadosPorLink = useCallback(async () => {
               </div>
 
               <button
+                type="button"
                 onClick={() => {
                   setShowForm(false);
                   resetFormulario();
@@ -1242,6 +1239,9 @@ const extrairDadosPorLink = useCallback(async () => {
                         <button
                           type="button"
                           onClick={() => {
+                            if (previewUrl?.startsWith("blob:")) {
+                              URL.revokeObjectURL(previewUrl);
+                            }
                             setSelectedFile(null);
                             setPreviewUrl(null);
                           }}
@@ -1293,7 +1293,10 @@ const extrairDadosPorLink = useCallback(async () => {
                       {!showLinkInput ? (
                         <button
                           type="button"
-                          onClick={() => setShowLinkInput(true)}
+                          onClick={() => {
+                            setShowLinkInput(true);
+                            setErroExtracao(null);
+                          }}
                           className="col-span-2 h-12 rounded-[18px] border border-gray-200 bg-white flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors text-gray-600"
                         >
                           <LinkIcon size={16} />
@@ -1315,15 +1318,22 @@ const extrairDadosPorLink = useCallback(async () => {
                           <Button
                             type="button"
                             onClick={() => void extrairDadosPorLink()}
-                            disabled={!linkNfe.trim() || extraindo}
+                            disabled={!normalizarLinkNfe(linkNfe) || extraindo}
                             className="h-12 px-4 rounded-2xl bg-blue-600 text-white hover:bg-blue-700 font-bold"
                           >
-                            <Check size={16} />
+                            {extraindo ? (
+                              <Loader2 size={16} className="animate-spin" />
+                            ) : (
+                              <Check size={16} />
+                            )}
                           </Button>
                           <Button
                             type="button"
                             variant="ghost"
-                            onClick={() => setShowLinkInput(false)}
+                            onClick={() => {
+                              setShowLinkInput(false);
+                              setLinkNfe("");
+                            }}
                             className="h-12 px-3 rounded-2xl text-gray-400 hover:bg-gray-100"
                           >
                             <X size={16} />

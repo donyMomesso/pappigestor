@@ -2,26 +2,52 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Plus, Camera, X, Check, Trash2, Package, Pencil, FileText, Loader2, Sparkles,
-  ClipboardPaste, Upload, Link as LinkIcon, QrCode, BrainCircuit, ArrowLeft,
-  ShoppingCart, TrendingDown, Building2, Search, Truck, CheckCircle2, Clock
+  Plus,
+  Camera,
+  X,
+  Check,
+  Trash2,
+  Package,
+  Pencil,
+  FileText,
+  Loader2,
+  Sparkles,
+  ClipboardPaste,
+  Upload,
+  Link as LinkIcon,
+  QrCode,
+  BrainCircuit,
+  ArrowLeft,
+  ShoppingCart,
+  TrendingDown,
+  Building2,
+  Search,
+  Truck,
+  CheckCircle2,
+  Clock,
 } from "lucide-react";
 import { Button } from "@/react-app/components/ui/button";
 import { Input } from "@/react-app/components/ui/input";
 import { Label } from "@/react-app/components/ui/label";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/react-app/components/ui/select";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
 } from "@/react-app/components/ui/dialog";
 import { Textarea } from "@/react-app/components/ui/textarea";
 import { Card, CardContent } from "@/react-app/components/ui/card";
 import Link from "next/link";
 
-// ==========================================
-// BANCO DE DADOS LOCAL - FOOD SERVICE EMBUTIDO
-// ==========================================
 interface ProdutoFoodService {
   id: string;
   nome: string;
@@ -73,23 +99,27 @@ const PRODUTOS_FOOD_SERVICE: ProdutoFoodService[] = [
 ];
 
 function buscarProdutosFoodService(termo: string): ProdutoFoodService[] {
-  if (!termo || termo.length < 2) return [];
+  if (!termo || termo.trim().length < 2) return [];
   const termoLower = termo.toLowerCase();
+
   return PRODUTOS_FOOD_SERVICE.filter(
     (p) =>
       p.nome.toLowerCase().includes(termoLower) ||
-      String((p as any).descricao ?? (p as any).description ?? (p as any).desc ?? (p as any).observacao ?? "").toLowerCase().includes(termoLower) ||
+      p.descricao.toLowerCase().includes(termoLower) ||
       p.categoria.toLowerCase().includes(termoLower)
   );
 }
 
-// ==========================================
-// RESTANTE DO CÓDIGO
-// ==========================================
 const CATEGORIAS = [
-  "Alimentos", "Bebidas", "Embalagens", "Limpeza", "Equipamentos", "Outros",
+  "Alimentos",
+  "Bebidas",
+  "Embalagens",
+  "Limpeza",
+  "Equipamentos",
+  "Outros",
 ];
-const UNIDADES = ["un", "kg", "g", "L", "ml", "cx", "pct", "fd"];
+
+const UNIDADES = ["un", "kg", "g", "L", "ml", "cx", "pct", "fd", "sc", "pc"];
 
 interface ItemCompra {
   id: string;
@@ -118,10 +148,35 @@ interface ItemListaCompras {
   status_solicitacao: string;
 }
 
-const STATUS_COMPRA_LABELS: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
-  pendente: { label: "Aguarda Aprovação", color: "bg-yellow-100 text-yellow-700", icon: <Clock className="w-3 h-3" /> },
-  aprovado: { label: "Aprovado (A Aguardar)", color: "bg-blue-100 text-blue-700", icon: <Truck className="w-3 h-3" /> },
-  recebido: { label: "Recebido no Stock", color: "bg-green-100 text-green-700", icon: <CheckCircle2 className="w-3 h-3" /> },
+const STATUS_COMPRA_LABELS: Record<
+  string,
+  { label: string; color: string; icon: React.ReactNode }
+> = {
+  pendente: {
+    label: "Aguarda Aprovação",
+    color: "bg-yellow-100 text-yellow-700",
+    icon: <Clock className="w-3 h-3" />,
+  },
+  aprovado: {
+    label: "Aprovado (A Aguardar)",
+    color: "bg-blue-100 text-blue-700",
+    icon: <Truck className="w-3 h-3" />,
+  },
+  recebido: {
+    label: "Recebido no Stock",
+    color: "bg-green-100 text-green-700",
+    icon: <CheckCircle2 className="w-3 h-3" />,
+  },
+};
+
+type IAResponseLike = {
+  error?: string;
+  dados?: any;
+  data?: any;
+  itens?: any[];
+  fornecedor?: string;
+  categoria?: string;
+  cnpj?: string;
 };
 
 export default function ComprasPage() {
@@ -151,11 +206,12 @@ export default function ComprasPage() {
   const [formData, setFormData] = useState({
     data_pedido: new Date().toISOString().split("T")[0],
     fornecedor: "",
-    cnpj: "", 
+    cnpj: "",
     categoria: "",
   });
 
-  const [novoItem, setNovoItem] = useState({
+  const [novoItem, setNovoItem] = useState<ItemCompra>({
+    id: "",
     produto: "",
     quantidade: "",
     unidade: "un",
@@ -177,15 +233,45 @@ export default function ComprasPage() {
   const streamRef = useRef<MediaStream | null>(null);
   const [qrError, setQrError] = useState<string | null>(null);
 
+  const pId =
+    typeof window !== "undefined" ? localStorage.getItem("pId") || "" : "";
+
+  const resetFormulario = useCallback(() => {
+    setItens([]);
+    setSelectedFile(null);
+    setPreviewUrl(null);
+    setFornecedorOutro(false);
+    setFornecedorCustom("");
+    setTextoLista("");
+    setErroExtracao(null);
+    setErroImportacao(null);
+    setLinkNfe("");
+    setShowLinkInput(false);
+    setEditandoItem(null);
+    setNovoItem({
+      id: "",
+      produto: "",
+      quantidade: "",
+      unidade: "un",
+      valor_unitario: "",
+    });
+    setFormData({
+      data_pedido: new Date().toISOString().split("T")[0],
+      fornecedor: "",
+      cnpj: "",
+      categoria: "",
+    });
+  }, []);
+
   const fetchAllData = useCallback(async () => {
     try {
-      const pId = localStorage.getItem("pId") || "";
+      setDashboardLoading(true);
       const headers = { "x-pizzaria-id": pId };
 
       const [resForn, resCompras, resItens] = await Promise.all([
         fetch("/api/fornecedores", { headers }).catch(() => null),
         fetch("/api/compras", { headers }).catch(() => null),
-        fetch("/api/lista-compras", { headers }).catch(() => null)
+        fetch("/api/lista-compras", { headers }).catch(() => null),
       ]);
 
       if (resForn?.ok) {
@@ -199,227 +285,363 @@ export default function ComprasPage() {
 
       if (resCompras?.ok) {
         const data = (await resCompras.json()) as CompraHistorico[];
-        data.sort((a, b) => new Date(b.data_pedido).getTime() - new Date(a.data_pedido).getTime());
+        data.sort(
+          (a, b) =>
+            new Date(b.data_pedido).getTime() - new Date(a.data_pedido).getTime()
+        );
         setComprasHistorico(data);
+      } else {
+        setComprasHistorico([]);
       }
 
       if (resItens?.ok) {
         const data = (await resItens.json()) as ItemListaCompras[];
-        setItensEmCotacao(data.filter(i => i.status_solicitacao === "em_cotacao"));
+        setItensEmCotacao(data.filter((i) => i.status_solicitacao === "em_cotacao"));
+      } else {
+        setItensEmCotacao([]);
       }
-
     } catch (e) {
       console.error("Erro ao carregar dados:", e);
     } finally {
       setDashboardLoading(false);
     }
-  }, []);
+  }, [pId]);
 
   useEffect(() => {
     fetchAllData();
   }, [fetchAllData]);
 
-  const aplicarDadosDaIA = (dados: any) => {
-    if (dados?.error) {
-      setErroExtracao(dados.error);
-      return;
-    }
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    }).format(value);
 
-    const responseIA = dados?.data || dados;
+  const calcularTotal = () =>
+    itens.reduce((total, item) => {
+      const qtd = Number.parseFloat(item.quantidade) || 0;
+      const unit = Number.parseFloat(item.valor_unitario) || 0;
+      return total + qtd * unit;
+    }, 0);
 
-    if (responseIA?.fornecedor) {
-      const nomeEncontrado = fornecedores.find(
-        (f) => f.nome_fantasia?.toLowerCase() === responseIA.fornecedor.toLowerCase() || 
-               f.razao_social?.toLowerCase() === responseIA.fornecedor.toLowerCase()
-      );
+  const aplicarDadosDaIA = useCallback(
+    (payload: IAResponseLike) => {
+      const responseIA = payload?.dados || payload?.data || payload;
 
-      if (nomeEncontrado) {
-        setFormData((prev) => ({ ...prev, fornecedor: nomeEncontrado.nome_fantasia || nomeEncontrado.razao_social, cnpj: "" }));
-        setFornecedorOutro(false);
-      } else {
-        setFornecedorOutro(true);
-        setFornecedorCustom(responseIA.fornecedor);
-        setFormData((prev) => ({ ...prev, fornecedor: "", cnpj: responseIA.cnpj || "" })); 
-      }
-    }
-
-    if (responseIA?.itens && Array.isArray(responseIA.itens)) {
-      const novosItens: ItemCompra[] = responseIA.itens
-        .map((item: any, index: number) => ({
-          id: `ia-${Date.now()}-${index}`,
-          produto: item.produto || "",
-          quantidade: String(item.qtd ?? item.quantidade ?? 1),
-          unidade: item.unidade || "un",
-          valor_unitario: String(item.preco_un ?? item.preco ?? item.valor_unitario ?? 0),
-        }))
-        .filter((item: ItemCompra) => item.produto);
-
-      if (novosItens.length > 0) {
-        setItens((prev) => [...prev, ...novosItens]);
-      }
-    }
-  };
-
-  const extrairDadosIA = async (file: File) => {
-    if (!file.type.startsWith("image/") && file.type !== "application/pdf") {
-      setErroExtracao("Extração automática disponível apenas para imagens e PDF.");
-      return;
-    }
-
-    setExtraindo(true);
-    setErroExtracao(null);
-    const pId = localStorage.getItem("pId") || "";
-
-    try {
-      const formDataToSend = new FormData();
-      formDataToSend.append("file", file);
-
-      const response = await fetch("/api/ia/ler-nota", {
-        method: "POST",
-        headers: { "x-pizzaria-id": pId },
-        body: formDataToSend,
-      });
-
-      const dados = (await response.json()) as any;
-
-      if (!response.ok) {
+      if (payload?.error || responseIA?.error) {
         setErroExtracao(
-          dados?.error ||
-            "Falha ao ler documento. Se for PDF e não estiver vindo itens, o backend precisa suportar PDF."
+          payload?.error || responseIA?.error || "Erro ao interpretar documento."
         );
         return;
       }
 
-      aplicarDadosDaIA(dados);
-    } catch {
-      setErroExtracao("Erro ao processar documento. Adicione os itens manualmente.");
-    } finally {
-      setExtraindo(false);
-    }
-  };
+      if (responseIA?.fornecedor) {
+        const fornecedorTexto = String(responseIA.fornecedor).trim();
 
-  const extrairDadosPorLink = async () => {
+        const nomeEncontrado = fornecedores.find(
+          (f) =>
+            f.nome_fantasia?.toLowerCase() === fornecedorTexto.toLowerCase() ||
+            f.razao_social?.toLowerCase() === fornecedorTexto.toLowerCase()
+        );
+
+        if (nomeEncontrado) {
+          setFormData((prev) => ({
+            ...prev,
+            fornecedor: nomeEncontrado.nome_fantasia || nomeEncontrado.razao_social,
+            cnpj: responseIA.cnpj || prev.cnpj,
+          }));
+          setFornecedorOutro(false);
+          setFornecedorCustom("");
+        } else {
+          setFornecedorOutro(true);
+          setFornecedorCustom(fornecedorTexto);
+          setFormData((prev) => ({
+            ...prev,
+            fornecedor: fornecedorTexto,
+            cnpj: responseIA.cnpj || prev.cnpj,
+          }));
+        }
+      }
+
+      if (responseIA?.categoria) {
+        const categoria = String(responseIA.categoria).trim();
+        if (categoria) {
+          setFormData((prev) => ({ ...prev, categoria }));
+        }
+      }
+
+      if (Array.isArray(responseIA?.itens)) {
+        const novosItens: ItemCompra[] = responseIA.itens
+          .map((item: any, index: number) => ({
+            id: `ia-${Date.now()}-${index}`,
+            produto: String(item.produto || item.nome || "").trim(),
+            quantidade: String(item.qtd ?? item.quantidade ?? 1),
+            unidade: String(item.unidade || "un").toLowerCase(),
+            valor_unitario: String(
+              item.preco_un ?? item.preco ?? item.valor_unitario ?? 0
+            ),
+          }))
+          .filter((item: ItemCompra) => item.produto);
+
+        if (novosItens.length > 0) {
+          setItens((prev) => [...prev, ...novosItens]);
+        } else {
+          setErroExtracao("A IA leu o documento, mas não encontrou itens válidos.");
+        }
+      } else {
+        setErroExtracao("A IA não retornou itens da nota.");
+      }
+    },
+    [fornecedores]
+  );
+
+  const uploadArquivo = useCallback(
+    async (file: File, type: "nota_fiscal" | "boleto" | "barcode_scan" = "nota_fiscal") => {
+      const uploadForm = new FormData();
+      uploadForm.append("file", file);
+      uploadForm.append("type", type);
+
+      const uploadRes = await fetch("/api/upload", {
+        method: "POST",
+        headers: { "x-pizzaria-id": pId },
+        body: uploadForm,
+      });
+
+      const uploadJson = await uploadRes.json().catch(() => null);
+
+      if (!uploadRes.ok || !uploadJson?.url) {
+        throw new Error(uploadJson?.error || "Falha ao enviar arquivo.");
+      }
+
+      return uploadJson.url as string;
+    },
+    [pId]
+  );
+
+  const extrairDadosIA = useCallback(
+    async (file: File) => {
+      if (!file.type.startsWith("image/") && file.type !== "application/pdf") {
+        setErroExtracao("Extração automática disponível apenas para imagens e PDF.");
+        return;
+      }
+
+      setExtraindo(true);
+      setErroExtracao(null);
+
+      try {
+        const fileUrl = await uploadArquivo(file, "nota_fiscal");
+
+        const leituraRes = await fetch("/api/ia/ler-nota", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-pizzaria-id": pId,
+          },
+          body: JSON.stringify({ image_url: fileUrl }),
+        });
+
+        const leituraJson = await leituraRes.json().catch(() => null);
+
+        if (!leituraRes.ok) {
+          throw new Error(
+            leituraJson?.error ||
+              "Falha ao ler documento. Verifique a API /api/ia/ler-nota."
+          );
+        }
+
+        aplicarDadosDaIA(leituraJson);
+      } catch (err: any) {
+        setErroExtracao(
+          err?.message || "Erro ao processar documento. Adicione os itens manualmente."
+        );
+      } finally {
+        setExtraindo(false);
+      }
+    },
+    [aplicarDadosDaIA, pId, uploadArquivo]
+  );
+
+  const extrairDadosPorLink = useCallback(async () => {
     if (!linkNfe.trim()) return;
+
     setExtraindo(true);
     setErroExtracao(null);
-    const pId = localStorage.getItem("pId") || "";
 
     try {
       const response = await fetch("/api/ia/ler-link", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-pizzaria-id": pId },
-        body: JSON.stringify({ url: linkNfe }),
+        headers: {
+          "Content-Type": "application/json",
+          "x-pizzaria-id": pId,
+        },
+        body: JSON.stringify({ url: linkNfe.trim() }),
       });
 
-      const dados = (await response.json()) as any;
-      if (!response.ok) throw new Error(dados?.error || "Falha na API");
+      const dados = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(dados?.error || "Falha ao ler link da NFC-e.");
+      }
 
       aplicarDadosDaIA(dados);
       setLinkNfe("");
       setShowLinkInput(false);
-    } catch {
+    } catch (err: any) {
       setErroExtracao(
-        "Não foi possível ler a nota a partir deste link. Verifique se é um link válido da Sefaz."
+        err?.message ||
+          "Não foi possível ler a nota a partir deste link. Verifique se é um link válido da Sefaz."
       );
     } finally {
       setExtraindo(false);
     }
-  };
+  }, [aplicarDadosDaIA, linkNfe, pId]);
 
-  const importarListaTexto = async () => {
+  const importarListaTexto = useCallback(async () => {
     if (!textoLista.trim()) return;
+
     setImportando(true);
     setErroImportacao(null);
-    const pId = localStorage.getItem("pId") || "";
 
     try {
       const response = await fetch("/api/ia/interpretar-lista", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-pizzaria-id": pId },
+        headers: {
+          "Content-Type": "application/json",
+          "x-pizzaria-id": pId,
+        },
         body: JSON.stringify({ texto: textoLista }),
       });
 
-      const dados = (await response.json()) as any;
-      if (!response.ok) throw new Error(dados?.error || "Falha na API");
+      const raw = await response.json().catch(() => null);
 
-      if (dados?.itens && Array.isArray(dados.itens)) {
-        const novosItens: ItemCompra[] = dados.itens
-          .map((item: any, index: number) => ({
-            id: `import-${Date.now()}-${index}`,
-            produto: item.produto || "",
-            quantidade: String(item.quantidade || 1),
-            unidade: item.unidade || "un",
-            valor_unitario: String(item.valor_unitario || "0"),
-          }))
-          .filter((item: ItemCompra) => item.produto);
-
-        setItens((prev) => [...prev, ...novosItens]);
-        setShowImportDialog(false);
-        setTextoLista("");
-      } else {
-        setErroImportacao("Não foi possível identificar itens no texto. Tente reformular.");
+      if (!response.ok) {
+        throw new Error(raw?.error || "Falha ao interpretar lista.");
       }
-    } catch {
-      setErroImportacao("Não foi possível identificar itens no texto. Tente reformular.");
+
+      const dados = raw?.dados || raw?.data || raw;
+      const itensInterpretados = Array.isArray(dados?.itens) ? dados.itens : [];
+
+      if (itensInterpretados.length === 0) {
+        throw new Error("Não foi possível identificar itens no texto.");
+      }
+
+      const novosItens: ItemCompra[] = itensInterpretados
+        .map((item: any, index: number) => ({
+          id: `import-${Date.now()}-${index}`,
+          produto: String(item.produto || item.nome || "").trim(),
+          quantidade: String(item.quantidade ?? item.qtd ?? 1),
+          unidade: String(item.unidade || "un").toLowerCase(),
+          valor_unitario: String(item.valor_unitario ?? item.preco ?? 0),
+        }))
+        .filter((item: ItemCompra) => item.produto);
+
+      setItens((prev) => [...prev, ...novosItens]);
+      setShowImportDialog(false);
+      setTextoLista("");
+    } catch (err: any) {
+      setErroImportacao(
+        err?.message || "Não foi possível identificar itens no texto."
+      );
     } finally {
       setImportando(false);
     }
-  };
+  }, [pId, textoLista]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
+  const handleFileChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
       setSelectedFile(file);
       setErroExtracao(null);
 
       if (file.type.startsWith("image/")) {
-        setPreviewUrl(URL.createObjectURL(file));
+        const localPreview = URL.createObjectURL(file);
+        setPreviewUrl(localPreview);
       } else {
         setPreviewUrl(null);
       }
 
-      extrairDadosIA(file);
-    }
-  };
+      void extrairDadosIA(file);
+    },
+    [extrairDadosIA]
+  );
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl?.startsWith("blob:")) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
 
   const adicionarItem = () => {
     if (!novoItem.produto || !novoItem.quantidade || !novoItem.valor_unitario) return;
-    setItens([...itens, { ...novoItem, id: Date.now().toString() }]);
-    setNovoItem({ produto: "", quantidade: "", unidade: "un", valor_unitario: "" });
+
+    setItens((prev) => [
+      ...prev,
+      {
+        ...novoItem,
+        id: Date.now().toString(),
+      },
+    ]);
+
+    setNovoItem({
+      id: "",
+      produto: "",
+      quantidade: "",
+      unidade: "un",
+      valor_unitario: "",
+    });
   };
 
-  const removerItem = (id: string) => setItens(itens.filter((item) => item.id !== id));
+  const removerItem = (id: string) => {
+    setItens((prev) => prev.filter((item) => item.id !== id));
+  };
 
   const editarItem = (item: ItemCompra) => {
     setEditandoItem(item.id);
-    setNovoItem({ ...item });
+    setNovoItem(item);
   };
 
   const salvarEdicao = () => {
-    setItens(itens.map((item) => (item.id === editandoItem ? { ...item, ...novoItem } : item)));
-    setEditandoItem(null);
-    setNovoItem({ produto: "", quantidade: "", unidade: "un", valor_unitario: "" });
-  };
+    if (!editandoItem) return;
 
-  const calcularTotal = () =>
-    itens.reduce(
-      (total, item) =>
-        total + (parseFloat(item.quantidade) || 0) * (parseFloat(item.valor_unitario) || 0),
-      0
+    setItens((prev) =>
+      prev.map((item) =>
+        item.id === editandoItem
+          ? {
+              ...item,
+              produto: novoItem.produto,
+              quantidade: novoItem.quantidade,
+              unidade: novoItem.unidade,
+              valor_unitario: novoItem.valor_unitario,
+            }
+          : item
+      )
     );
 
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
+    setEditandoItem(null);
+    setNovoItem({
+      id: "",
+      produto: "",
+      quantidade: "",
+      unidade: "un",
+      valor_unitario: "",
+    });
+  };
 
   const stopQr = useCallback(() => {
     if (qrLoopRef.current) {
       cancelAnimationFrame(qrLoopRef.current);
       qrLoopRef.current = null;
     }
+
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
     }
+
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
@@ -440,7 +662,10 @@ export default function ComprasPage() {
 
       streamRef.current = stream;
 
-      if (!videoRef.current) throw new Error("Vídeo não inicializado.");
+      if (!videoRef.current) {
+        throw new Error("Vídeo não inicializado.");
+      }
+
       videoRef.current.srcObject = stream;
       await videoRef.current.play();
 
@@ -461,19 +686,14 @@ export default function ComprasPage() {
         try {
           // @ts-ignore
           const barcodes = await detector.detect(videoRef.current);
+
           if (barcodes && barcodes.length > 0) {
             const raw = barcodes[0]?.rawValue || "";
             if (raw) {
               stopQr();
               setShowQrDialog(false);
-
               setShowLinkInput(true);
               setLinkNfe(raw);
-
-              setTimeout(() => {
-                extrairDadosPorLink();
-              }, 50);
-
               return;
             }
           }
@@ -488,60 +708,101 @@ export default function ComprasPage() {
     } catch (err: any) {
       setQrError(err?.message || "Não foi possível abrir a câmera.");
     }
-  }, [extrairDadosPorLink, stopQr]);
+  }, [stopQr]);
 
   useEffect(() => {
     if (!showQrDialog) stopQr();
   }, [showQrDialog, stopQr]);
 
+  useEffect(() => {
+    if (showLinkInput && linkNfe.trim().startsWith("http")) {
+      void extrairDadosPorLink();
+    }
+  }, [extrairDadosPorLink, linkNfe, showLinkInput]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (itens.length === 0) return alert("Adicione pelo menos um item à compra");
+
+    if (itens.length === 0) {
+      alert("Adicione pelo menos um item à compra");
+      return;
+    }
+
+    const fornecedorFinal = fornecedorOutro
+      ? fornecedorCustom.trim()
+      : formData.fornecedor.trim();
+
+    if (!fornecedorFinal) {
+      alert("Informe o fornecedor.");
+      return;
+    }
+
+    if (!formData.categoria) {
+      alert("Informe a categoria.");
+      return;
+    }
 
     setLoading(true);
-    try {
-      const data = new FormData();
-      data.append("data_pedido", formData.data_pedido);
-      data.append("fornecedor", formData.fornecedor);
-      data.append("categoria", formData.categoria);
-      data.append("valor_previsto", calcularTotal().toString());
-      data.append("itens", JSON.stringify(itens));
-      if (selectedFile) data.append("anexo", selectedFile);
 
-      // Simula tempo de envio
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+    try {
+      let anexoUrl: string | null = null;
+
+      if (selectedFile) {
+        anexoUrl = await uploadArquivo(selectedFile, "nota_fiscal");
+      }
+
+      const lancamentoRes = await fetch("/api/lancamentos", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-pizzaria-id": pId,
+        },
+        body: JSON.stringify({
+          data_pedido: formData.data_pedido,
+          fornecedor: fornecedorFinal,
+          categoria: formData.categoria,
+          valor_previsto: calcularTotal(),
+          anexo_url: anexoUrl,
+          observacao: `Lançamento criado via Compras com ${itens.length} item(ns).`,
+          is_manual: false,
+        }),
+      });
+
+      const lancamentoJson = await lancamentoRes.json().catch(() => null);
+
+      if (!lancamentoRes.ok) {
+        throw new Error(lancamentoJson?.error || "Erro ao salvar lançamento.");
+      }
 
       setSuccess(true);
+
       setTimeout(() => {
         setSuccess(false);
         setShowForm(false);
-        setItens([]);
-        setSelectedFile(null);
-        setPreviewUrl(null);
-        setFornecedorOutro(false);
-        setFornecedorCustom("");
-        setFormData({ ...formData, cnpj: "" });
-        
-        // Recarregar os dados após fechar a compra
-        fetchAllData();
-
-      }, 2500);
-    } catch {
-      alert("Erro ao salvar a provisão");
+        resetFormulario();
+        void fetchAllData();
+      }, 1800);
+    } catch (err: any) {
+      alert(err?.message || "Erro ao salvar a provisão");
     } finally {
       setLoading(false);
     }
   };
 
-  const comprasFiltradas = comprasHistorico.filter(compra => {
+  const comprasFiltradas = comprasHistorico.filter((compra) => {
     const searchLower = searchQuery.toLowerCase();
-    const matchSearch = 
-      (compra.fornecedor_nome && compra.fornecedor_nome.toLowerCase().includes(searchLower)) ||
-      compra.id.toString().includes(searchLower);
-    return matchSearch;
+    const fornecedor = compra.fornecedor_nome?.toLowerCase() || "";
+    const id = String(compra.id).toLowerCase();
+
+    return fornecedor.includes(searchLower) || id.includes(searchLower);
   });
 
-  const totalGeral = comprasFiltradas.reduce((acc, c) => acc + Number(c.valor_total || 0), 0);
+  const totalGeral = comprasFiltradas.reduce(
+    (acc, c) => acc + Number(c.valor_total || 0),
+    0
+  );
+
+  const sugestoesProduto = buscarProdutosFoodService(novoItem.produto);
 
   if (success) {
     return (
@@ -563,7 +824,6 @@ export default function ComprasPage() {
 
   return (
     <div className="relative min-h-[80vh] pb-12">
-      
       <div className="fixed inset-0 pointer-events-none flex items-center justify-center z-0 overflow-hidden">
         <div className="flex flex-col items-center justify-center opacity-[0.03] select-none scale-150">
           <BrainCircuit className="w-64 h-64 text-orange-900" />
@@ -574,31 +834,40 @@ export default function ComprasPage() {
       </div>
 
       <div className="max-w-6xl mx-auto space-y-8 relative z-10">
-        
         {!showForm ? (
           <div className="animate-in fade-in duration-700 space-y-8">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
               <div className="flex items-center gap-4">
-                <Link href="/app" className="p-3 bg-white border border-gray-100 rounded-2xl hover:bg-orange-50 text-gray-400 hover:text-orange-600 transition-all shadow-sm">
+                <Link
+                  href="/app"
+                  className="p-3 bg-white border border-gray-100 rounded-2xl hover:bg-orange-50 text-gray-400 hover:text-orange-600 transition-all shadow-sm"
+                >
                   <ArrowLeft size={20} />
                 </Link>
                 <div>
                   <h1 className="text-4xl font-black italic uppercase tracking-tighter text-gray-900 leading-none">
                     Gestão de <span className="text-orange-500">Compras</span>
                   </h1>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest italic mt-1">Lançamento de Despesas e NFe</p>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest italic mt-1">
+                    Lançamento de Despesas e NFe
+                  </p>
                 </div>
               </div>
 
               <div className="flex items-center gap-3">
-                <Button onClick={() => setShowForm(true)} className="h-12 px-6 rounded-2xl bg-gradient-to-r from-orange-600 to-pink-600 hover:scale-105 transition-transform shadow-lg shadow-orange-200 text-white font-black italic uppercase text-xs tracking-widest">
+                <Button
+                  onClick={() => setShowForm(true)}
+                  className="h-12 px-6 rounded-2xl bg-gradient-to-r from-orange-600 to-pink-600 hover:scale-105 transition-transform shadow-lg shadow-orange-200 text-white font-black italic uppercase text-xs tracking-widest"
+                >
                   <Plus size={18} className="mr-2" /> Importar NFe / Novo
                 </Button>
               </div>
             </div>
 
             {dashboardLoading ? (
-              <div className="flex justify-center py-12"><Loader2 className="animate-spin text-orange-500 w-8 h-8" /></div>
+              <div className="flex justify-center py-12">
+                <Loader2 className="animate-spin text-orange-500 w-8 h-8" />
+              </div>
             ) : (
               <>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -607,17 +876,29 @@ export default function ComprasPage() {
                       <FileText className="w-24 h-24" />
                     </div>
                     <CardContent className="p-6 relative z-10">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-orange-400 mb-2">Pedidos Registrados</p>
-                      <p className="text-4xl font-black italic">{comprasHistorico.length}</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-orange-400 mb-2">
+                        Pedidos Registrados
+                      </p>
+                      <p className="text-4xl font-black italic">
+                        {comprasHistorico.length}
+                      </p>
                     </CardContent>
                   </Card>
-                  
+
                   <Card className="rounded-[30px] border border-gray-100 shadow-sm relative overflow-hidden">
                     <CardContent className="p-6">
                       <div className="flex justify-between items-start">
                         <div>
-                          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Total Investido (Período)</p>
-                          <p className="text-3xl font-black text-gray-900">R$ {totalGeral.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">
+                            Total Investido (Período)
+                          </p>
+                          <p className="text-3xl font-black text-gray-900">
+                            R${" "}
+                            {totalGeral.toLocaleString("pt-BR", {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}
+                          </p>
                         </div>
                         <div className="w-12 h-12 rounded-[20px] bg-red-50 flex items-center justify-center">
                           <TrendingDown className="w-6 h-6 text-red-500" />
@@ -630,8 +911,12 @@ export default function ComprasPage() {
                     <CardContent className="p-6">
                       <div className="flex justify-between items-start">
                         <div>
-                          <p className="text-[10px] font-black uppercase tracking-widest text-orange-600 mb-2">Itens Aguardando Compra</p>
-                          <p className="text-3xl font-black text-orange-900">{itensEmCotacao.length}</p>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-orange-600 mb-2">
+                            Itens Aguardando Compra
+                          </p>
+                          <p className="text-3xl font-black text-orange-900">
+                            {itensEmCotacao.length}
+                          </p>
                         </div>
                         <div className="w-12 h-12 rounded-[20px] bg-white flex items-center justify-center shadow-sm">
                           <ShoppingCart className="w-6 h-6 text-orange-600" />
@@ -643,11 +928,14 @@ export default function ComprasPage() {
 
                 <div className="flex flex-col lg:flex-row gap-4 items-center bg-white p-2 rounded-[30px] border border-gray-100 shadow-sm">
                   <div className="flex-1 relative w-full">
-                    <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                    <Input 
-                      className="pl-14 h-14 rounded-[24px] border-0 bg-transparent font-bold text-gray-600 w-full focus-visible:ring-0" 
-                      placeholder="Procurar por fornecedor ou ID do pedido..." 
-                      value={searchQuery} 
+                    <Search
+                      className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400"
+                      size={20}
+                    />
+                    <Input
+                      className="pl-14 h-14 rounded-[24px] border-0 bg-transparent font-bold text-gray-600 w-full focus-visible:ring-0"
+                      placeholder="Procurar por fornecedor ou ID do pedido..."
+                      value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                     />
                   </div>
@@ -657,44 +945,75 @@ export default function ComprasPage() {
                   {comprasFiltradas.length === 0 ? (
                     <div className="text-center bg-white rounded-[45px] p-12 border border-gray-100 shadow-sm">
                       <FileText className="w-16 h-16 text-gray-200 mx-auto mb-4" />
-                      <p className="text-sm font-black italic uppercase text-gray-400 tracking-widest">Nenhum pedido registrado ainda.</p>
-                      <Button onClick={() => setShowForm(true)} variant="link" className="text-orange-500 font-bold mt-2">Fazer o primeiro lançamento</Button>
+                      <p className="text-sm font-black italic uppercase text-gray-400 tracking-widest">
+                        Nenhum pedido registrado ainda.
+                      </p>
+                      <Button
+                        onClick={() => setShowForm(true)}
+                        variant="link"
+                        className="text-orange-500 font-bold mt-2"
+                      >
+                        Fazer o primeiro lançamento
+                      </Button>
                     </div>
                   ) : (
                     comprasFiltradas.map((compra) => {
-                      const statusInfo = STATUS_COMPRA_LABELS[compra.status] || STATUS_COMPRA_LABELS.recebido;
+                      const statusInfo =
+                        STATUS_COMPRA_LABELS[compra.status] ||
+                        STATUS_COMPRA_LABELS.recebido;
+
                       return (
-                        <Card key={compra.id} className="border-gray-100 rounded-[30px] transition-all hover:shadow-lg bg-white overflow-hidden group">
+                        <Card
+                          key={compra.id}
+                          className="border-gray-100 rounded-[30px] transition-all hover:shadow-lg bg-white overflow-hidden group"
+                        >
                           <CardContent className="p-0 flex flex-col sm:flex-row items-center">
                             <div className="p-6 flex items-center justify-center border-r border-gray-50 bg-gray-50/50 group-hover:bg-orange-50 transition-colors w-full sm:w-auto">
                               <div className="w-14 h-14 rounded-[20px] bg-white border border-gray-100 flex items-center justify-center shadow-sm">
                                 <Building2 className="w-6 h-6 text-gray-400 group-hover:text-orange-600 transition-colors" />
                               </div>
                             </div>
+
                             <div className="flex-1 p-6 w-full">
                               <div className="flex justify-between items-start mb-2">
                                 <h3 className="font-black italic uppercase text-gray-900 tracking-tight text-xl leading-none">
-                                  {compra.fornecedor_nome || "Fornecedor não identificado"}
+                                  {compra.fornecedor_nome ||
+                                    "Fornecedor não identificado"}
                                 </h3>
                                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
                                   ID: #{compra.id}
                                 </span>
                               </div>
+
                               <div className="flex flex-wrap items-center gap-3 mt-4">
-                                <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest ${statusInfo.color}`}>
+                                <span
+                                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest ${statusInfo.color}`}
+                                >
                                   {statusInfo.icon}
                                   {statusInfo.label}
                                 </span>
                                 <span className="text-xs font-bold text-gray-500 bg-gray-100 px-3 py-1.5 rounded-xl">
-                                  {new Date(compra.data_pedido).toLocaleDateString('pt-BR')}
+                                  {new Date(compra.data_pedido).toLocaleDateString(
+                                    "pt-BR"
+                                  )}
                                 </span>
                               </div>
                             </div>
+
                             <div className="p-6 bg-gray-50 flex items-center gap-6 border-l border-gray-100 w-full sm:w-auto justify-between sm:justify-end rounded-b-[30px] sm:rounded-none sm:rounded-r-[30px]">
                               <div className="text-left sm:text-right min-w-[120px]">
-                                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Valor Total</p>
+                                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">
+                                  Valor Total
+                                </p>
                                 <p className="font-black italic text-2xl text-gray-900">
-                                  R$ {Number(compra.valor_total).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                  R${" "}
+                                  {Number(compra.valor_total).toLocaleString(
+                                    "pt-BR",
+                                    {
+                                      minimumFractionDigits: 2,
+                                      maximumFractionDigits: 2,
+                                    }
+                                  )}
                                 </p>
                               </div>
                             </div>
@@ -708,7 +1027,6 @@ export default function ComprasPage() {
             )}
           </div>
         ) : (
-          
           <div className="max-w-4xl mx-auto bg-white/95 backdrop-blur-md rounded-[45px] p-10 border border-gray-100 shadow-xl animate-in slide-in-from-bottom-8 duration-500 relative overflow-hidden">
             <div className="mb-10 border-b border-gray-50 pb-6 flex items-center justify-between">
               <div>
@@ -719,8 +1037,12 @@ export default function ComprasPage() {
                   Importe a NFC-e ou insira os dados do pedido
                 </p>
               </div>
+
               <button
-                onClick={() => setShowForm(false)}
+                onClick={() => {
+                  setShowForm(false);
+                  resetFormulario();
+                }}
                 className="w-12 h-12 bg-gray-50 text-gray-400 hover:text-red-500 rounded-[18px] flex items-center justify-center transition-colors"
               >
                 <X size={20} />
@@ -737,7 +1059,9 @@ export default function ComprasPage() {
                     <Input
                       type="date"
                       value={formData.data_pedido}
-                      onChange={(e) => setFormData({ ...formData, data_pedido: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, data_pedido: e.target.value })
+                      }
                       required
                       className="h-12 rounded-2xl font-bold bg-gray-50/50 border-gray-100"
                     />
@@ -753,7 +1077,8 @@ export default function ComprasPage() {
                         value={formData.fornecedor}
                         onValueChange={(v) =>
                           v === "__outro__"
-                            ? (setFornecedorOutro(true), setFormData({ ...formData, fornecedor: "" }))
+                            ? (setFornecedorOutro(true),
+                              setFormData({ ...formData, fornecedor: "" }))
                             : setFormData({ ...formData, fornecedor: v })
                         }
                       >
@@ -762,14 +1087,17 @@ export default function ComprasPage() {
                         </SelectTrigger>
                         <SelectContent className="rounded-[24px] bg-white border border-gray-100 shadow-xl z-50">
                           {fornecedores.map((f) => (
-                          <SelectItem
-  key={f.id}
-  value={f.nome_fantasia || f.razao_social}
->
-  {f.nome_fantasia || f.razao_social}
-</SelectItem>
+                            <SelectItem
+                              key={f.id}
+                              value={f.nome_fantasia || f.razao_social}
+                            >
+                              {f.nome_fantasia || f.razao_social}
+                            </SelectItem>
                           ))}
-                          <SelectItem value="__outro__" className="text-orange-600 font-black italic rounded-xl cursor-pointer hover:bg-orange-50">
+                          <SelectItem
+                            value="__outro__"
+                            className="text-orange-600 font-black italic rounded-xl cursor-pointer hover:bg-orange-50"
+                          >
                             + Digitar Outro
                           </SelectItem>
                         </SelectContent>
@@ -789,7 +1117,9 @@ export default function ComprasPage() {
                         <Input
                           placeholder="CNPJ (opcional)"
                           value={formData.cnpj}
-                          onChange={(e) => setFormData({ ...formData, cnpj: e.target.value })}
+                          onChange={(e) =>
+                            setFormData({ ...formData, cnpj: e.target.value })
+                          }
                           className="col-span-8 sm:col-span-5 h-12 rounded-2xl font-bold bg-gray-50/50 border-orange-200"
                         />
                         <Button
@@ -815,14 +1145,17 @@ export default function ComprasPage() {
                     <Select
                       value={formData.categoria}
                       onValueChange={(v) => setFormData({ ...formData, categoria: v })}
-                      required
                     >
                       <SelectTrigger className="h-12 rounded-2xl font-bold bg-gray-50/50 border-gray-100">
                         <SelectValue placeholder="Categoria da despesa" />
                       </SelectTrigger>
                       <SelectContent className="rounded-[24px] bg-white border border-gray-100 shadow-xl z-50">
                         {CATEGORIAS.map((cat) => (
-                          <SelectItem key={cat} value={cat} className="rounded-xl cursor-pointer hover:bg-orange-50">
+                          <SelectItem
+                            key={cat}
+                            value={cat}
+                            className="rounded-xl cursor-pointer hover:bg-orange-50"
+                          >
                             {cat}
                           </SelectItem>
                         ))}
@@ -868,12 +1201,17 @@ export default function ComprasPage() {
                             {selectedFile.name}
                           </span>
                           <span className="text-[10px] text-gray-400 text-center">
-                            Se o PDF não estiver vindo itens, o backend precisa suportar PDF (extração).
+                            O PDF foi enviado. A leitura depende da API /api/ia/ler-nota suportar PDF.
                           </span>
                         </div>
                       ) : (
-                        <img src={previewUrl || ""} alt="Preview" className="w-full h-full object-cover" />
+                        <img
+                          src={previewUrl || ""}
+                          alt="Preview"
+                          className="w-full h-full object-cover"
+                        />
                       )}
+
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                         <button
                           type="button"
@@ -950,8 +1288,8 @@ export default function ComprasPage() {
                           </div>
                           <Button
                             type="button"
-                            onClick={extrairDadosPorLink}
-                            disabled={!linkNfe || extraindo}
+                            onClick={() => void extrairDadosPorLink()}
+                            disabled={!linkNfe.trim() || extraindo}
                             className="h-12 px-4 rounded-2xl bg-blue-600 text-white hover:bg-blue-700 font-bold"
                           >
                             <Check size={16} />
@@ -1005,15 +1343,18 @@ export default function ComprasPage() {
                           </span>
                           <span className="text-xs font-bold text-gray-400">
                             {item.quantidade} {item.unidade} ×{" "}
-                            {formatCurrency(parseFloat(item.valor_unitario))}
+                            {formatCurrency(Number.parseFloat(item.valor_unitario) || 0)}
                           </span>
                         </div>
+
                         <div className="flex items-center gap-6">
                           <span className="font-black text-orange-600">
                             {formatCurrency(
-                              parseFloat(item.quantidade) * parseFloat(item.valor_unitario)
+                              (Number.parseFloat(item.quantidade) || 0) *
+                                (Number.parseFloat(item.valor_unitario) || 0)
                             )}
                           </span>
+
                           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button
                               type="button"
@@ -1044,10 +1385,37 @@ export default function ComprasPage() {
                     <Input
                       placeholder="Ex: Queijo Mussarela"
                       value={novoItem.produto}
-                      onChange={(e) => setNovoItem({ ...novoItem, produto: e.target.value })}
+                      onChange={(e) =>
+                        setNovoItem({ ...novoItem, produto: e.target.value })
+                      }
                       className="h-12 rounded-2xl font-bold bg-gray-50 border-0"
                     />
+
+                    {novoItem.produto.trim().length >= 2 && sugestoesProduto.length > 0 && (
+                      <div className="mt-2 max-h-40 overflow-auto rounded-2xl border border-gray-100 bg-white shadow-sm">
+                        {sugestoesProduto.slice(0, 6).map((s) => (
+                          <button
+                            key={s.id}
+                            type="button"
+                            onClick={() =>
+                              setNovoItem((prev) => ({
+                                ...prev,
+                                produto: s.nome,
+                                unidade: s.unidadeMedida.toLowerCase(),
+                              }))
+                            }
+                            className="w-full text-left px-4 py-3 hover:bg-orange-50 border-b last:border-b-0 border-gray-50"
+                          >
+                            <div className="font-bold text-sm text-gray-800">{s.nome}</div>
+                            <div className="text-xs text-gray-500">
+                              {s.categoria} • {s.unidadeMedida}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
+
                   <div className="col-span-6 lg:col-span-2 space-y-1">
                     <span className="text-[9px] font-bold uppercase text-gray-400 ml-2">
                       Quantidade
@@ -1056,10 +1424,13 @@ export default function ComprasPage() {
                       type="number"
                       step="0.01"
                       value={novoItem.quantidade}
-                      onChange={(e) => setNovoItem({ ...novoItem, quantidade: e.target.value })}
+                      onChange={(e) =>
+                        setNovoItem({ ...novoItem, quantidade: e.target.value })
+                      }
                       className="h-12 rounded-2xl font-black bg-gray-50 border-0"
                     />
                   </div>
+
                   <div className="col-span-6 lg:col-span-2 space-y-1">
                     <span className="text-[9px] font-bold uppercase text-gray-400 ml-2">
                       Unidade
@@ -1073,13 +1444,18 @@ export default function ComprasPage() {
                       </SelectTrigger>
                       <SelectContent className="rounded-[24px] bg-white border border-gray-100 shadow-xl z-50">
                         {UNIDADES.map((u) => (
-                          <SelectItem key={u} value={u} className="cursor-pointer hover:bg-orange-50">
+                          <SelectItem
+                            key={u}
+                            value={u}
+                            className="cursor-pointer hover:bg-orange-50"
+                          >
                             {u}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
+
                   <div className="col-span-8 lg:col-span-2 space-y-1">
                     <span className="text-[9px] font-bold uppercase text-gray-400 ml-2">
                       R$ Unitário
@@ -1089,11 +1465,15 @@ export default function ComprasPage() {
                       step="0.01"
                       value={novoItem.valor_unitario}
                       onChange={(e) =>
-                        setNovoItem({ ...novoItem, valor_unitario: e.target.value })
+                        setNovoItem({
+                          ...novoItem,
+                          valor_unitario: e.target.value,
+                        })
                       }
                       className="h-12 rounded-2xl font-black bg-gray-50 border-0"
                     />
                   </div>
+
                   <div className="col-span-4 lg:col-span-2">
                     {editandoItem ? (
                       <div className="flex gap-2">
@@ -1107,7 +1487,16 @@ export default function ComprasPage() {
                         </Button>
                         <Button
                           type="button"
-                          onClick={() => setEditandoItem(null)}
+                          onClick={() => {
+                            setEditandoItem(null);
+                            setNovoItem({
+                              id: "",
+                              produto: "",
+                              quantidade: "",
+                              unidade: "un",
+                              valor_unitario: "",
+                            });
+                          }}
                           variant="outline"
                           className="flex-1 h-12 rounded-2xl border-gray-200"
                         >
@@ -1118,7 +1507,11 @@ export default function ComprasPage() {
                       <Button
                         type="button"
                         onClick={adicionarItem}
-                        disabled={!novoItem.produto || !novoItem.quantidade || !novoItem.valor_unitario}
+                        disabled={
+                          !novoItem.produto ||
+                          !novoItem.quantidade ||
+                          !novoItem.valor_unitario
+                        }
                         className="w-full h-12 rounded-2xl bg-gray-900 text-white font-black uppercase text-[10px] tracking-widest"
                       >
                         <Plus size={16} className="mr-1" /> Add
@@ -1156,9 +1549,11 @@ export default function ComprasPage() {
           </div>
         )}
 
-        {/* DIALOG IMPORTAR TEXTO */}
         <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
-          <DialogContent aria-describedby={undefined} className="max-w-xl rounded-[45px] p-10 bg-white border-none shadow-2xl">
+          <DialogContent
+            aria-describedby={undefined}
+            className="max-w-xl rounded-[45px] p-10 bg-white border-none shadow-2xl"
+          >
             <DialogHeader className="mb-4">
               <DialogTitle className="text-3xl font-black italic uppercase tracking-tighter flex items-center gap-3">
                 <div className="w-12 h-12 bg-purple-50 rounded-2xl flex items-center justify-center text-purple-600">
@@ -1166,18 +1561,19 @@ export default function ComprasPage() {
                 </div>
                 Importador IA
               </DialogTitle>
-              <DialogDescription className="hidden">Importar notas via texto e IA</DialogDescription>
+              <DialogDescription className="hidden">
+                Importar notas via texto e IA
+              </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-6">
               <p className="text-sm font-medium text-gray-500">
-                Cole a sua lista do WhatsApp ou bloco de notas. A IA vai separar produtos e quantidades.
+                Cole a sua lista do WhatsApp ou bloco de notas. A IA vai separar
+                produtos e quantidades.
               </p>
 
               <Textarea
-                placeholder={
-                  "Cole sua lista aqui...\n\nEx:\nFubá 2kg\nMussarela 5kg\nCalabresa 4cx"
-                }
+                placeholder={"Cole sua lista aqui...\n\nEx:\nFubá 2kg\nMussarela 5kg\nCalabresa 4cx"}
                 value={textoLista}
                 onChange={(e) => {
                   setTextoLista(e.target.value);
@@ -1205,7 +1601,7 @@ export default function ComprasPage() {
                 Cancelar
               </Button>
               <Button
-                onClick={importarListaTexto}
+                onClick={() => void importarListaTexto()}
                 disabled={importando || !textoLista.trim()}
                 className="h-14 px-8 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white font-black italic uppercase text-xs shadow-lg shadow-purple-200 transition-transform hover:scale-105"
               >
@@ -1221,7 +1617,6 @@ export default function ComprasPage() {
           </DialogContent>
         </Dialog>
 
-        {/* DIALOG QR CODE */}
         <Dialog
           open={showQrDialog}
           onOpenChange={(open) => {
@@ -1229,7 +1624,10 @@ export default function ComprasPage() {
             if (!open) stopQr();
           }}
         >
-          <DialogContent aria-describedby={undefined} className="max-w-xl rounded-[45px] p-8 bg-white border-none shadow-2xl">
+          <DialogContent
+            aria-describedby={undefined}
+            className="max-w-xl rounded-[45px] p-8 bg-white border-none shadow-2xl"
+          >
             <DialogHeader className="mb-2">
               <DialogTitle className="text-2xl font-black italic uppercase tracking-tighter flex items-center gap-3">
                 <div className="w-11 h-11 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600">
@@ -1237,16 +1635,24 @@ export default function ComprasPage() {
                 </div>
                 Leitor de QR Code (NFC-e)
               </DialogTitle>
-              <DialogDescription className="hidden">Câmera para QR Code</DialogDescription>
+              <DialogDescription className="hidden">
+                Câmera para QR Code
+              </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4">
               <p className="text-sm font-medium text-gray-500">
-                Aponte a câmera para o QR Code da NFC-e. Assim que detectar, eu puxo o link e leio automaticamente.
+                Aponte a câmera para o QR Code da NFC-e. Assim que detectar, eu puxo
+                o link e leio automaticamente.
               </p>
 
               <div className="rounded-[28px] overflow-hidden border border-gray-100 bg-black">
-                <video ref={videoRef} className="w-full h-[320px] object-cover" playsInline muted />
+                <video
+                  ref={videoRef}
+                  className="w-full h-[320px] object-cover"
+                  playsInline
+                  muted
+                />
               </div>
 
               {qrError && (
@@ -1258,7 +1664,7 @@ export default function ComprasPage() {
               <div className="flex gap-3">
                 <Button
                   type="button"
-                  onClick={startQr}
+                  onClick={() => void startQr()}
                   className="h-12 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-black italic uppercase text-xs flex-1"
                 >
                   Iniciar Câmera
@@ -1278,7 +1684,8 @@ export default function ComprasPage() {
               </div>
 
               <div className="text-[11px] text-gray-500">
-                Se não funcionar no seu navegador, use “Colar Link Sefaz” e cole a URL do QR.
+                Se não funcionar no seu navegador, use “Colar Link Sefaz” e cole a
+                URL do QR.
               </div>
             </div>
           </DialogContent>

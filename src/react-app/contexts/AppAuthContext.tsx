@@ -436,7 +436,12 @@ export function AppAuthProvider({ children }: { children: ReactNode }) {
 }
 
 export function useAppAuth() {
-  return useContext(AppAuthContext);
+  const context = useContext(AppAuthContext);
+  if (context === undefined) {
+    console.warn("useAppAuth sendo chamado fora do AppAuthProvider. Retornando valor padrão.");
+    return defaultAppAuthContextValue;
+  }
+  return context;
 }
 
 export function useAppAuthOptional() {

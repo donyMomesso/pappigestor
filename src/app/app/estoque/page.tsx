@@ -8,7 +8,7 @@ import { Input } from "@/react-app/components/ui/input";
 import { Card, CardContent } from "@/react-app/components/ui/card";
 import { Label } from "@/react-app/components/ui/label";
 import { Badge } from "@/react-app/components/ui/badge";
-import { useAppAuth } from "@/contexts/AppAuthContext";
+import { useAppAuthOptional } from "@/contexts/AppAuthContext";
 
 import {
   Dialog,
@@ -139,7 +139,8 @@ interface EstoqueItem {
 
 export default function EstoquePage() {
   const [mounted, setMounted] = useState(false);
-  const { localUser } = useAppAuth();
+  const auth = useAppAuthOptional();
+  const localUser = auth?.localUser;
   const { alertas: previsoesRuptura } = usePrevisaoEstoque();
 
   const [estoques, setEstoques] = useState<EstoqueItem[]>([]);

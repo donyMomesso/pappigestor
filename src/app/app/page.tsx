@@ -1,545 +1,1136 @@
 "use client";
 export const dynamic = "force-dynamic";
 
-import { useMemo, useState } from "react";
-import Link from "next/link";
+import { useState, useEffect, useCallback } from "react";
+import { usePrevisaoEstoque } from "@/hooks/usePrevisaoEstoque";
+import { Button } from "@/react-app/components/ui/button";
+import { Input } from "@/react-app/components/ui/input";
+import { Card, CardContent } from "@/react-app/components/ui/card";
+import { Label } from "@/react-app/components/ui/label";
+import { Badge } from "@/react-app/components/ui/badge";
 import { useAppAuthOptional } from "@/contexts/AppAuthContext";
-import {
-  ShoppingCart,
-  DollarSign,
-  Package,
-  ClipboardList,
-  Sparkles,
-  Building2,
-  Settings2,
-  Gift,
-  Camera,
-  ArrowRight,
-  ChevronRight,
-  Coins,
-  Calculator,
-  MessageSquare,
-  LayoutDashboard,
-  CheckCircle2,
-  Users,
-  X,
-  Check,
-  Brain,
-  ShieldCheck,
-  Clock3,
-} from "lucide-react";
 
-const TODOS_MODULOS = [
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/react-app/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/react-app/components/ui/select";
+import {
+  AlertTriangle,
+  Package,
+  Loader2,
+  Search,
+  Plus,
+  Minus,
+  ArrowLeft,
+  Boxes,
+  BrainCircuit,
+  Sparkles,
+  PackagePlus,
+  Trash2,
+  DollarSign,
+  TrendingDown,
+  ClipboardList,
+} from "lucide-react";
+import Link from "next/link";
+
+// ==========================================
+// BANCO DE DADOS LOCAL DA IA - FOOD SERVICE
+// ==========================================
+interface ProdutoFoodService {
+  id: string;
+  nome: string;
+  categoria: string;
+  unidadeMedida: string;
+}
+
+const PRODUTOS_FOOD_SERVICE: ProdutoFoodService[] = [
   {
-    id: "fin",
-    title: "Financeiro",
-    sub: "Fluxo e boletos",
-    icon: <DollarSign size={24} />,
-    color: "text-orange-600",
-    bg: "bg-orange-50",
-    href: "/app/financeiro",
+    id: "prot-001",
+    nome: "Peito de Frango sem Osso",
+    categoria: "Proteínas (Aves e Carnes)",
+    unidadeMedida: "kg",
   },
   {
-    id: "comp",
-    title: "Compras",
-    sub: "Nova provisão",
-    icon: <ShoppingCart size={24} />,
-    color: "text-amber-600",
-    bg: "bg-amber-50",
-    href: "/app/compras",
+    id: "prot-002",
+    nome: "Filé de Frango (Sassami)",
+    categoria: "Proteínas (Aves e Carnes)",
+    unidadeMedida: "kg",
   },
   {
-    id: "est",
-    title: "Estoque",
-    sub: "Auditoria real",
-    icon: <Package size={24} />,
-    color: "text-rose-600",
-    bg: "bg-rose-50",
-    href: "/app/estoque",
+    id: "emb-001",
+    nome: "Linguiça Calabresa Reta",
+    categoria: "Embutidos e Suínos",
+    unidadeMedida: "kg",
   },
   {
-    id: "rec",
-    title: "Recebimento",
-    sub: "Bater notas",
-    icon: <ClipboardList size={24} />,
-    color: "text-pink-600",
-    bg: "bg-pink-50",
-    href: "/app/recebimento",
+    id: "lat-001",
+    nome: "Queijo Mussarela",
+    categoria: "Laticínios e Frios",
+    unidadeMedida: "kg",
   },
   {
-    id: "cot",
-    title: "Cotação",
-    sub: "Menor preço",
-    icon: <Calculator size={24} />,
-    color: "text-yellow-600",
-    bg: "bg-yellow-50",
-    href: "/app/cotacao",
+    id: "lat-002",
+    nome: "Queijo Mussarela Fatiada",
+    categoria: "Laticínios e Frios",
+    unidadeMedida: "kg",
   },
   {
-    id: "forn",
-    title: "Fornecedores",
-    sub: "Contatos zap",
-    icon: <MessageSquare size={24} />,
-    color: "text-green-600",
-    bg: "bg-green-50",
-    href: "/app/fornecedores",
+    id: "merc-001",
+    nome: "Farinha de Trigo Especial",
+    categoria: "Mercearia e Condimentos",
+    unidadeMedida: "sc",
   },
   {
-    id: "prod",
-    title: "Produtos",
-    sub: "Catálogo geral",
-    icon: <Package size={24} />,
-    color: "text-indigo-600",
-    bg: "bg-indigo-50",
-    href: "/app/produtos",
+    id: "merc-002",
+    nome: "Óleo de Soja",
+    categoria: "Mercearia e Condimentos",
+    unidadeMedida: "cx",
   },
   {
-    id: "dash",
-    title: "Dashboard",
-    sub: "Performance",
-    icon: <LayoutDashboard size={24} />,
-    color: "text-slate-600",
-    bg: "bg-slate-50",
-    href: "/app/relatorios",
+    id: "merc-007",
+    nome: "Extrato de Tomate",
+    categoria: "Mercearia e Condimentos",
+    unidadeMedida: "un",
   },
   {
-    id: "ia",
-    title: "Assessor IA",
-    sub: "Análise smart",
-    icon: <Sparkles size={24} />,
-    color: "text-purple-600",
-    bg: "bg-purple-50",
-    href: "/app/assessor-ia",
+    id: "merc-012",
+    nome: "Orégano em Folhas",
+    categoria: "Mercearia e Condimentos",
+    unidadeMedida: "pct",
   },
 ];
 
-export default function Dashboard() {
+const CATEGORIAS = [
+  "Insumos",
+  "Embalagens",
+  "Bebidas",
+  "Mercado",
+  "Limpeza",
+  "Outros",
+  "Proteínas (Aves e Carnes)",
+  "Embutidos e Suínos",
+  "Laticínios e Frios",
+  "Congelados e Vegetais",
+  "Mercearia e Condimentos",
+];
+
+const UNIDADES = ["un", "kg", "g", "L", "ml", "cx", "pct", "fd", "pc", "sc"];
+
+interface EstoqueItem {
+  id: number;
+  produto_id: number;
+  quantidade_atual: number;
+  estoque_minimo: number;
+  custo_unitario: number;
+  produto_nome?: string;
+  categoria_produto?: string;
+  unidade_medida?: string;
+}
+
+export default function EstoquePage() {
+  const [mounted, setMounted] = useState(false);
   const auth = useAppAuthOptional();
-  const localUser = auth?.localUser ?? null;
+  const localUser = auth?.localUser;
+  const { alertas: previsoesRuptura } = usePrevisaoEstoque();
 
-  const [favoritos, setFavoritos] = useState(TODOS_MODULOS.slice(0, 4));
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selecaoTemporaria, setSelecaoTemporaria] = useState<string[]>(
-    favoritos.map((f) => f.id),
-  );
+  const [estoques, setEstoques] = useState<EstoqueItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const firstName = useMemo(
-    () => localUser?.nome?.split(" ")[0] || "Gestor",
-    [localUser?.nome],
-  );
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
 
-  const companyName = useMemo(
-    () => localUser?.nome_empresa || "Matriz",
-    [localUser?.nome_empresa],
-  );
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isAuditDialogOpen, setIsAuditDialogOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<EstoqueItem | null>(null);
 
-  const planName = useMemo(
-    () => (localUser as any)?.plano || "Plano Pro",
-    [localUser],
-  );
+  const [auditValue, setAuditValue] = useState("");
+  const [auditMinimoValue, setAuditMinimoValue] = useState("");
+  const [auditCustoValue, setAuditCustoValue] = useState("");
+  const [auditMotivo, setAuditMotivo] = useState("Contagem de Rotina");
+  const [savingAudit, setSavingAudit] = useState(false);
 
-  const toggleModulo = (id: string) => {
-    if (selecaoTemporaria.includes(id)) {
-      setSelecaoTemporaria((prev) => prev.filter((item) => item !== id));
+  const [savingAdd, setSavingAdd] = useState(false);
+
+  const [addForm, setAddForm] = useState({
+    nome_produto: "",
+    categoria_produto: "Insumos",
+    unidade_medida: "un",
+    quantidade_atual: "",
+    estoque_minimo: "",
+    custo_unitario: "",
+  });
+
+  const [sugestoes, setSugestoes] = useState<ProdutoFoodService[]>([]);
+  const [mostrarSugestoes, setMostrarSugestoes] = useState(false);
+
+  const getHeaders = useCallback(() => {
+    const empresaId =
+      localStorage.getItem("empresaId") ||
+      localStorage.getItem("companyId") ||
+      "";
+
+    const email = localUser?.email || localStorage.getItem("userEmail") || "";
+
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      "x-user-email": email,
+    };
+
+    if (empresaId) headers["x-empresa-id"] = empresaId;
+
+    return headers;
+  }, [localUser]);
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    }).format(value || 0);
+  };
+
+  const toNumber = (value: string | number | null | undefined) => {
+    if (value === null || value === undefined) return 0;
+    const parsed = parseFloat(String(value).replace(",", "."));
+    return Number.isNaN(parsed) ? 0 : parsed;
+  };
+
+  const normalizeText = (value: string) =>
+    value
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, " ");
+
+  const fetchData = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const res = await fetch("/api/estoque", { headers: getHeaders() });
+
+      if (res.ok) {
+        const data: EstoqueItem[] = await res.json();
+        setEstoques(data);
+      } else {
+        setEstoques([]);
+      }
+    } catch (err) {
+      console.error("Erro ao buscar estoque:", err);
+      setEstoques([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [getHeaders]);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+    fetchData();
+  }, [mounted, fetchData]);
+
+  const handleOpenAudit = (item: EstoqueItem) => {
+    setSelectedItem(item);
+    setAuditValue(String(item.quantidade_atual || 0));
+    setAuditMinimoValue(String(item.estoque_minimo || 0));
+    setAuditCustoValue(String(item.custo_unitario || 0));
+    setAuditMotivo("Contagem de Rotina");
+    setIsAuditDialogOpen(true);
+  };
+
+  const handleSaveAudit = async () => {
+    if (!selectedItem) return;
+    setSavingAudit(true);
+
+    try {
+      const res = await fetch(`/api/estoque/${selectedItem.id}`, {
+        method: "PATCH",
+        headers: getHeaders(),
+        body: JSON.stringify({
+          quantidade_atual: toNumber(auditValue),
+          estoque_minimo: toNumber(auditMinimoValue),
+          custo_unitario: toNumber(auditCustoValue),
+          motivo: auditMotivo,
+        }),
+      });
+
+      if (res.ok) {
+        setIsAuditDialogOpen(false);
+        await fetchData();
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        alert(
+          `Erro na gravação: ${
+            errData.error || "Falha desconhecida no banco de dados."
+          }`
+        );
+      }
+    } catch (err) {
+      alert("Erro de conexão com o servidor.");
+    } finally {
+      setSavingAudit(false);
+    }
+  };
+
+  const handleDeleteItem = async (id: number) => {
+    if (
+      !confirm(
+        "Tem certeza que deseja apagar este item do estoque? Esta ação não pode ser desfeita."
+      )
+    ) {
       return;
     }
 
-    if (selecaoTemporaria.length < 4) {
-      setSelecaoTemporaria((prev) => [...prev, id]);
+    try {
+      const res = await fetch(`/api/estoque/${id}`, {
+        method: "DELETE",
+        headers: getHeaders(),
+      });
+
+      if (res.ok) {
+        await fetchData();
+      } else {
+        alert("Erro ao excluir do banco de dados.");
+      }
+    } catch (err) {
+      alert("Erro de conexão.");
     }
   };
 
-  const salvarAtalhos = () => {
-    const novosFavoritos = TODOS_MODULOS.filter((mod) =>
-      selecaoTemporaria.includes(mod.id),
+  const handleAddEstoque = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const headers = getHeaders();
+    if (!headers["x-empresa-id"]) {
+      return alert("Erro: Empresa não identificada.");
+    }
+
+    if (!addForm.nome_produto.trim()) {
+      return alert("O nome do produto é obrigatório!");
+    }
+
+    const nomeNormalizado = normalizeText(addForm.nome_produto);
+
+    const jaExiste = estoques.some(
+      (item) => normalizeText(item.produto_nome || "") === nomeNormalizado
     );
-    setFavoritos(novosFavoritos);
-    setIsModalOpen(false);
+
+    if (jaExiste) {
+      return alert(
+        `O produto "${addForm.nome_produto}" já está no seu estoque! Use a auditoria para ajustar quantidades e valores.`
+      );
+    }
+
+    setSavingAdd(true);
+
+    try {
+      const resProd = await fetch("/api/produtos", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          nome_produto: addForm.nome_produto,
+          categoria_produto: addForm.categoria_produto,
+          unidade_medida: addForm.unidade_medida,
+        }),
+      });
+
+      const prodData = await resProd.json().catch(() => ({}));
+
+      if (!resProd.ok || !prodData.id) {
+        throw new Error(prodData?.error || "Erro ao criar produto no catálogo.");
+      }
+
+      const resEst = await fetch("/api/estoque", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          produto_id: prodData.id,
+          quantidade_atual: toNumber(addForm.quantidade_atual),
+          estoque_minimo: toNumber(addForm.estoque_minimo),
+          custo_unitario: toNumber(addForm.custo_unitario),
+        }),
+      });
+
+      if (resEst.ok) {
+        alert("Item adicionado ao estoque com sucesso!");
+        setAddForm({
+          nome_produto: "",
+          categoria_produto: "Insumos",
+          unidade_medida: "un",
+          quantidade_atual: "",
+          estoque_minimo: "",
+          custo_unitario: "",
+        });
+        setSugestoes([]);
+        setMostrarSugestoes(false);
+        setIsAddDialogOpen(false);
+        await fetchData();
+      } else {
+        const errData = await resEst.json().catch(() => ({}));
+        alert(errData.error || "Falha ao gravar no estoque.");
+      }
+    } catch (err: any) {
+      alert(
+        err?.message ||
+          "Falha ao salvar produto. Verifique sua conexão. Se a falha ocorreu após o cadastro do produto, pode ter ficado um item sem vínculo no estoque."
+      );
+    } finally {
+      setSavingAdd(false);
+    }
   };
 
+  const handleNomeChange = (value: string) => {
+    setAddForm((prev) => ({ ...prev, nome_produto: value }));
+
+    if (value.length >= 2) {
+      const termoLower = value.toLowerCase();
+      const resultados = PRODUTOS_FOOD_SERVICE.filter((p) =>
+        p.nome.toLowerCase().includes(termoLower)
+      );
+
+      setSugestoes(resultados);
+      setMostrarSugestoes(resultados.length > 0);
+    } else {
+      setSugestoes([]);
+      setMostrarSugestoes(false);
+    }
+  };
+
+  const selecionarSugestao = (prod: ProdutoFoodService) => {
+    setAddForm((prev) => ({
+      ...prev,
+      nome_produto: prod.nome,
+      categoria_produto: prod.categoria,
+      unidade_medida: prod.unidadeMedida.toLowerCase(),
+    }));
+    setMostrarSugestoes(false);
+  };
+
+  const adjustQuantity = (delta: number) => {
+    const current = toNumber(auditValue);
+    setAuditValue(String(Math.max(0, current + delta)));
+  };
+
+  if (!mounted) return null;
+
+  const filteredEstoques = estoques.filter((e) => {
+    const matchesSearch = (e.produto_nome || "")
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase());
+
+    if (filterStatus === "all") return matchesSearch;
+    if (filterStatus === "baixo") {
+      return matchesSearch && e.quantidade_atual <= e.estoque_minimo;
+    }
+    if (filterStatus === "ok") {
+      return matchesSearch && e.quantidade_atual > e.estoque_minimo;
+    }
+    return matchesSearch;
+  });
+
+  const estoqueBaixoCount = estoques.filter(
+    (e) => e.quantidade_atual <= e.estoque_minimo
+  ).length;
+
+  const valorTotalEstoque = estoques.reduce(
+    (acc, item) => acc + (item.quantidade_atual || 0) * (item.custo_unitario || 0),
+    0
+  );
+
+  if (isLoading) {
+    return (
+      <div className="flex h-[70vh] items-center justify-center">
+        <Loader2 className="w-12 h-12 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
   return (
-    <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500 relative">
-      <div className="bg-gradient-to-br from-orange-600 via-orange-500 to-pink-600 rounded-[40px] p-8 md:p-10 text-white shadow-2xl relative overflow-hidden border border-orange-400/30">
-        <div className="relative z-10 flex flex-col gap-8">
-          <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-8">
-            <div className="max-w-3xl">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/20 backdrop-blur-md mb-5">
-                <Sparkles size={16} />
-                <span className="text-[10px] font-black uppercase tracking-[0.25em] italic">
-                  ambiente ativo
-                </span>
-              </div>
-
-              <h1 className="text-4xl md:text-5xl font-black italic uppercase tracking-tighter leading-none">
-                Olá, {firstName}
-              </h1>
-
-              <p className="mt-4 text-orange-100 text-sm md:text-base font-medium max-w-2xl leading-relaxed">
-                Seu centro de controle está pronto. Use os atalhos abaixo para
-                agir rápido e manter compras, estoque e financeiro em ordem.
-              </p>
-
-              <div className="mt-5 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/20">
-                <Clock3 size={14} />
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] italic">
-                  prioridade do dia: manter ritmo e clareza operacional
-                </span>
-              </div>
-
-              <p className="text-orange-100 text-[11px] font-black uppercase tracking-[0.24em] italic mt-5">
-                {companyName} • {planName}
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <HeroMiniCard
-                label="A pagar hoje"
-                value="R$ 1.250"
-                helper="movimentos do dia"
-              />
-              <HeroMiniCard
-                label="Alertas"
-                value="03 itens"
-                helper="pedindo atenção"
-              />
-              <HeroMiniCard
-                label="IA"
-                value="ativa"
-                helper="insights prontos"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 xl:grid-cols-[1.2fr_0.8fr] gap-4">
-            <div className="rounded-[30px] bg-white/10 backdrop-blur-md border border-white/20 p-5">
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-white/15 border border-white/20 flex items-center justify-center">
-                  <Brain size={24} />
-                </div>
-
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-orange-100 italic mb-2">
-                    sugestão da ia
-                  </p>
-                  <h3 className="text-lg font-black italic uppercase tracking-tight text-white">
-                    Hoje vale revisar compras e estoque
-                  </h3>
-                  <p className="text-sm text-orange-50/90 leading-relaxed mt-2 max-w-2xl">
-                    O melhor ganho rápido costuma vir de reposição bem feita e
-                    menos desperdício na operação.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-[30px] bg-white/10 backdrop-blur-md border border-white/20 p-5">
-              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-orange-100 italic mb-4">
-                acesso direto
-              </p>
-
-              <div className="grid grid-cols-2 gap-3">
-                <QuickActionButton href="/app/compras" icon={<ShoppingCart size={16} />} label="Compras" />
-                <QuickActionButton href="/app/estoque" icon={<Package size={16} />} label="Estoque" />
-                <QuickActionButton href="/app/financeiro" icon={<DollarSign size={16} />} label="Financeiro" />
-                <QuickActionButton href="/app/assessor-ia" icon={<Sparkles size={16} />} label="Assessor IA" />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <Building2 className="absolute -left-10 -bottom-10 text-white/10 w-64 h-64 pointer-events-none" />
+    <div className="relative min-h-[80vh] pb-12">
+      <div className="fixed inset-0 pointer-events-none flex items-center justify-center z-0 opacity-[0.03] select-none scale-150">
+        <BrainCircuit className="w-64 h-64 text-blue-900" />
+        <span className="text-[120px] font-black italic uppercase tracking-tighter mt-4 text-blue-900 leading-none">
+          PAPPI.IA
+        </span>
       </div>
 
-      <div className="space-y-4">
-        <div className="flex items-center justify-between px-1">
+      <div className="max-w-6xl mx-auto space-y-6 relative z-10 animate-in fade-in duration-500">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-2 h-6 bg-orange-500 rounded-full shadow-[0_0_10px_rgba(249,115,22,0.5)]" />
-            <h2 className="text-xl font-black italic uppercase tracking-tighter text-gray-800">
-              Acesso rápido
-            </h2>
+            <Link
+              href="/app"
+              className="p-2.5 bg-white border border-gray-100 rounded-2xl hover:text-blue-600 shadow-sm transition-all"
+            >
+              <ArrowLeft size={18} />
+            </Link>
+            <div>
+              <h1 className="text-3xl font-black italic uppercase tracking-tighter text-gray-900 leading-none">
+                Estoque <span className="text-blue-600">Premium</span>
+              </h1>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">
+                Inventário e Auditoria Financeira
+              </p>
+            </div>
           </div>
-
-          <button
-            onClick={() => {
-              setSelecaoTemporaria(favoritos.map((f) => f.id));
-              setIsModalOpen(true);
-            }}
-            className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-orange-500 transition-colors"
+          <Button
+            onClick={() => setIsAddDialogOpen(true)}
+            className="h-12 px-6 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-black italic uppercase text-xs tracking-widest shadow-lg hover:scale-105 transition-transform"
           >
-            <Settings2 size={14} /> Editar atalhos
-          </button>
+            <Plus size={18} className="mr-2" /> Novo Lançamento
+          </Button>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {favoritos.map((mod) => (
-            <Link key={mod.id} href={mod.href} className="group">
-              <div className="bg-white p-6 rounded-[30px] shadow-sm border border-gray-100 hover:shadow-xl hover:border-orange-300 transition-all duration-300 flex items-center gap-4 relative overflow-hidden min-h-[108px]">
-                <div
-                  className={`${mod.bg} ${mod.color} w-14 h-14 rounded-[20px] flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-transform`}
-                >
-                  {mod.icon}
-                </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card className="rounded-[25px] border-none bg-gradient-to-br from-gray-900 to-gray-800 text-white shadow-xl p-5 relative overflow-hidden md:col-span-2">
+            <DollarSign className="absolute top-0 right-0 p-4 opacity-10 w-24 h-24" />
+            <p className="text-[10px] font-black uppercase tracking-widest text-green-400 mb-1">
+              Capital Investido no Estoque
+            </p>
+            <p className="text-4xl font-black italic">
+              {formatCurrency(valorTotalEstoque)}
+            </p>
+          </Card>
 
+          <Card className="rounded-[25px] border p-5 bg-white text-gray-900 shadow-sm flex flex-col justify-center">
+            <p className="text-[9px] font-black uppercase tracking-widest mb-1 text-gray-400">
+              Total de SKUs
+            </p>
+            <p className="text-3xl font-black">
+              {estoques.length} <span className="text-sm text-gray-400">Itens</span>
+            </p>
+          </Card>
+
+          <Card
+            className={`rounded-[25px] border p-5 flex flex-col justify-center transition-all ${
+              estoqueBaixoCount > 0
+                ? "border-red-200 bg-red-50 text-red-600 shadow-md shadow-red-100"
+                : "bg-green-50 border-green-100 text-green-600 shadow-sm"
+            }`}
+          >
+            <p className="text-[9px] font-black uppercase tracking-widest mb-1 flex items-center gap-1">
+              {estoqueBaixoCount > 0 ? (
+                <AlertTriangle size={12} />
+              ) : (
+                <Package size={12} />
+              )}
+              {estoqueBaixoCount > 0 ? "Itens em Alerta" : "Estoque Saudável"}
+            </p>
+            <p className="text-3xl font-black">
+              {estoqueBaixoCount > 0 ? estoqueBaixoCount : "100%"}
+            </p>
+          </Card>
+        </div>
+
+        {previsoesRuptura.length > 0 && (
+          <Card className="rounded-[30px] border-none bg-gradient-to-r from-amber-50 to-red-50 shadow-sm overflow-hidden">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between gap-4 mb-5">
                 <div>
-                  <h3 className="text-lg font-black text-gray-800 italic uppercase tracking-tighter leading-none group-hover:text-orange-600 transition-colors">
-                    {mod.title}
-                  </h3>
-                  <p className="text-[9px] text-gray-400 mt-1 font-black uppercase tracking-widest italic leading-tight">
-                    {mod.sub}
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="text-amber-600" size={18} />
+                    <h2 className="text-lg font-black italic uppercase tracking-tight text-gray-900">
+                      Previsão de Ruptura
+                    </h2>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    A IA separou os itens que podem faltar em breve e sugeriu
+                    reposição.
                   </p>
                 </div>
-              </div>
-            </Link>
-          ))}
 
-          {favoritos.length < 4 && (
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="bg-gray-50 border-2 border-dashed border-gray-200 rounded-[30px] flex flex-col items-center justify-center p-6 text-gray-400 hover:text-orange-500 hover:border-orange-300 hover:bg-orange-50/50 transition-all min-h-[108px]"
-            >
-              <Settings2 size={24} className="mb-2 opacity-50" />
-              <span className="text-[10px] font-black uppercase tracking-widest italic">
-                Adicionar
-              </span>
-            </button>
-          )}
-        </div>
-      </div>
-
-      <div className="grid md:grid-cols-2 gap-6">
-        <div className="bg-gradient-to-br from-gray-900 via-gray-900 to-black rounded-[35px] p-8 shadow-xl relative overflow-hidden group cursor-pointer border border-orange-500/20 hover:border-orange-500/50 transition-colors">
-          <div className="relative z-10 flex flex-col h-full justify-center">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-xl text-white shadow-lg shadow-orange-500/30">
-                <Coins size={20} />
-              </div>
-              <span className="text-[10px] font-black text-orange-400 uppercase tracking-[0.3em] italic">
-                recompensa ativa
-              </span>
-            </div>
-
-            <h3 className="text-2xl font-black italic uppercase tracking-tighter text-white mb-2 leading-none">
-              Indique e <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500">ganhe</span>
-            </h3>
-
-            <p className="text-sm text-gray-400 font-bold italic uppercase tracking-tight mb-6">
-              Ganhe mensalidades grátis indicando outros restaurantes para o Pappi.
-            </p>
-
-            <div className="flex items-center text-xs font-black uppercase italic tracking-widest text-orange-400 group-hover:text-yellow-400 transition-colors">
-              Gerar meu link
-              <ArrowRight size={14} className="ml-2 group-hover:translate-x-1 transition-transform" />
-            </div>
-          </div>
-
-          <Gift className="absolute -right-8 -bottom-8 w-40 h-40 text-orange-500/5 rotate-12 group-hover:text-orange-500/10 transition-colors" />
-        </div>
-
-        <Link href="/app/assessor-ia" className="block group">
-          <div className="bg-gradient-to-br from-violet-600 via-purple-600 to-fuchsia-600 rounded-[35px] p-8 shadow-xl shadow-purple-500/20 relative overflow-hidden border border-purple-400/30 h-full hover:scale-[1.02] transition-transform duration-300">
-            <div className="relative z-10 flex flex-col h-full justify-center">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="flex items-center justify-center w-8 h-8 bg-white/20 rounded-full backdrop-blur-sm text-white">
-                  <Sparkles size={16} />
-                </div>
-                <span className="text-[10px] font-black text-purple-100 uppercase tracking-[0.3em] italic">
-                  dica exclusiva
-                </span>
+                <Badge className="bg-amber-100 text-amber-700 border-0 rounded-full px-3 py-1">
+                  {previsoesRuptura.length} alerta
+                  {previsoesRuptura.length > 1 ? "s" : ""}
+                </Badge>
               </div>
 
-              <h3 className="text-2xl font-black italic uppercase tracking-tighter text-white mb-2 leading-none">
-                Use o Assessor IA
-              </h3>
+              <div className="grid gap-3">
+                {previsoesRuptura.slice(0, 5).map((item) => (
+                  <div
+                    key={item.id}
+                    className="bg-white rounded-2xl border border-amber-100 p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4"
+                  >
+                    <div>
+                      <p className="text-sm font-black uppercase tracking-tight text-gray-900">
+                        {item.nome}
+                      </p>
+                      <p className="text-[10px] uppercase font-bold tracking-widest text-gray-400 mt-1">
+                        {item.categoria}
+                      </p>
+                    </div>
 
-              <p className="text-sm text-purple-100 font-bold italic opacity-90 mb-6 leading-tight pr-10">
-                Tire fotos de notas fiscais e a IA extrai os dados automaticamente.
-              </p>
-
-              <div className="inline-flex items-center px-5 py-2.5 bg-white text-purple-600 rounded-full text-[10px] font-black uppercase italic tracking-widest shadow-lg group-hover:bg-gray-50 transition-colors w-fit">
-                <Camera size={14} className="mr-2" />
-                Experimentar agora
-                <ChevronRight size={14} className="ml-1" />
-              </div>
-            </div>
-
-            <div className="absolute -right-10 -top-10 w-48 h-48 bg-white/10 rounded-full blur-2xl" />
-            <div className="absolute right-10 bottom-10 w-24 h-24 bg-fuchsia-400/30 rounded-full blur-xl" />
-          </div>
-        </Link>
-      </div>
-
-      <div className="grid md:grid-cols-3 gap-6">
-        <SoftInfoCard
-          icon={<ShieldCheck size={20} />}
-          title="Ambiente seguro"
-          desc="Seu acesso está organizado por empresa e pronto para escalar com a operação."
-        />
-        <SoftInfoCard
-          icon={<Users size={20} />}
-          title="Equipe depois"
-          desc="Você pode começar simples e depois adicionar outras pessoas da operação."
-        />
-        <SoftInfoCard
-          icon={<CheckCircle2 size={20} />}
-          title="Base pronta"
-          desc="Compras, estoque e financeiro já têm um ponto de entrada mais claro para evoluir."
-        />
-      </div>
-
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-sm p-4 animate-in fade-in">
-          <div className="bg-white w-full max-w-2xl rounded-[40px] shadow-2xl overflow-hidden border border-gray-100 flex flex-col max-h-[90vh]">
-            <div className="p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
-              <div>
-                <h3 className="text-2xl font-black italic uppercase tracking-tighter text-gray-900">
-                  Personalizar dashboard
-                </h3>
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest italic mt-1">
-                  Selecione até 4 módulos para acesso rápido ({selecaoTemporaria.length}/4)
-                </p>
-              </div>
-
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-gray-400 hover:text-red-500 shadow-sm border border-gray-100 transition-colors"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="p-8 overflow-y-auto flex-1">
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {TODOS_MODULOS.map((mod) => {
-                  const isSelected = selecaoTemporaria.includes(mod.id);
-                  const isDisabled =
-                    !isSelected && selecaoTemporaria.length >= 4;
-
-                  return (
-                    <div
-                      key={mod.id}
-                      onClick={() => !isDisabled && toggleModulo(mod.id)}
-                      className={`relative p-5 rounded-[25px] border-2 cursor-pointer transition-all duration-200 flex flex-col items-center text-center gap-3 ${
-                        isSelected
-                          ? "border-orange-500 bg-orange-50 shadow-md"
-                          : "border-gray-100 bg-white hover:border-orange-200"
-                      } ${
-                        isDisabled ? "opacity-50 cursor-not-allowed grayscale" : ""
-                      }`}
-                    >
-                      {isSelected && (
-                        <div className="absolute top-3 right-3 w-5 h-5 bg-orange-500 rounded-full flex items-center justify-center text-white shadow-sm">
-                          <Check size={12} strokeWidth={4} />
-                        </div>
-                      )}
-
-                      <div
-                        className={`${mod.color} ${mod.bg} w-12 h-12 rounded-2xl flex items-center justify-center`}
-                      >
-                        {mod.icon}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 flex-1">
+                      <div>
+                        <p className="text-[9px] font-black uppercase text-gray-400 mb-1">
+                          Atual
+                        </p>
+                        <p className="font-black text-gray-900">
+                          {item.estoqueAtual} {item.unidade}
+                        </p>
                       </div>
 
                       <div>
-                        <h4 className="font-black italic uppercase tracking-tighter text-gray-800 leading-none">
-                          {mod.title}
-                        </h4>
+                        <p className="text-[9px] font-black uppercase text-gray-400 mb-1">
+                          Mínimo
+                        </p>
+                        <p className="font-black text-gray-900">
+                          {item.estoqueMinimo} {item.unidade}
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-[9px] font-black uppercase text-gray-400 mb-1">
+                          Dias restantes
+                        </p>
+                        <p
+                          className={`font-black ${
+                            item.criticidade === "alta"
+                              ? "text-red-600"
+                              : "text-amber-600"
+                          }`}
+                        >
+                          {item.diasRestantes} dias
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-[9px] font-black uppercase text-gray-400 mb-1">
+                          Sugestão IA
+                        </p>
+                        <p className="font-black text-blue-600">
+                          {item.sugestaoCompra} {item.unidade}
+                        </p>
                       </div>
                     </div>
-                  );
-                })}
+                  </div>
+                ))}
               </div>
-            </div>
+            </CardContent>
+          </Card>
+        )}
 
-            <div className="p-6 border-t border-gray-50 bg-white flex justify-end gap-3">
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest text-gray-500 hover:bg-gray-50 transition-colors"
-              >
-                Cancelar
-              </button>
-
-              <button
-                onClick={salvarAtalhos}
-                className="px-8 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-full text-[10px] font-black uppercase tracking-widest italic shadow-lg hover:shadow-orange-500/25 hover:scale-105 transition-all"
-              >
-                Salvar atalhos
-              </button>
-            </div>
+        <div className="flex flex-wrap md:flex-nowrap gap-3 bg-white p-2 rounded-2xl border border-gray-100 shadow-sm">
+          <div className="flex-1 flex items-center bg-gray-50 rounded-xl px-4 min-w-[200px]">
+            <Search className="text-gray-400" size={18} />
+            <Input
+              className="border-0 bg-transparent font-bold h-12 text-sm focus-visible:ring-0"
+              placeholder="Procurar produto no estoque..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
+
+          <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <SelectTrigger className="w-full md:w-40 border-0 bg-gray-50 h-12 rounded-xl text-xs font-black uppercase focus:ring-0">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent className="rounded-xl">
+              <SelectItem value="all">Todos os Itens</SelectItem>
+              <SelectItem value="baixo">Abaixo do Mínimo</SelectItem>
+              <SelectItem value="ok">Quantidade OK</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
-      )}
-    </div>
-  );
-}
 
-function HeroMiniCard({
-  label,
-  value,
-  helper,
-}: {
-  label: string;
-  value: string;
-  helper: string;
-}) {
-  return (
-    <div className="bg-white/10 backdrop-blur-md border border-white/20 p-5 rounded-[25px] min-w-[140px] shadow-xl">
-      <p className="text-[9px] text-orange-100 uppercase tracking-[0.2em] font-black italic mb-1">
-        {label}
-      </p>
-      <p className="text-2xl font-black italic uppercase tracking-tighter text-white">
-        {value}
-      </p>
-      <p className="text-[10px] text-orange-100/80 uppercase tracking-[0.14em] font-bold italic mt-2">
-        {helper}
-      </p>
-    </div>
-  );
-}
+        <div className="grid gap-3">
+          {filteredEstoques.map((e) => {
+            const isBaixo = e.quantidade_atual <= e.estoque_minimo;
+            const valorTotalItem =
+              (e.quantidade_atual || 0) * (e.custo_unitario || 0);
 
-function QuickActionButton({
-  href,
-  icon,
-  label,
-}: {
-  href: string;
-  icon: React.ReactNode;
-  label: string;
-}) {
-  return (
-    <Link
-      href={href}
-      className="rounded-2xl border border-white/20 bg-white/10 hover:bg-white/15 transition-all px-4 py-4 text-left"
-    >
-      <div className="flex items-center gap-2 text-orange-100 mb-2">
-        {icon}
-        <span className="text-[10px] font-black uppercase tracking-[0.18em] italic">
-          ir para
-        </span>
+            return (
+              <div
+                key={e.id}
+                className={`bg-white border-2 rounded-2xl p-4 flex flex-col md:flex-row md:items-center justify-between transition-all group ${
+                  isBaixo
+                    ? "border-red-100"
+                    : "border-transparent hover:border-blue-100 shadow-sm"
+                }`}
+              >
+                <div className="flex items-center gap-4 mb-4 md:mb-0 md:w-1/3">
+                  <div
+                    className={`p-3 rounded-xl transition-colors ${
+                      isBaixo
+                        ? "bg-red-50 text-red-600"
+                        : "bg-blue-50 text-blue-600"
+                    }`}
+                  >
+                    <Package size={24} />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-sm text-gray-900 uppercase tracking-tight">
+                      {e.produto_nome}
+                    </h3>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase mt-1">
+                      {e.categoria_produto || "Geral"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between md:w-1/3 px-4 border-x border-gray-50 mb-4 md:mb-0">
+                  <div>
+                    <p className="text-[9px] font-black uppercase text-gray-400 mb-1">
+                      Custo Médio
+                    </p>
+                    <p className="font-bold text-gray-700 text-sm">
+                      {formatCurrency(e.custo_unitario)}{" "}
+                      <span className="text-[10px] text-gray-400 font-normal">
+                        / {e.unidade_medida}
+                      </span>
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[9px] font-black uppercase text-gray-400 mb-1">
+                      Total em Caixa
+                    </p>
+                    <p className="font-black text-green-600 text-sm italic">
+                      {formatCurrency(valorTotalItem)}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between md:justify-end gap-6 md:w-1/3">
+                  <div className="text-right">
+                    <p className="text-[9px] font-black uppercase text-gray-400 mb-1">
+                      Prateleira
+                    </p>
+                    <div className="flex items-baseline gap-1 justify-end">
+                      <p
+                        className={`text-2xl font-black italic leading-none ${
+                          isBaixo ? "text-red-600" : "text-gray-900"
+                        }`}
+                      >
+                        {e.quantidade_atual}
+                      </p>
+                      <span className="text-xs font-bold text-gray-500">
+                        {e.unidade_medida}
+                      </span>
+                    </div>
+                    {isBaixo && (
+                      <p className="text-[8px] font-black text-white bg-red-500 px-2 py-0.5 rounded-full uppercase mt-1 inline-block">
+                        Comprar!
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Button
+                      onClick={() => handleOpenAudit(e)}
+                      className="h-12 bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white rounded-xl shadow-sm transition-all font-bold text-xs"
+                    >
+                      <ClipboardList size={16} className="mr-2" /> Auditar
+                    </Button>
+                    <Button
+                      onClick={() => handleDeleteItem(e.id)}
+                      variant="ghost"
+                      className="h-12 w-12 p-0 rounded-xl hover:bg-red-50 text-red-400 hover:text-red-600 transition-all"
+                    >
+                      <Trash2 size={18} />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+
+          {filteredEstoques.length === 0 && !isLoading && (
+            <div className="text-center py-16 bg-white rounded-3xl border-2 border-dashed border-gray-100 shadow-sm">
+              <Boxes size={48} className="mx-auto text-gray-300 mb-4" />
+              <p className="text-gray-500 font-black uppercase text-sm tracking-widest">
+                Estoque Vazio
+              </p>
+              <p className="text-gray-400 text-xs mt-2">
+                Dê entrada nos seus produtos para calcular o patrimônio.
+              </p>
+            </div>
+          )}
+        </div>
+
+        <Dialog open={isAuditDialogOpen} onOpenChange={setIsAuditDialogOpen}>
+          <DialogContent
+            aria-describedby={undefined}
+            className="max-w-lg rounded-[35px] p-8 bg-white border-none shadow-2xl"
+          >
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-black italic uppercase text-gray-900 flex items-center gap-2">
+                <ClipboardList className="text-blue-600" /> Auditoria de{" "}
+                <span className="text-blue-600">Estoque</span>
+              </DialogTitle>
+              <DialogDescription className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+                Ajuste físico e atualização de custos
+              </DialogDescription>
+            </DialogHeader>
+
+            {selectedItem && (
+              <div className="space-y-6 mt-2">
+                <div className="p-5 bg-gray-900 rounded-2xl flex justify-between items-center text-white shadow-lg">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                      Produto
+                    </p>
+                    <p className="font-black text-lg mt-1">
+                      {selectedItem.produto_nome}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                      Sistema (Atual)
+                    </p>
+                    <p className="font-black text-2xl italic text-blue-400">
+                      {selectedItem.quantidade_atual}{" "}
+                      <span className="text-sm text-gray-500">
+                        {selectedItem.unidade_medida}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase text-gray-500 ml-1">
+                      Contagem Física Real
+                    </Label>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => adjustQuantity(-1)}
+                        className="h-12 w-12 rounded-xl bg-gray-50 border-0 hover:bg-gray-200"
+                      >
+                        <Minus size={16} />
+                      </Button>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={auditValue}
+                        onChange={(e) => setAuditValue(e.target.value)}
+                        className="h-12 text-center font-black text-lg bg-gray-50 border-0 rounded-xl focus-visible:ring-1 focus-visible:ring-blue-500"
+                      />
+                      <Button
+                        variant="outline"
+                        onClick={() => adjustQuantity(1)}
+                        className="h-12 w-12 rounded-xl bg-gray-50 border-0 hover:bg-gray-200"
+                      >
+                        <Plus size={16} />
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase text-gray-500 ml-1">
+                      Atualizar Custo ({selectedItem.unidade_medida})
+                    </Label>
+                    <div className="relative">
+                      <DollarSign
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-green-500"
+                        size={16}
+                      />
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={auditCustoValue}
+                        onChange={(e) => setAuditCustoValue(e.target.value)}
+                        className="h-12 pl-10 font-bold bg-green-50/50 border-green-100 rounded-xl focus-visible:ring-1 focus-visible:ring-green-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase text-gray-500 ml-1">
+                      Alerta de Falta (Mínimo)
+                    </Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={auditMinimoValue}
+                      onChange={(e) => setAuditMinimoValue(e.target.value)}
+                      className="h-12 text-center font-bold bg-gray-50 border-0 rounded-xl"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase text-gray-500 ml-1">
+                      Motivo do Ajuste
+                    </Label>
+                    <Select value={auditMotivo} onValueChange={setAuditMotivo}>
+                      <SelectTrigger className="h-12 bg-gray-50 border-0 rounded-xl font-bold text-xs focus:ring-0">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl">
+                        <SelectItem value="Contagem de Rotina">
+                          Contagem de Rotina
+                        </SelectItem>
+                        <SelectItem value="Quebra/Perda">
+                          Quebra ou Perda
+                        </SelectItem>
+                        <SelectItem value="Vencimento">
+                          Produto Vencido
+                        </SelectItem>
+                        <SelectItem value="Entrada de Nota">
+                          Correção de Nota
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {toNumber(auditValue) !== selectedItem.quantidade_atual && (
+                  <div
+                    className={`p-4 rounded-xl flex items-center gap-3 border ${
+                      toNumber(auditValue) < selectedItem.quantidade_atual
+                        ? "bg-red-50 border-red-100 text-red-700"
+                        : "bg-green-50 border-green-100 text-green-700"
+                    }`}
+                  >
+                    <TrendingDown
+                      size={20}
+                      className={
+                        toNumber(auditValue) > selectedItem.quantidade_atual
+                          ? "rotate-180"
+                          : ""
+                      }
+                    />
+                    <div>
+                      <p className="font-black text-sm uppercase tracking-widest">
+                        Diferença de{" "}
+                        {Math.abs(
+                          toNumber(auditValue) - selectedItem.quantidade_atual
+                        )}{" "}
+                        {selectedItem.unidade_medida}
+                      </p>
+                      <p className="text-xs font-medium opacity-80 mt-0.5">
+                        Impacto Financeiro:{" "}
+                        {formatCurrency(
+                          Math.abs(
+                            (toNumber(auditValue) -
+                              selectedItem.quantidade_atual) *
+                              toNumber(auditCustoValue)
+                          )
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                <Button
+                  onClick={handleSaveAudit}
+                  disabled={savingAudit}
+                  className="w-full h-14 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-black uppercase text-xs tracking-[0.2em] shadow-xl hover:scale-[1.02] transition-all mt-4"
+                >
+                  {savingAudit ? (
+                    <Loader2 className="animate-spin" />
+                  ) : (
+                    "Registrar Auditoria"
+                  )}
+                </Button>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+          <DialogContent
+            aria-describedby={undefined}
+            className="max-w-md rounded-[35px] p-8 bg-white border-none shadow-2xl"
+          >
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-black italic uppercase">
+                Entrada de <span className="text-blue-600">Estoque</span>
+              </DialogTitle>
+              <DialogDescription className="hidden">
+                Cadastrar novo item no catálogo e estoque.
+              </DialogDescription>
+            </DialogHeader>
+
+            <form onSubmit={handleAddEstoque} className="space-y-5 mt-2">
+              <div className="relative space-y-1.5">
+                <Label className="text-[9px] font-black uppercase text-gray-500 ml-1">
+                  Nome do Produto
+                </Label>
+                <div className="relative">
+                  <Input
+                    value={addForm.nome_produto}
+                    onChange={(e) => handleNomeChange(e.target.value)}
+                    onFocus={() =>
+                      setMostrarSugestoes(sugestoes.length > 0)
+                    }
+                    placeholder="Ex: Queijo Mussarela"
+                    className="h-12 rounded-xl font-bold bg-gray-50 border-0 text-sm shadow-inner focus-visible:ring-0"
+                    autoComplete="off"
+                  />
+                  <Sparkles
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-blue-400"
+                    size={16}
+                  />
+                </div>
+
+                {mostrarSugestoes && sugestoes.length > 0 && (
+                  <div className="absolute w-full mt-1 bg-white rounded-2xl shadow-2xl border border-gray-100 max-h-48 overflow-y-auto p-1 z-[100]">
+                    {sugestoes.map((prod) => (
+                      <div
+                        key={prod.id}
+                        onClick={() => selecionarSugestao(prod)}
+                        className="flex items-center gap-3 p-2.5 hover:bg-blue-50 rounded-xl cursor-pointer transition-colors border-b last:border-0"
+                      >
+                        <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600">
+                          <Package size={14} />
+                        </div>
+                        <div>
+                          <p className="font-bold text-xs text-gray-900">
+                            {prod.nome}
+                          </p>
+                          <p className="text-[8px] uppercase text-gray-400">
+                            {prod.categoria}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-[9px] font-black uppercase text-gray-500 ml-1">
+                    Categoria
+                  </Label>
+                  <Select
+                    value={addForm.categoria_produto}
+                    onValueChange={(v) =>
+                      setAddForm({ ...addForm, categoria_produto: v })
+                    }
+                  >
+                    <SelectTrigger className="h-12 rounded-xl font-bold bg-gray-50 border-0 text-xs focus:ring-0">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl">
+                      {CATEGORIAS.map((c) => (
+                        <SelectItem key={c} value={c}>
+                          {c}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-[9px] font-black uppercase text-gray-500 ml-1">
+                    Unidade
+                  </Label>
+                  <Select
+                    value={addForm.unidade_medida}
+                    onValueChange={(v) =>
+                      setAddForm({ ...addForm, unidade_medida: v })
+                    }
+                  >
+                    <SelectTrigger className="h-12 rounded-xl font-bold bg-gray-50 border-0 text-xs focus:ring-0">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl">
+                      {UNIDADES.map((u) => (
+                        <SelectItem key={u} value={u}>
+                          {u}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-[9px] font-black uppercase text-green-600 ml-1">
+                  Custo Unitário da Fatura (R$)
+                </Label>
+                <div className="relative">
+                  <DollarSign
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-green-500"
+                    size={16}
+                  />
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={addForm.custo_unitario}
+                    onChange={(e) =>
+                      setAddForm({
+                        ...addForm,
+                        custo_unitario: e.target.value,
+                      })
+                    }
+                    className="h-12 pl-12 rounded-xl font-black bg-green-50/50 border-green-100 text-green-800 focus-visible:ring-1 focus-visible:ring-green-400"
+                    placeholder="Ex: 38.85"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 bg-blue-50/50 p-4 rounded-2xl border border-blue-100/30">
+                <div>
+                  <Label className="text-[8px] font-black uppercase text-blue-800 ml-1">
+                    Qtd Entrada
+                  </Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={addForm.quantidade_atual}
+                    onChange={(e) =>
+                      setAddForm({
+                        ...addForm,
+                        quantidade_atual: e.target.value,
+                      })
+                    }
+                    className="h-12 rounded-xl text-center font-black bg-white border-0 text-sm focus-visible:ring-1 focus-visible:ring-blue-300"
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <Label className="text-[8px] font-black uppercase text-red-500 ml-1">
+                    Alerta Mínimo
+                  </Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={addForm.estoque_minimo}
+                    onChange={(e) =>
+                      setAddForm({
+                        ...addForm,
+                        estoque_minimo: e.target.value,
+                      })
+                    }
+                    className="h-12 rounded-xl text-center font-black bg-white border-0 text-sm focus-visible:ring-1 focus-visible:ring-red-300"
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+
+              <Button
+                type="submit"
+                disabled={savingAdd}
+                className="w-full h-14 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-black uppercase text-xs tracking-[0.2em] shadow-xl hover:scale-[1.02] transition-transform mt-2"
+              >
+                {savingAdd ? (
+                  <Loader2 className="animate-spin" />
+                ) : (
+                  <>
+                    <PackagePlus size={18} className="mr-2" /> Gravar no
+                    Estoque
+                  </>
+                )}
+              </Button>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
-      <p className="text-sm font-black italic uppercase tracking-tight text-white">
-        {label}
-      </p>
-    </Link>
-  );
-}
-
-function SoftInfoCard({
-  icon,
-  title,
-  desc,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  desc: string;
-}) {
-  return (
-    <div className="bg-white border border-gray-100 rounded-[30px] p-6 shadow-sm">
-      <div className="w-12 h-12 rounded-2xl bg-orange-50 text-orange-600 flex items-center justify-center mb-4">
-        {icon}
-      </div>
-      <h3 className="text-lg font-black italic uppercase tracking-tight text-gray-900">
-        {title}
-      </h3>
-      <p className="text-sm text-gray-500 leading-relaxed mt-2">{desc}</p>
     </div>
   );
 }

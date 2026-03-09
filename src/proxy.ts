@@ -54,8 +54,19 @@ export async function proxy(request: NextRequest) {
 }
 
 // A configuração do matcher continua a mesma, já está correta
+// No seu arquivo src/middleware.ts
+
 export const config = {
   matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico|.*\\..*).*)",
+    /*
+     * Corresponde a todos os caminhos de solicitação, exceto os que começam com:
+     * - api (rotas de API)
+     * - _next/static (arquivos estáticos)
+     * - _next/image (otimização de imagem)
+     * - favicon.ico (ícone do site)
+     * - manifest.json (manifesto da PWA)
+     * - .*\\.png (todas as imagens PNG)
+     */
+    '/((?!api|_next/static|_next/image|favicon.ico|manifest.json|.*\\.png$).*)',
   ],
-};
+}

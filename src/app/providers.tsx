@@ -1,12 +1,17 @@
 "use client";
 
 import { ReactNode } from "react";
-import { AppAuthProvider } from "@/react-app/contexts/AppAuthContext";
 
 interface ProvidersProps {
   children: ReactNode;
 }
 
 export default function Providers({ children }: ProvidersProps) {
-  return <AppAuthProvider>{children}</AppAuthProvider>;
+  // Removido o AppAuthProvider antigo que estava quebrando o build
+  // Se você tiver outros provedores (como QueryClient ou ThemeProvider), mantenha-os aqui
+  return (
+    <>
+      {children}
+    </>
+  );
 }

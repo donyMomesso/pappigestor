@@ -1,33 +1,9 @@
+// Caminho: src/middleware.ts ou middleware.ts
+
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-function isPublicAsset(pathname: string) {
-  return (
-    pathname === "/favicon.ico" ||
-    pathname === "/manifest.json" ||
-    pathname.startsWith("/_next") ||
-    pathname.startsWith("/images/") ||
-    pathname.startsWith("/icons/") ||
-    pathname.startsWith("/icon") ||
-    pathname.startsWith("/apple-icon") ||
-    pathname.endsWith(".png") ||
-    pathname.endsWith(".jpg") ||
-    pathname.endsWith(".jpeg") ||
-    pathname.endsWith(".svg") ||
-    pathname.endsWith(".webp") ||
-    pathname.endsWith(".ico") ||
-    pathname.endsWith(".json")
-  );
-}
-
-export async function proxy(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-
-  // Não interceptar APIs nem arquivos públicos/estáticos
-  if (pathname.startsWith("/api") || isPublicAsset(pathname)) {
-    return NextResponse.next();
-  }
-
+export async function middleware(request: NextRequest) {
   let response = NextResponse.next({
     request: {
       headers: request.headers,
@@ -43,16 +19,12 @@ export async function proxy(request: NextRequest) {
           return request.cookies.getAll();
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => {
+          cookiesToSet.forEach(({ name, value, options }) => {
             request.cookies.set(name, value);
           });
-
           response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
+            request,
           });
-
           cookiesToSet.forEach(({ name, value, options }) => {
             response.cookies.set(name, value, options);
           });
@@ -65,10 +37,14 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  const { pathname } = request.nextUrl;
+
+  // Se o usuário está logado e tenta acessar a página de login, redireciona para o app
   if (user && pathname === "/login") {
     return NextResponse.redirect(new URL("/app", request.url));
   }
 
+  // Se o usuário não está logado e tenta acessar uma página protegida, redireciona para o login
   if (!user && pathname.startsWith("/app")) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
@@ -76,6 +52,18 @@ export async function proxy(request: NextRequest) {
   return response;
 }
 
+// ✅ CONFIGURAÇÃO CORRIGIDA E OTIMIZADA
 export const config = {
-  matcher: ["/app/:path*", "/login", "/onboarding", "/manifest.json"],
+  /*
+   * O matcher agora executa o middleware em TODAS as rotas, EXCETO nas que são:
+   * - Rotas de API (/api)
+   * - Arquivos estáticos do Next.js (/_next/static)
+   * - Otimização de imagem do Next.js (/_next/image)
+   * - favicon.ico
+   * - Qualquer outro caminho que contenha um ponto (.), o que efetivamente ignora
+   *   todos os arquivos como .png, .jpg, .svg, manifest.json, etc.
+   */
+  matcher: [
+    "/((?!api|_next/static|_next/image|favicon.ico|.*\\..*).*)",
+  ],
 };

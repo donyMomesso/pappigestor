@@ -1,9 +1,10 @@
-// Caminho: src/middleware.ts ou middleware.ts
+// Caminho: src/proxy.ts
 
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-export async function middleware(request: NextRequest) {
+// ✅ FUNÇÃO RENOMEADA DE 'middleware' PARA 'proxy'
+export async function proxy(request: NextRequest) {
   let response = NextResponse.next({
     request: {
       headers: request.headers,
@@ -52,17 +53,8 @@ export async function middleware(request: NextRequest) {
   return response;
 }
 
-// ✅ CONFIGURAÇÃO CORRIGIDA E OTIMIZADA
+// A configuração do matcher continua a mesma, já está correta
 export const config = {
-  /*
-   * O matcher agora executa o middleware em TODAS as rotas, EXCETO nas que são:
-   * - Rotas de API (/api)
-   * - Arquivos estáticos do Next.js (/_next/static)
-   * - Otimização de imagem do Next.js (/_next/image)
-   * - favicon.ico
-   * - Qualquer outro caminho que contenha um ponto (.), o que efetivamente ignora
-   *   todos os arquivos como .png, .jpg, .svg, manifest.json, etc.
-   */
   matcher: [
     "/((?!api|_next/static|_next/image|favicon.ico|.*\\..*).*)",
   ],

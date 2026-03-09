@@ -51,17 +51,17 @@ function uuid() {
 }
 
 export function getPizzariaId(headers: Headers) {
-  const pId = headers.get("x-pizzaria-id") || "";
-  if (!pId) throw new Error("Missing x-pizzaria-id");
+  const pId = headers.get("x-empresa-id") || "";
+  if (!pId) throw new Error("Missing x-empresa-id");
   return pId;
 }
 
-export function getDb(pizzariaId: string): DB {
+export function getDb(empresaId: string): DB {
   if (!globalThis.__PAPPI_DB__) globalThis.__PAPPI_DB__ = {};
-  if (!globalThis.__PAPPI_DB__![pizzariaId]) {
-    globalThis.__PAPPI_DB__![pizzariaId] = seed();
+  if (!globalThis.__PAPPI_DB__![empresaId]) {
+    globalThis.__PAPPI_DB__![empresaId] = seed();
   }
-  return globalThis.__PAPPI_DB__![pizzariaId];
+  return globalThis.__PAPPI_DB__![empresaId];
 }
 
 export function createProduto(db: DB, data: Omit<Produto, "id" | "ultimo_preco_pago"> & { ultimo_preco_pago?: number | null }) {

@@ -16,7 +16,7 @@ function getSupabase() {
 function getEmpresaId(req: NextRequest): string | null {
   const empresaId =
     req.headers.get("x-empresa-id") ||
-    req.headers.get("x-pizzaria-id") ||
+    req.headers.get("x-empresa-id") ||
     req.nextUrl.searchParams.get("empresa_id");
 
   return empresaId && empresaId.trim() ? empresaId.trim() : null;
@@ -39,7 +39,7 @@ export async function PATCH(
 
     if (!empresaId) {
       return NextResponse.json(
-        { error: "Empresa não informada. Envie x-empresa-id ou x-pizzaria-id." },
+        { error: "Empresa não informada. Envie x-empresa-id ou x-empresa-id." },
         { status: 400 }
       );
     }
@@ -177,7 +177,7 @@ export async function DELETE(
 
     if (!empresaId) {
       return NextResponse.json(
-        { error: "Empresa não informada. Envie x-empresa-id ou x-pizzaria-id." },
+        { error: "Empresa não informada. Envie x-empresa-id ou x-empresa-id." },
         { status: 400 }
       );
     }

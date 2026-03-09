@@ -55,8 +55,8 @@ export default function PrecificacaoPage() {
   const [isSaving, setIsSaving] = useState(false);
 
   const getHeaders = useCallback(() => {
-    const pId = localStorage.getItem("pId") || localStorage.getItem("pizzariaId") || "";
-    return { "Content-Type": "application/json", "x-pizzaria-id": pId };
+    const pId = localStorage.getItem("pId") || localStorage.getItem("empresaId") || "";
+    return { "Content-Type": "application/json", "x-empresa-id": pId };
   }, []);
 
   useEffect(() => {

@@ -1,4 +1,5 @@
 "use client";
+export const dynamic = "force-dynamic";
 
 import { useAppAuth } from "@/react-app/contexts/AppAuthContext";
 import {

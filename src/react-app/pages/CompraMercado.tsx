@@ -188,7 +188,7 @@ export default function CompraMercado() {
       if (!pId) return;
 
       const response = await fetch("/api/lancamentos?categoria=Mercado&limit=5", {
-        headers: { "x-pizzaria-id": pId },
+        headers: { "x-empresa-id": pId },
         cache: "no-store",
       });
 
@@ -212,7 +212,7 @@ export default function CompraMercado() {
       if (!pId) return;
 
       const response = await fetch("/api/lista-compras?status=pendente,em_cotacao", {
-        headers: { "x-pizzaria-id": pId },
+        headers: { "x-empresa-id": pId },
         cache: "no-store",
       });
       if (!response.ok) return;
@@ -264,11 +264,11 @@ export default function CompraMercado() {
 
     try {
       const pId = localStorage.getItem("pId") || "";
-      if (!pId) throw new Error("Selecione a pizzaria (pId) antes de dar baixa.");
+      if (!pId) throw new Error("Selecione a empresa (pId) antes de dar baixa.");
 
       const response = await fetch("/api/lista-compras/dar-baixa", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-pizzaria-id": pId },
+        headers: { "Content-Type": "application/json", "x-empresa-id": pId },
         body: JSON.stringify({ ids: Array.from(matchesSelecionados) }),
       });
 
@@ -515,11 +515,11 @@ export default function CompraMercado() {
 
     try {
       const pId = localStorage.getItem("pId") || "";
-      if (!pId) throw new Error("Selecione a pizzaria (pId) antes de salvar.");
+      if (!pId) throw new Error("Selecione a empresa (pId) antes de salvar.");
 
       const response = await fetch("/api/compra-mercado", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-pizzaria-id": pId },
+        headers: { "Content-Type": "application/json", "x-empresa-id": pId },
         body: JSON.stringify({ dados_nfce: dadosNfce, categoria }),
       });
 

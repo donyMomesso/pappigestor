@@ -137,7 +137,7 @@ function loadLocalUserFromStorage(): LocalUser | null {
     const empresa_id =
       localStorage.getItem("empresa_id") ||
       localStorage.getItem("pId") ||
-      localStorage.getItem("pizzariaId") ||
+      localStorage.getItem("empresaId") ||
       null;
 
     const nome_empresa =
@@ -185,7 +185,7 @@ function persistLocalUserToStorage(user: LocalUser | null) {
       localStorage.removeItem("userName");
       localStorage.removeItem("empresa_id");
       localStorage.removeItem("pId");
-      localStorage.removeItem("pizzariaId");
+      localStorage.removeItem("empresaId");
       localStorage.removeItem("nome_empresa");
       localStorage.removeItem("empresa_nome");
       localStorage.removeItem("plano");
@@ -201,7 +201,7 @@ function persistLocalUserToStorage(user: LocalUser | null) {
     localStorage.setItem("userName", String(user.nome ?? ""));
     localStorage.setItem("empresa_id", String(user.empresa_id ?? ""));
     localStorage.setItem("pId", String(user.empresa_id ?? ""));
-    localStorage.setItem("pizzariaId", String(user.empresa_id ?? ""));
+    localStorage.setItem("empresaId", String(user.empresa_id ?? ""));
     localStorage.setItem("nome_empresa", String(user.nome_empresa ?? ""));
     localStorage.setItem("empresa_nome", String(user.nome_empresa ?? ""));
     localStorage.setItem("plano", String(user.plano ?? "gratis"));

@@ -1,4 +1,5 @@
 "use client";
+export const dynamic = "force-dynamic";
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useAppAuth } from "@/react-app/contexts/AppAuthContext";
@@ -216,7 +217,7 @@ export default function FinanceiroPage() {
     const empresaIdStorage =
       localStorage.getItem("empresa_id") ||
       localStorage.getItem("pId") ||
-      localStorage.getItem("pizzariaId") ||
+      localStorage.getItem("empresaId") ||
       "";
 
     const userEmailStorage =

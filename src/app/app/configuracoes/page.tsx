@@ -64,7 +64,6 @@ export default function ConfiguracoesPage() {
     try {
       const res = await fetch("/api/empresa-config", {
         headers: {
-          "x-pizzaria-id": String(pId),
           "x-empresa-id": String(pId),
         },
         cache: "no-store",
@@ -155,7 +154,6 @@ export default function ConfiguracoesPage() {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          "x-pizzaria-id": String(pId),
           "x-empresa-id": String(pId),
         },
         body: JSON.stringify({
@@ -347,7 +345,7 @@ export default function ConfiguracoesPage() {
                           })
                         }
                         className="h-14 rounded-2xl bg-white border-gray-200 font-bold"
-                        placeholder="Minha pizzaria"
+                        placeholder="Minha empresa"
                       />
                     </div>
                   </div>

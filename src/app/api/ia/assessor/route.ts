@@ -74,7 +74,7 @@ function buildPrompt(body: Body) {
   const s = body.stats;
 
   return `
-Você é o "Assessor Operacional" do PappiGestor (pizzaria).
+Você é o "Assessor Operacional" do PappiGestor (restaurante/food service).
 Objetivo: reduzir rutura, reduzir compra no susto, aumentar previsibilidade e margem.
 
 Use Neuro:

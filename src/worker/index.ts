@@ -76,7 +76,7 @@ app.use("/api/*", async (c, next) => {
     `
     SELECT id, funcao, permissoes, status
     FROM perfis_usuarios
-    WHERE pizzaria_id = ? AND LOWER(email) = LOWER(?) AND status = 'ativo'
+    WHERE empresa_id = ? AND LOWER(email) = LOWER(?) AND status = 'ativo'
     LIMIT 1
   `
   )
@@ -140,7 +140,7 @@ function requirePerm(permission: string) {
 /**
  * Rota: POST /api/empresas/minhas
  * Objetivo: Listar todas as empresas vinculadas ao email do usuário logado.
- * Observação: Banco ainda usa tabelas/colunas com nome "pizzarias/pizzaria_id".
+ * Observação: Banco usa tabela "empresas" e coluna "empresa_id".
  */
 app.post("/api/empresas/minhas", async (c) => {
   try {
@@ -159,7 +159,7 @@ app.post("/api/empresas/minhas", async (c) => {
         p.plano,
         p.status
       FROM perfis_usuarios u
-      JOIN pizzarias p ON u.pizzaria_id = p.id
+      JOIN empresas p ON u.empresa_id = p.id
       WHERE LOWER(u.email) = LOWER(?) AND u.status = 'ativo'
       ORDER BY p.nome ASC
     `
@@ -190,12 +190,12 @@ app.post("/api/auth/login", async (c) => {
     const user = await c.env.DB.prepare(
       `
       SELECT 
-        u.pizzaria_id, 
+        u.empresa_id, 
         u.funcao, 
         u.nome, 
         p.status as p_status
       FROM perfis_usuarios u
-      JOIN pizzarias p ON u.pizzaria_id = p.id
+      JOIN empresas p ON u.empresa_id = p.id
       WHERE LOWER(u.email) = LOWER(?) AND u.status = 'ativo'
       LIMIT 1
     `
@@ -209,7 +209,7 @@ app.post("/api/auth/login", async (c) => {
 
     // ✅ resposta mantém compatibilidade, mas você pode consumir como "empresa_id" no front
     return c.json({
-      empresa_id: (user as any).pizzaria_id,
+      empresa_id: (user as any).empresa_id,
       role: (user as any).funcao,
       nome: (user as any).nome,
     });
@@ -240,7 +240,7 @@ app.get("/api/admin/usuarios", requireRole(["master", "admin"]), async (c) => {
         funcao, 
         cargo
       FROM perfis_usuarios
-      WHERE pizzaria_id = ?
+      WHERE empresa_id = ?
       ORDER BY
         CASE WHEN funcao = 'master' THEN 0 ELSE 1 END,
         nome ASC
@@ -287,7 +287,7 @@ app.post("/api/admin/usuarios", requireRole(["master", "admin"]), async (c) => {
       `
       SELECT COUNT(*) as total 
       FROM perfis_usuarios 
-      WHERE pizzaria_id = ? AND status = 'ativo'
+      WHERE empresa_id = ? AND status = 'ativo'
     `
     )
       .bind(empresaId)
@@ -308,7 +308,7 @@ app.post("/api/admin/usuarios", requireRole(["master", "admin"]), async (c) => {
       `
       SELECT id 
       FROM perfis_usuarios 
-      WHERE pizzaria_id = ? AND LOWER(email) = LOWER(?) LIMIT 1
+      WHERE empresa_id = ? AND LOWER(email) = LOWER(?) LIMIT 1
     `
     )
       .bind(empresaId, email)
@@ -332,7 +332,7 @@ app.post("/api/admin/usuarios", requireRole(["master", "admin"]), async (c) => {
     // Criação de convite/usuário
     await c.env.DB.prepare(
       `
-      INSERT INTO perfis_usuarios (pizzaria_id, nome, email, funcao, cargo, status)
+      INSERT INTO perfis_usuarios (empresa_id, nome, email, funcao, cargo, status)
       VALUES (?, NULL, ?, 'comum', ?, 'ativo')
     `
     )
@@ -367,7 +367,7 @@ app.delete(
         `
         SELECT funcao 
         FROM perfis_usuarios 
-        WHERE id = ? AND pizzaria_id = ? LIMIT 1
+        WHERE id = ? AND empresa_id = ? LIMIT 1
       `
       )
         .bind(id, empresaId)
@@ -386,7 +386,7 @@ app.delete(
       await c.env.DB.prepare(
         `
         DELETE FROM perfis_usuarios 
-        WHERE id = ? AND pizzaria_id = ?
+        WHERE id = ? AND empresa_id = ?
       `
       )
         .bind(id, empresaId)
@@ -472,7 +472,7 @@ Formato:
     await c.env.DB.prepare(
       `
       INSERT INTO caixa_entrada (
-        pizzaria_id,
+        empresa_id,
         fornecedor_nome,
         valor_total,
         json_extraido,
@@ -590,7 +590,7 @@ app.get("/api/ia/inbox-count", async (c) => {
       `
       SELECT COUNT(*) as total 
       FROM caixa_entrada 
-      WHERE pizzaria_id = ? AND status = 'pendente'
+      WHERE empresa_id = ? AND status = 'pendente'
     `
     )
       .bind(empresaId)
@@ -608,7 +608,7 @@ app.get("/api/ia/inbox", async (c) => {
     const { results } = await c.env.DB.prepare(
       `
       SELECT * FROM caixa_entrada 
-      WHERE pizzaria_id = ? AND status = 'pendente' 
+      WHERE empresa_id = ? AND status = 'pendente' 
       ORDER BY criado_em DESC
     `
     )
@@ -639,7 +639,7 @@ app.post("/api/ia/inbox/approve", async (c) => {
       `
       UPDATE caixa_entrada 
       SET status = 'aprovado' 
-      WHERE id = ? AND pizzaria_id = ?
+      WHERE id = ? AND empresa_id = ?
     `
     )
       .bind(id, empresaId)
@@ -651,7 +651,7 @@ app.post("/api/ia/inbox/approve", async (c) => {
       for (const item of itens) {
         await c.env.DB.prepare(
           `
-          INSERT INTO estoque (pizzaria_id, nome_produto, quantidade) 
+          INSERT INTO estoque (empresa_id, nome_produto, quantidade) 
           VALUES (?, ?, ?)
           ON CONFLICT(nome_produto) DO UPDATE 
           SET quantidade = estoque.quantidade + excluded.quantidade, 
@@ -682,7 +682,7 @@ app.get("/api/fornecedores", async (c) => {
     const { results } = await c.env.DB.prepare(
       `
       SELECT * FROM fornecedores 
-      WHERE pizzaria_id = ? 
+      WHERE empresa_id = ? 
       ORDER BY nome_fantasia ASC
     `
     )
@@ -703,7 +703,7 @@ app.post("/api/fornecedores", async (c) => {
     await c.env.DB.prepare(
       `
       INSERT INTO fornecedores (
-        pizzaria_id, 
+        empresa_id, 
         nome_fantasia, 
         razao_social, 
         cnpj, 
@@ -753,7 +753,7 @@ app.patch("/api/fornecedores/:id", async (c) => {
           prazo_pagamento_dias = ?, 
           email = ?, 
           nome_contato = ?
-      WHERE id = ? AND pizzaria_id = ?
+      WHERE id = ? AND empresa_id = ?
     `
     )
       .bind(
@@ -782,7 +782,7 @@ app.delete("/api/fornecedores/:id", async (c) => {
     await c.env.DB.prepare(
       `
       DELETE FROM fornecedores 
-      WHERE id = ? AND pizzaria_id = ?
+      WHERE id = ? AND empresa_id = ?
     `
     )
       .bind(c.req.param("id"), empresaId)
@@ -809,7 +809,7 @@ app.get("/api/lista-compras", async (c) => {
         p.unidade_medida 
       FROM lista_compras l 
       JOIN produtos p ON l.produto_id = p.id
-      WHERE l.pizzaria_id = ? 
+      WHERE l.empresa_id = ? 
       ORDER BY l.data_solicitacao DESC
     `
     )
@@ -829,7 +829,7 @@ app.post("/api/lista-compras", async (c) => {
 
     await c.env.DB.prepare(
       `
-      INSERT INTO lista_compras (pizzaria_id, produto_id, quantidade_solicitada) 
+      INSERT INTO lista_compras (empresa_id, produto_id, quantidade_solicitada) 
       VALUES (?, ?, ?)
     `
     )
@@ -852,7 +852,7 @@ app.patch("/api/lista-compras/:id", async (c) => {
       await c.env.DB.prepare(
         `
         UPDATE lista_compras SET status_solicitacao = ? 
-        WHERE id = ? AND pizzaria_id = ?
+        WHERE id = ? AND empresa_id = ?
       `
       )
         .bind(updates.status_solicitacao, id, empresaId)
@@ -863,7 +863,7 @@ app.patch("/api/lista-compras/:id", async (c) => {
       await c.env.DB.prepare(
         `
         UPDATE lista_compras SET quantidade_solicitada = ? 
-        WHERE id = ? AND pizzaria_id = ?
+        WHERE id = ? AND empresa_id = ?
       `
       )
         .bind(updates.quantidade_solicitada, id, empresaId)
@@ -882,7 +882,7 @@ app.delete("/api/lista-compras/:id", async (c) => {
     await c.env.DB.prepare(
       `
       DELETE FROM lista_compras 
-      WHERE id = ? AND pizzaria_id = ?
+      WHERE id = ? AND empresa_id = ?
     `
     )
       .bind(c.req.param("id"), empresaId)
@@ -930,7 +930,7 @@ app.get("/api/produtos", async (c) => {
     const { results } = await c.env.DB.prepare(
       `
       SELECT * FROM produtos 
-      WHERE pizzaria_id = ? 
+      WHERE empresa_id = ? 
       ORDER BY nome_produto ASC
     `
     )
@@ -952,7 +952,7 @@ app.get("/api/produtos", async (c) => {
 
     // Anti-duplicidade
     const existente = await c.env.DB.prepare(
-      `SELECT id FROM produtos WHERE pizzaria_id = ? AND LOWER(nome_produto) = LOWER(?) LIMIT 1`
+      `SELECT id FROM produtos WHERE empresa_id = ? AND LOWER(nome_produto) = LOWER(?) LIMIT 1`
     ).bind(empresaId, nomeLimpo).first();
 
     if (existente) {
@@ -965,7 +965,7 @@ app.get("/api/produtos", async (c) => {
 
     const result = await c.env.DB.prepare(`
       INSERT INTO produtos (
-        pizzaria_id, nome_produto, categoria_produto, unidade_medida, 
+        empresa_id, nome_produto, categoria_produto, unidade_medida, 
         fornecedor_preferencial_id, codigo_barras
       ) VALUES (?, ?, ?, ?, ?, ?) RETURNING id
     `).bind(
@@ -1000,7 +1000,7 @@ app.get("/api/estoque", async (c) => {
         p.categoria_produto 
       FROM estoque e 
       JOIN produtos p ON e.produto_id = p.id
-      WHERE e.pizzaria_id = ? 
+      WHERE e.empresa_id = ? 
       ORDER BY p.nome_produto ASC
     `
     )
@@ -1018,11 +1018,11 @@ app.post("/api/estoque", async (c) => {
   try {
     const data = await c.req.json();
     
-    const jaNoEstoque = await c.env.DB.prepare(`SELECT id FROM estoque WHERE pizzaria_id = ? AND produto_id = ?`).bind(pId, data.produto_id).first();
+    const jaNoEstoque = await c.env.DB.prepare(`SELECT id FROM estoque WHERE empresa_id = ? AND produto_id = ?`).bind(pId, data.produto_id).first();
     if (jaNoEstoque) return c.json({ error: "Este produto já está listado no seu inventário de stock." }, 400);
 
     await c.env.DB.prepare(`
-      INSERT INTO estoque (pizzaria_id, produto_id, quantidade_atual, estoque_minimo, custo_unitario) 
+      INSERT INTO estoque (empresa_id, produto_id, quantidade_atual, estoque_minimo, custo_unitario) 
       VALUES (?, ?, ?, ?, ?)
     `).bind(
       pId, 
@@ -1047,7 +1047,7 @@ app.patch("/api/estoque/:id", async (c) => {
     await c.env.DB.prepare(`
       UPDATE estoque 
       SET quantidade_atual = ?, estoque_minimo = ?, custo_unitario = ? 
-      WHERE id = ? AND pizzaria_id = ?
+      WHERE id = ? AND empresa_id = ?
     `).bind(
       data.quantidade_atual, 
       data.estoque_minimo, 
@@ -1074,7 +1074,7 @@ app.patch("/api/estoque/:id", async (c) => {
       `
       UPDATE estoque 
       SET quantidade_atual = ?, estoque_minimo = ?, custo_unitario = ? 
-      WHERE id = ? AND pizzaria_id = ?
+      WHERE id = ? AND empresa_id = ?
     `
     )
       .bind(
@@ -1100,7 +1100,7 @@ app.delete("/api/estoque/:id", async (c) => {
     await c.env.DB.prepare(
       `
       DELETE FROM estoque 
-      WHERE id = ? AND pizzaria_id = ?
+      WHERE id = ? AND empresa_id = ?
     `
     )
       .bind(id, empresaId)
@@ -1122,7 +1122,7 @@ app.get("/api/fichas-tecnicas", async (c) => {
     const { results } = await c.env.DB.prepare(
       `
       SELECT * FROM fichas_tecnicas 
-      WHERE pizzaria_id = ? 
+      WHERE empresa_id = ? 
       ORDER BY criado_em DESC
     `
     )
@@ -1141,11 +1141,11 @@ app.post("/api/fichas-tecnicas", async (c) => {
   try {
     const data = await c.req.json();
 
-    // Plano da empresa (mantive tabela "pizzarias" do banco)
+    // Plano da empresa
     const empresa: any = await c.env.DB.prepare(
       `
       SELECT plano 
-      FROM pizzarias 
+      FROM empresas 
       WHERE id = ?
       LIMIT 1
     `
@@ -1161,7 +1161,7 @@ app.post("/api/fichas-tecnicas", async (c) => {
         `
         SELECT COUNT(*) as total 
         FROM fichas_tecnicas 
-        WHERE pizzaria_id = ?
+        WHERE empresa_id = ?
       `
       )
         .bind(empresaId)
@@ -1182,7 +1182,7 @@ app.post("/api/fichas-tecnicas", async (c) => {
     const Ficha: any = await c.env.DB.prepare(
       `
       INSERT INTO fichas_tecnicas (
-        pizzaria_id, 
+        empresa_id, 
         nome_produto, 
         markup, 
         impostos, 
@@ -1248,7 +1248,7 @@ app.delete("/api/fichas-tecnicas/:id", async (c) => {
     await c.env.DB.prepare(
       `
       DELETE FROM fichas_tecnicas 
-      WHERE id = ? AND pizzaria_id = ?
+      WHERE id = ? AND empresa_id = ?
     `
     )
       .bind(id, empresaId)

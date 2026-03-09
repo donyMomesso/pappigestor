@@ -146,7 +146,7 @@ function getEmpresaIdStorage(): string {
     localStorage.getItem("empresa_id") ||
     localStorage.getItem("company_id") ||
     localStorage.getItem("pId") ||
-    localStorage.getItem("pizzariaId") ||
+    localStorage.getItem("empresaId") ||
     ""
   );
 }
@@ -159,7 +159,7 @@ function setEmpresaIdStorage(id: string) {
   localStorage.setItem("empresa_id", id);
   localStorage.setItem("company_id", id);
   localStorage.setItem("pId", id);
-  localStorage.setItem("pizzariaId", id);
+  localStorage.setItem("empresaId", id);
 }
 
 function DropdownMenu({

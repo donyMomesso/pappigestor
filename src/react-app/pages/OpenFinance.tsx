@@ -91,7 +91,7 @@ export default function OpenFinance() {
     localUser?.empresa_id ||
     localStorage.getItem("empresa_id") ||
     localStorage.getItem("pId") ||
-    localStorage.getItem("pizzariaId") ||
+    localStorage.getItem("empresaId") ||
     "";
 
   const userEmail = localUser?.email || localStorage.getItem("userEmail") || "";

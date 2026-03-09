@@ -2,7 +2,7 @@
 
 import React from "react";
 import NextLink from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams, useParams as useNextParams } from "next/navigation";
 
 type LinkProps = React.ComponentProps<typeof NextLink> & { to?: string };
 
@@ -35,4 +35,21 @@ export function Navigate({ to, replace }: { to: string; replace?: boolean }) {
     else router.push(to);
   }, [to, replace, router]);
   return null;
+}
+
+// Stubs para compatibilidade com react-router-dom (usados pelo App.tsx SPA)
+export function BrowserRouter({ children }: { children: React.ReactNode }) {
+  return <>{children}</>;
+}
+
+export function Routes({ children }: { children: React.ReactNode }) {
+  return <>{children}</>;
+}
+
+export function Route(_props: { path?: string; element?: React.ReactNode; children?: React.ReactNode }) {
+  return null;
+}
+
+export function useParams<T = Record<string, string | undefined>>(): T {
+  return (useNextParams() || {}) as T;
 }

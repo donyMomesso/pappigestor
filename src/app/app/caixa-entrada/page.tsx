@@ -130,11 +130,10 @@ export default function InboxPage() {
 
   const getHeaders = useCallback(
     (isFormData = false) => {
-      const pId = localStorage.getItem("pId") || localStorage.getItem("pizzariaId") || "";
+      const pId = localStorage.getItem("pId") || localStorage.getItem("empresaId") || "";
       const email = localUser?.email || localStorage.getItem("userEmail") || "";
 
       const headers: Record<string, string> = {
-        "x-pizzaria-id": pId,
         "x-empresa-id": pId,
         "x-user-email": email,
       };

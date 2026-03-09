@@ -1,4 +1,5 @@
 "use client";
+export const dynamic = "force-dynamic";
 
 import { useState, useEffect } from "react";
 import { Button } from "@/react-app/components/ui/button";
@@ -108,7 +109,7 @@ export default function RecebimentoPage() {
 
     try {
       const res = await fetch("/api/lancamentos", {
-        headers: { "x-pizzaria-id": pId },
+        headers: { "x-empresa-id": pId },
       });
 
       const data = (await res.json()) as any[];
@@ -116,7 +117,7 @@ export default function RecebimentoPage() {
       const lancamentosComItens = await Promise.all(
         data.map(async (l: any) => {
           const detalhes = (await fetch(`/api/lancamentos/${l.id}`, {
-            headers: { "x-pizzaria-id": pId },
+            headers: { "x-empresa-id": pId },
           }).then((r) => r.json())) as LancamentoComItens;
 
           return detalhes;
@@ -173,7 +174,7 @@ export default function RecebimentoPage() {
 
       const res = await fetch("/api/upload", {
         method: "POST",
-        headers: { "x-pizzaria-id": pId },
+        headers: { "x-empresa-id": pId },
         body: formData,
       });
 
@@ -206,7 +207,7 @@ export default function RecebimentoPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-pizzaria-id": pId,
+          "x-empresa-id": pId,
         },
         body: JSON.stringify({ image_url: notaFiscal.arquivo_url }),
       });
@@ -259,7 +260,7 @@ export default function RecebimentoPage() {
 
       const res = await fetch("/api/upload", {
         method: "POST",
-        headers: { "x-pizzaria-id": pId },
+        headers: { "x-empresa-id": pId },
         body: formData,
       });
 
@@ -288,7 +289,7 @@ export default function RecebimentoPage() {
 
       const uploadRes = await fetch("/api/upload", {
         method: "POST",
-        headers: { "x-pizzaria-id": pId },
+        headers: { "x-empresa-id": pId },
         body: formData,
       });
 
@@ -302,7 +303,7 @@ export default function RecebimentoPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-pizzaria-id": pId,
+          "x-empresa-id": pId,
         },
         body: JSON.stringify({
           image_url: uploadData.url,
@@ -377,7 +378,7 @@ export default function RecebimentoPage() {
               method: "PATCH",
               headers: {
                 "Content-Type": "application/json",
-                "x-pizzaria-id": pId,
+                "x-empresa-id": pId,
               },
               body: JSON.stringify({
                 quantidade_recebida: quantidadeRecebida,
@@ -403,7 +404,7 @@ export default function RecebimentoPage() {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "x-pizzaria-id": pId,
+              "x-empresa-id": pId,
             },
             body: JSON.stringify({
               lancamento_id: selectedLancamento.id,
@@ -432,7 +433,7 @@ export default function RecebimentoPage() {
             method: "PATCH",
             headers: {
               "Content-Type": "application/json",
-              "x-pizzaria-id": pId,
+              "x-empresa-id": pId,
             },
             body: JSON.stringify({
               is_boleto_recebido: true,
@@ -475,7 +476,7 @@ export default function RecebimentoPage() {
   method: "POST",
   headers: {
     "Content-Type": "application/json",
-    "x-pizzaria-id": pId,
+    "x-empresa-id": pId,
   },
   body: JSON.stringify({
     produto_id: item.produto_id,
@@ -568,7 +569,7 @@ export default function RecebimentoPage() {
     try {
       const res = await fetch(`/api/lancamentos/${deletingId}`, {
         method: "DELETE",
-        headers: { "x-pizzaria-id": pId },
+        headers: { "x-empresa-id": pId },
       });
 
       if (!res.ok) {

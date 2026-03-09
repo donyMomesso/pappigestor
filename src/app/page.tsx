@@ -221,7 +221,7 @@ export default function LandingPage() {
             MAIS CONTROLE.
           </h2>
           <p className="text-zinc-400 text-base mt-5 max-w-2xl leading-relaxed">
-            O Pappi Gestor foi pensado para pizzarias, restaurantes e operações
+            O Pappi Gestor foi pensado para restaurantes, pizzarias e operações
             de food service que precisam de clareza no dia a dia.
           </p>
         </div>

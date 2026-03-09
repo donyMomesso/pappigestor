@@ -1,6 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  turbopack: {
+    resolveAlias: {
+      "react-router": "./src/shims/react-router.tsx",
+      "react-router-dom": "./src/shims/react-router.tsx",
+    },
+  },
   async rewrites() {
     return [
       {
@@ -15,5 +21,4 @@ const nextConfig: NextConfig = {
     ];
   },
 };
-
 export default nextConfig;

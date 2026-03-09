@@ -56,7 +56,7 @@ export async function api<T = any>(path: string, opts: ApiOptions = {}): Promise
     headers["x-user-email"] = userEmail;
 
     // fallback temporário (se algum endpoint ainda lê isso)
-    headers["x-pizzaria-id"] = empresaId;
+    headers["x-empresa-id"] = empresaId;
   }
 
   let body: string | undefined = undefined;

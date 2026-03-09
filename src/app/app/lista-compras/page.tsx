@@ -332,7 +332,7 @@ export default function ListaComprasPage() {
 
       const pId = localStorage.getItem("pId") || "";
 
-      // ✅ Se não tem pizzaria selecionada, não chama API
+      // ✅ Se não tem empresa selecionada, não chama API
       if (!pId) {
         setItens([]);
         setProdutos([]);
@@ -341,7 +341,7 @@ export default function ListaComprasPage() {
         return;
       }
 
-      const headers: Record<string, string> = { "x-pizzaria-id": pId };
+      const headers: Record<string, string> = { "x-empresa-id": pId };
 
       const [resItens, resProd, resForn, resEstoque] = await Promise.all([
         fetch("/api/lista-compras", { headers, cache: "no-store", signal }).catch(() => null),
@@ -422,7 +422,7 @@ export default function ListaComprasPage() {
     try {
       const res = await fetch("/api/produtos", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-pizzaria-id": pId },
+        headers: { "Content-Type": "application/json", "x-empresa-id": pId },
         body: JSON.stringify({
           ...newProductForm,
           fornecedor_preferencial_id:
@@ -447,7 +447,7 @@ export default function ListaComprasPage() {
         if (pendingImportItem) {
           await fetch("/api/lista-compras", {
             method: "POST",
-            headers: { "Content-Type": "application/json", "x-pizzaria-id": pId },
+            headers: { "Content-Type": "application/json", "x-empresa-id": pId },
             body: JSON.stringify({ produto_id: novoProduto.id, quantidade_solicitada: pendingImportItem.quantidade }),
           });
 
@@ -479,7 +479,7 @@ export default function ListaComprasPage() {
     try {
       const res = await fetch("/api/ia/interpretar-lista", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-pizzaria-id": pId },
+        headers: { "Content-Type": "application/json", "x-empresa-id": pId },
         body: JSON.stringify({ texto: importText }),
       });
       const data = (await res.json()) as any;
@@ -491,7 +491,7 @@ export default function ListaComprasPage() {
         if (prod) {
           await fetch("/api/lista-compras", {
             method: "POST",
-            headers: { "Content-Type": "application/json", "x-pizzaria-id": pId },
+            headers: { "Content-Type": "application/json", "x-empresa-id": pId },
             body: JSON.stringify({ produto_id: prod.id, quantidade_solicitada: item.quantidade || 1 }),
           });
           results.push({ ...item, added: true });
@@ -535,7 +535,7 @@ export default function ListaComprasPage() {
     const pId = localStorage.getItem("pId") || "";
     await fetch(`/api/lista-compras/${id}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json", "x-pizzaria-id": pId },
+      headers: { "Content-Type": "application/json", "x-empresa-id": pId },
       body: JSON.stringify({ status_solicitacao: status }),
     });
     fetchAllData();
@@ -550,7 +550,7 @@ export default function ListaComprasPage() {
     const pId = localStorage.getItem("pId") || "";
     await fetch(`/api/lista-compras/${id}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json", "x-pizzaria-id": pId },
+      headers: { "Content-Type": "application/json", "x-empresa-id": pId },
       body: JSON.stringify({ quantidade_solicitada: qtd }),
     });
     setEditingQtdId(null);
@@ -560,7 +560,7 @@ export default function ListaComprasPage() {
   const handleDelete = async (id: string) => {
     if (!confirm("Remover este item da lista?")) return;
     const pId = localStorage.getItem("pId") || "";
-    await fetch(`/api/lista-compras/${id}`, { method: "DELETE", headers: { "x-pizzaria-id": pId } });
+    await fetch(`/api/lista-compras/${id}`, { method: "DELETE", headers: { "x-empresa-id": pId } });
     setSelectedItems(selectedItems.filter((i) => i !== id));
     fetchAllData();
   };
@@ -572,7 +572,7 @@ export default function ListaComprasPage() {
       if (quantidade > 0) {
         await fetch("/api/lista-compras", {
           method: "POST",
-          headers: { "Content-Type": "application/json", "x-pizzaria-id": pId },
+          headers: { "Content-Type": "application/json", "x-empresa-id": pId },
           body: JSON.stringify({ produto_id: produtoId, quantidade_solicitada: quantidade }),
         });
       }
@@ -689,7 +689,7 @@ export default function ListaComprasPage() {
 
                         await fetch("/api/lista-compras", {
                           method: "POST",
-                          headers: { "Content-Type": "application/json", "x-pizzaria-id": pId },
+                          headers: { "Content-Type": "application/json", "x-empresa-id": pId },
                           body: JSON.stringify({ produto_id: e.produto_id, quantidade_solicitada: qtd }),
                         });
 

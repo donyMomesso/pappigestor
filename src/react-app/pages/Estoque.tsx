@@ -119,7 +119,7 @@ export default function EstoquePage() {
 
     try {
       const res = await fetch("/api/estoque", {
-        headers: { "x-pizzaria-id": pId },
+        headers: { "x-empresa-id": pId },
         cache: "no-store",
       });
 
@@ -148,7 +148,7 @@ export default function EstoquePage() {
 
     try {
       const res = await fetch("/api/produtos", {
-        headers: { "x-pizzaria-id": pId },
+        headers: { "x-empresa-id": pId },
         cache: "no-store",
       });
 
@@ -200,7 +200,7 @@ export default function EstoquePage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-pizzaria-id": pId,
+          "x-empresa-id": pId,
         },
         body: JSON.stringify({
           produto_id: selectedEstoque.produto_id,
@@ -253,7 +253,7 @@ export default function EstoquePage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-pizzaria-id": pId,
+          "x-empresa-id": pId,
         },
         body: JSON.stringify({
           produto_id: selectedEstoque.produto_id,
@@ -293,7 +293,7 @@ export default function EstoquePage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-pizzaria-id": pId,
+          "x-empresa-id": pId,
         },
         body: JSON.stringify({
           produto_id: addForm.produto_id,
@@ -340,7 +340,7 @@ export default function EstoquePage() {
       const res = await fetch("/api/lista-compras/gerar-do-estoque", {
         method: "POST",
         headers: {
-          "x-pizzaria-id": pId,
+          "x-empresa-id": pId,
         },
       });
       const data = await res.json();

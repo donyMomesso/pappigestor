@@ -2,7 +2,7 @@
 
 import { useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { useAppAuthOptional } from "@/contexts/AppAuthContext";
+import { useAppAuth } from "@/contexts/AppAuthContext";
 import {
   ArrowRight,
   Sparkles,
@@ -91,8 +91,7 @@ function StepCard({
 }
 
 export default function LandingPage() {
-  const auth = useAppAuthOptional();
-  const localUser = auth?.localUser ?? null;
+  const { localUser } = useAppAuth();
   const router = useRouter();
 
   useEffect(() => {

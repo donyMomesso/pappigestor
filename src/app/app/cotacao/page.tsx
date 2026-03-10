@@ -3,14 +3,14 @@ export const dynamic = "force-dynamic";
 
 import { useState, useEffect } from "react";
 import { useAppAuth } from "@/contexts/AppAuthContext";
-import { Button } from "@/react-app/components/ui/button";
-import { Card, CardContent } from "@/react-app/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { 
   Calculator, Search, ArrowLeft, TrendingDown, 
   Check, Filter, Loader2, DollarSign, History, Zap 
 } from "lucide-react";
 import Link from "next/link";
-import { Input } from "@/react-app/components/ui/input";
+import { Input } from "@/components/ui/input";
 
 export default function CotacaoPage() {
   const { localUser } = useAppAuth();

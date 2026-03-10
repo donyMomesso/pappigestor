@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { Button } from "@/react-app/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { UserPlus, Trash2, Shield, User, Zap, Crown } from "lucide-react";
 
 interface Usuario {

@@ -7,10 +7,10 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
 import { useAppAuth } from "@/contexts/AppAuthContext";
-import { Button } from "@/react-app/components/ui/button";
-import { Input } from "@/react-app/components/ui/input";
-import { Card, CardContent } from "@/react-app/components/ui/card";
-import { Label } from "@/react-app/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -18,8 +18,8 @@ import {
   DialogTitle,
   DialogFooter,
   DialogDescription,
-} from "@/react-app/components/ui/dialog";
-import { Textarea } from "@/react-app/components/ui/textarea";
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import {
   ShoppingCart,
   Loader2,

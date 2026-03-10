@@ -2,7 +2,7 @@
 export const dynamic = "force-dynamic";
 
 import { useState } from "react";
-import { useAppAuthOptional } from "@/contexts/AppAuthContext";
+import { useAppAuth } from "@/contexts/AppAuthContext";
 import {
   Sparkles,
   TrendingUp,
@@ -16,8 +16,7 @@ import {
 import Link from "next/link";
 
 export default function AssessorIAPage() {
-  const auth = useAppAuthOptional();
-  const localUser = auth?.localUser ?? null;
+  const { localUser } = useAppAuth();
 
   const firstName = localUser?.nome?.split(" ")[0] || "gestor";
   const companyName = localUser?.nome_empresa || "sua operação";

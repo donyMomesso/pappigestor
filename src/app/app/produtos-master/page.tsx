@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Button } from "@/react-app/components/ui/button";
-import { Card, CardContent } from "@/react-app/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Package,
   TrendingUp,
@@ -15,7 +15,7 @@ import {
   History,
 } from "lucide-react";
 import Link from "next/link";
-import { Input } from "@/react-app/components/ui/input";
+import { Input } from "@/components/ui/input";
 
 export default function ProdutosMasterPage() {
   const [produtos, setProdutos] = useState<any[]>([]);

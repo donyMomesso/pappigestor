@@ -31,11 +31,11 @@ import {
   DialogTitle,
   DialogTrigger,
   DialogFooter,
-} from "@/react-app/components/ui/dialog";
-import { Field, FieldContent, FieldTitle } from "@/react-app/components/ui/field";
-import { Input } from "@/react-app/components/ui/input";
-import { Button } from "@/react-app/components/ui/button";
-import { useAppAuthOptional } from "@/contexts/AppAuthContext";
+} from "@/components/ui/dialog";
+import { Field, FieldContent, FieldTitle } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { useAppAuth } from "@/contexts/AppAuthContext";
 
 type ProdutoExtraido = {
   produto?: string;
@@ -104,8 +104,7 @@ function parseItensExtraidos(raw: unknown): ProdutoExtraido[] {
 }
 
 export default function InboxPage() {
-  const auth = useAppAuthOptional();
-  const localUser = auth?.localUser ?? null;
+  const { localUser } = useAppAuth();
 
   const [items, setItems] = useState<InboxItem[]>([]);
   const [loading, setLoading] = useState(true);

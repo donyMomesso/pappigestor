@@ -1,3 +1,3 @@
 "use client";
-import PageImpl from "@/react-app/pages/BoletosDDA";
+import PageImpl from "@/pages/BoletosDDA";
 export default function Page(){ return <PageImpl />; }

@@ -11,10 +11,11 @@ import {
 import { usePathname, useRouter } from "next/navigation";
 import { getSupabaseClient } from "@/lib/supabaseClient";
 
+// Alterado de 'loading' para 'isLoading' para bater com o Layout
 type AppAuthContextValue = {
   user: any;
   localUser: any;
-  loading: boolean;
+  isLoading: boolean; 
   signOut: () => Promise<void>;
 };
 
@@ -23,7 +24,8 @@ const AppAuthContext = createContext<AppAuthContextValue | null>(null);
 export function AppAuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<any>(null);
   const [localUser, setLocalUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  // Alterado para isLoading para manter o padrão
+  const [isLoading, setIsLoading] = useState(true); 
 
   const router = useRouter();
   const pathname = usePathname();
@@ -36,22 +38,23 @@ export function AppAuthProvider({ children }: { children: ReactNode }) {
 
       if (!supabase) {
         if (active) {
-          setLoading(false);
+          setIsLoading(false);
           router.replace("/login");
         }
         return;
       }
 
       try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
+        const { data: { session } } = await supabase.auth.getSession();
 
         if (!session) {
           if (active) {
             setUser(null);
             setLocalUser(null);
-            router.replace("/login");
+            // Evita redirecionar se já estiver na tela de login ou cadastro
+            if (pathname !== "/login" && pathname !== "/cadastro") {
+                router.replace("/login");
+            }
           }
           return;
         }
@@ -69,7 +72,7 @@ export function AppAuthProvider({ children }: { children: ReactNode }) {
 
         if (!res.ok) {
           setLocalUser(null);
-          setLoading(false);
+          setIsLoading(false);
           return;
         }
 
@@ -82,32 +85,26 @@ export function AppAuthProvider({ children }: { children: ReactNode }) {
         }
       } catch (error) {
         console.error("Erro na autenticação:", error);
-
         if (active) {
           setUser(null);
           setLocalUser(null);
         }
       } finally {
         if (active) {
-          setLoading(false);
+          setIsLoading(false);
         }
       }
     }
 
     checkAuth();
 
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [pathname, router]);
 
   async function signOut() {
     const supabase = getSupabaseClient();
-
     try {
-      if (supabase) {
-        await supabase.auth.signOut();
-      }
+      if (supabase) await supabase.auth.signOut();
     } finally {
       setUser(null);
       setLocalUser(null);
@@ -119,10 +116,10 @@ export function AppAuthProvider({ children }: { children: ReactNode }) {
     () => ({
       user,
       localUser,
-      loading,
+      isLoading, // Nome correto para o sistema
       signOut,
     }),
-    [user, localUser, loading]
+    [user, localUser, isLoading]
   );
 
   return (
@@ -134,14 +131,8 @@ export function AppAuthProvider({ children }: { children: ReactNode }) {
 
 export function useAppAuth() {
   const ctx = useContext(AppAuthContext);
-
   if (!ctx) {
     throw new Error("useAppAuth deve ser usado dentro de AppAuthProvider");
   }
-
   return ctx;
-}
-
-export function useAppAuthOptional() {
-  return useContext(AppAuthContext);
 }

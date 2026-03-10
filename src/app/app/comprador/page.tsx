@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 
-const CompradorPage = dynamic(() => import("@/react-app/pages/Comprador"), {
+const CompradorPage = dynamic(() => import("@/pages/Comprador"), {
   ssr: false,
 });
 

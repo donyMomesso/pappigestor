@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { useEstoque, type ProdutoEstoque } from "@/react-app/hooks/useEstoque";
+import { useEstoque, type ProdutoEstoque } from "@/hooks/useEstoque";
 
 export type CriticidadeEstoque = "alta" | "media" | "baixa";
 

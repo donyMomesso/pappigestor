@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getSupabaseClient } from "@/lib/supabaseClient";
-import { Button } from "@/react-app/components/ui/button";
+import { Button } from "@/components/ui/button";
 import {
   Sparkles,
   ArrowRight,
@@ -21,10 +21,31 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    const empresaId = localStorage.getItem("empresa_id");
-    if (empresaId) {
-      router.push("/app/dashboard");
+    let active = true;
+
+    async function checkSession() {
+      try {
+        const supabase = getSupabaseClient();
+
+        if (!supabase) return;
+
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        if (active && session?.user) {
+          router.replace("/app");
+        }
+      } catch (error) {
+        console.error("Erro ao verificar sessão:", error);
+      }
     }
+
+    checkSession();
+
+    return () => {
+      active = false;
+    };
   }, [router]);
 
   const highlights = useMemo(
@@ -32,17 +53,20 @@ export default function LoginPage() {
       {
         icon: <Bot className="w-5 h-5" />,
         title: "IA aplicada ao food service",
-        description: "Leitura de notas, apoio operacional e decisões mais rápidas.",
+        description:
+          "Leitura de notas, apoio operacional e decisões mais rápidas.",
       },
       {
         icon: <Store className="w-5 h-5" />,
         title: "Feito para operação real",
-        description: "Pizzaria, restaurante, hamburgueria e rotinas do dia a dia.",
+        description:
+          "Pizzaria, restaurante, hamburgueria e rotinas do dia a dia.",
       },
       {
         icon: <BarChart3 className="w-5 h-5" />,
         title: "Gestão que vira lucro",
-        description: "Estoque, compras e financeiro conectados em uma só visão.",
+        description:
+          "Estoque, compras e financeiro conectados em uma só visão.",
       },
     ],
     [],
@@ -73,7 +97,10 @@ export default function LoginPage() {
         provider: "google",
         options: {
           redirectTo: `${window.location.origin}/auth-callback`,
-          queryParams: { access_type: "offline", prompt: "consent" },
+          queryParams: {
+            access_type: "offline",
+            prompt: "consent",
+          },
         },
       });
 
@@ -89,7 +116,6 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-white flex flex-col md:flex-row overflow-hidden font-sans">
-      {/* SEÇÃO BRANDING */}
       <section className="flex-1 bg-gradient-to-br from-orange-600 via-orange-500 to-pink-600 p-8 md:p-16 flex flex-col justify-between relative overflow-hidden text-white">
         <div className="relative z-10 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-4">
@@ -155,7 +181,6 @@ export default function LoginPage() {
         </div>
       </section>
 
-      {/* SEÇÃO LOGIN */}
       <section className="w-full md:w-[680px] p-8 md:p-16 flex flex-col justify-center bg-white overflow-y-auto">
         <div className="w-full max-w-xl mx-auto space-y-10">
           <div className="space-y-4 text-center md:text-left">
@@ -244,7 +269,7 @@ export default function LoginPage() {
                 Ambiente seguro e isolado
               </p>
               <p className="text-[11px] text-gray-500 font-medium leading-relaxed max-w-md">
-                Seus dados e os dados dos seus clientes ficam protegidos com
+                Seus dados e os dados da sua operação ficam protegidos com
                 isolamento por empresa e autenticação segura.
               </p>
             </div>

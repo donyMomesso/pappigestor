@@ -10,8 +10,11 @@ import {
   Settings,
   Bot,
   ArrowRight,
+  Trophy,
+  Users,
 } from "lucide-react";
 import { useAppAuth } from "@/contexts/AppAuthContext";
+import { Button } from "@/components/ui/button";
 
 const atalhos = [
   {
@@ -56,15 +59,32 @@ const atalhos = [
     icon: Bot,
     desc: "Apoio inteligente para a operação.",
   },
+  {
+    title: "Usuários",
+    href: "/app/usuarios",
+    icon: Users,
+    desc: "Gestão de acessos e equipe da operação.",
+  },
+  {
+    title: "Ranking Fornecedores",
+    href: "/app/ranking-fornecedores",
+    icon: Trophy,
+    desc: "Avaliação e comparação de fornecedores.",
+  },
 ];
 
 export default function AppDashboardPage() {
   const { localUser, signOut } = useAppAuth();
 
-  const primeiroNome = localUser?.nome?.split(" ")?.[0] || "Gestor";
+  const primeiroNome =
+    localUser?.nome?.trim()?.split(" ")?.[0] ||
+    localUser?.email?.split("@")?.[0] ||
+    "Gestor";
+
   const empresa =
     localUser?.empresas?.nome_fantasia ||
     localUser?.empresa?.nome_fantasia ||
+    localUser?.nome_empresa ||
     "Sua empresa";
 
   return (
@@ -75,20 +95,24 @@ export default function AppDashboardPage() {
             <p className="text-[10px] font-black uppercase tracking-[0.28em] text-orange-600 italic mb-3">
               painel operacional
             </p>
+
             <h1 className="text-4xl md:text-5xl font-black uppercase italic tracking-tighter text-zinc-900">
               Olá, {primeiroNome}
             </h1>
+
             <p className="text-zinc-500 mt-3">
               Central de operação de {empresa}.
             </p>
           </div>
 
-          <button
+          <Button
+            type="button"
+            variant="outline"
             onClick={signOut}
-            className="rounded-2xl border border-zinc-200 bg-white px-5 py-3 text-xs font-black uppercase italic text-zinc-900"
+            className="rounded-2xl border-zinc-200 bg-white px-5 py-3 text-xs font-black uppercase italic text-zinc-900 hover:bg-zinc-100"
           >
             Sair
-          </button>
+          </Button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -112,7 +136,10 @@ export default function AppDashboardPage() {
 
               <div className="mt-5 inline-flex items-center gap-2 text-sm font-black uppercase italic text-orange-600">
                 acessar
-                <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+                <ArrowRight
+                  size={16}
+                  className="group-hover:translate-x-1 transition-transform"
+                />
               </div>
             </Link>
           ))}

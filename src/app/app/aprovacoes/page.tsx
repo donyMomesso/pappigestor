@@ -1,3 +1,3 @@
 "use client";
-import PageImpl from "@/react-app/pages/Aprovacoes";
+import PageImpl from "@/pages/Aprovacoes";
 export default function Page(){ return <PageImpl />; }

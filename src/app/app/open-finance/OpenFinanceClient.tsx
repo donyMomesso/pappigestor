@@ -3,13 +3,13 @@ export const dynamic = "force-dynamic";
 
 import { useEffect, useMemo, useState } from "react";
 import { useAppAuth } from "@/contexts/AppAuthContext";
-import { Card, CardContent, CardHeader, CardTitle } from "@/react-app/components/ui/card";
-import { Button } from "@/react-app/components/ui/button";
-import { Badge } from "@/react-app/components/ui/badge";
-import { Input } from "@/react-app/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/react-app/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/react-app/components/ui/dialog";
-import { Label } from "@/react-app/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import {
   Link2,
   ShieldCheck,

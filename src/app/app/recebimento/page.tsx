@@ -2,10 +2,10 @@
 export const dynamic = "force-dynamic";
 
 import { useState, useEffect } from "react";
-import { Button } from "@/react-app/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/react-app/components/ui/card";
-import { Input } from "@/react-app/components/ui/input";
-import { Label } from "@/react-app/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   ArrowLeft,
   PackageCheck,
@@ -31,8 +31,8 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-} from "@/react-app/components/ui/dialog";
-import { useAppAuthOptional } from "@/contexts/AppAuthContext";
+} from "@/components/ui/dialog";
+import { useAppAuth } from "@/contexts/AppAuthContext";
 
 const LOGO_URL =
   "https://019c7b56-2054-7d0b-9c55-e7a603c40ba8.mochausercontent.com/1771799343659.png";
@@ -97,8 +97,7 @@ export default function RecebimentoPage() {
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
-  const auth = useAppAuthOptional();
-  const localUser = auth?.localUser ?? null;
+  const { localUser } = useAppAuth();
 
   useEffect(() => {
     fetchLancamentos();

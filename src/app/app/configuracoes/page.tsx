@@ -3,7 +3,7 @@
 export const dynamic = "force-dynamic";
 
 import { useState, useEffect, type ReactNode } from "react";
-import { useAppAuth } from "@/react-app/contexts/AppAuthContext";
+import { useAppAuth } from "@/contexts/AppAuthContext";
 import {
   Sparkles,
   CreditCard,
@@ -23,7 +23,7 @@ import {
   Cpu,
   BadgeCheck,
 } from "lucide-react";
-import { Input } from "@/react-app/components/ui/input";
+import { Input } from "@/components/ui/input";
 
 type EmpresaConfigResponse = {
   razao_social?: string;

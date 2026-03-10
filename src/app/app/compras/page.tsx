@@ -27,16 +27,16 @@ import {
   CheckCircle2,
   Clock,
 } from "lucide-react";
-import { Button } from "@/react-app/components/ui/button";
-import { Input } from "@/react-app/components/ui/input";
-import { Label } from "@/react-app/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/react-app/components/ui/select";
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -44,9 +44,9 @@ import {
   DialogTitle,
   DialogFooter,
   DialogDescription,
-} from "@/react-app/components/ui/dialog";
-import { Textarea } from "@/react-app/components/ui/textarea";
-import { Card, CardContent } from "@/react-app/components/ui/card";
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent } from "@/components/ui/card";
 import Link from "next/link";
 import { useAppAuth } from "@/contexts/AppAuthContext";
 

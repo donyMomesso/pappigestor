@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Input } from "@/react-app/components/ui/input";
-import { Card, CardContent } from "@/react-app/components/ui/card";
-import { Badge } from "@/react-app/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Search, Package } from "lucide-react";
 
 interface ProdutoFoodService {

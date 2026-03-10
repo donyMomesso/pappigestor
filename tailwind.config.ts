@@ -7,6 +7,13 @@ export default {
     "./src/components/**/*.{ts,tsx}",
     "./src/hooks/**/*.{ts,tsx}",
     "./src/lib/**/*.{ts,tsx}",
+    "./src/contexts/**/*.{ts,tsx}",
+    "./src/types/**/*.{ts,tsx}",
+    "./src/shared/**/*.{ts,tsx}",
+    "./src/worker/**/*.{ts,tsx}",
+    "./src/data/**/*.{ts,tsx}",
+    "./src/shims/**/*.{ts,tsx}",
+    "./src/proxy.ts",
     "./src/react-app/**/*.{ts,tsx}",
   ],
   theme: {
@@ -15,8 +22,7 @@ export default {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
-        // Adicionando o arredondamento 4xl que você usa nos cards modernos
-        "4xl": "2rem", 
+        "4xl": "2rem",
       },
       colors: {
         border: "hsl(var(--border))",
@@ -52,9 +58,8 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        // Adicionando as cores de Sidebar que o Mocha usa
         sidebar: {
-          DEFAULT: "hsl(var(--sidebar-background))",
+          DEFAULT: "hsl(var(--sidebar))",
           foreground: "hsl(var(--sidebar-foreground))",
           primary: "hsl(var(--sidebar-primary))",
           "primary-foreground": "hsl(var(--sidebar-primary-foreground))",
@@ -64,7 +69,6 @@ export default {
           ring: "hsl(var(--sidebar-ring))",
         },
       },
-      // Adicionando animações para os menus e modais ficarem fluídos
       keyframes: {
         "accordion-down": {
           from: { height: "0" },

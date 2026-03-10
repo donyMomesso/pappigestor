@@ -1,13 +1,14 @@
+import Image from "next/image";
 import { getServerSession } from "next-auth";
+import { Session } from "next-auth";
 import { redirect } from "next/navigation";
 import { StatsCards } from "@/components/dashboard/stats-cards";
 import { InventoryAlerts } from "@/components/ia/inventory-alerts";
 import { ABCChart } from "@/components/dashboard/abc-chart";
 
 export default async function DashboardPage() {
-  const session = await getServerSession();
+  const session: Session | null = await getServerSession();
 
-  // Proteção de rota: se não estiver logado, redireciona para login
   if (!session) {
     redirect("/login");
   }
@@ -24,13 +25,14 @@ export default async function DashboardPage() {
           </p>
         </div>
 
-        {/* Exibe dados do usuário logado */}
         <div className="flex items-center gap-3">
           {session.user?.image && (
-            <img
+            <Image
               src={session.user.image}
               alt={session.user.name ?? "Usuário"}
-              className="h-10 w-10 rounded-full border"
+              width={40}
+              height={40}
+              className="rounded-full border"
             />
           )}
           <div>

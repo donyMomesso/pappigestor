@@ -6,6 +6,23 @@ import AppSidebar from "@/components/layout/AppSidebar";
 import TopHeader from "@/components/layout/TopHeader";
 import { useAppAuth } from "@/contexts/AppAuthContext";
 
+interface Empresa {
+  status_assinatura?: string;
+  assinatura_expirada?: boolean;
+  subscription_expires_at?: string;
+}
+
+interface LocalUser {
+  empresaAtual?: Empresa;
+  empresa?: Empresa;
+  // outras props do usuário...
+}
+
+interface AppAuthContext {
+  localUser: LocalUser | null;
+  isLoading: boolean;
+}
+
 interface AppLayoutProps {
   children: ReactNode;
 }
@@ -40,15 +57,21 @@ function FullScreenMessage({
 export default function AppLayout({ children }: AppLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const { localUser, isLoading } = useAppAuth();
+  const { localUser, isLoading } = useAppAuth() as AppAuthContext;
 
   const subscriptionExpired = useMemo(() => {
     if (!localUser) return false;
 
-    const company = localUser.empresaAtual ?? localUser.empresa ?? localUser;
+    // company agora é explicitamente Empresa
+    const company: Empresa | undefined =
+      localUser.empresaAtual ?? localUser.empresa;
+
     const status = company?.status_assinatura?.toLowerCase();
 
-    if (company?.assinatura_expirada || ["expired", "inativo", "bloqueado"].includes(status)) {
+    if (
+      company?.assinatura_expirada ||
+      ["expired", "inativo", "bloqueado"].includes(status ?? "")
+    ) {
       return true;
     }
 

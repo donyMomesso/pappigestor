@@ -1,7 +1,7 @@
 "use client";
 export const dynamic = "force-dynamic";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAppAuth } from "@/contexts/AppAuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,15 +51,6 @@ import {
   PackageCheck,
   Sparkles,
 } from "lucide-react";
-
-let Html5Qrcode: any;
-let Html5QrcodeSupportedFormats: any;
-
-if (typeof window !== "undefined") {
-  const lib = require("html5-qrcode");
-  Html5Qrcode = lib.Html5Qrcode;
-  Html5QrcodeSupportedFormats = lib.Html5QrcodeSupportedFormats;
-}
 
 interface ItemNfce {
   codigo?: string;
@@ -139,6 +130,59 @@ type UseAuthMin = {
   isSubscriptionExpired?: () => boolean;
 };
 
+type LancamentosResponse = {
+  lancamentos?: CompraHistorico[];
+};
+
+type LerNotaIaItem = {
+  produto?: string;
+  descricao?: string;
+  quantidade?: number | string;
+  valor_unitario?: number | string;
+  unidade?: string;
+};
+
+type LerNotaIaResponse = {
+  error?: string;
+  fornecedor?: string;
+  itens?: LerNotaIaItem[];
+  valor_total?: number | string;
+  data?: string;
+};
+
+type Html5QrcodeFormatValue = number;
+
+type Html5QrcodeScannerInstance = {
+  start(
+    cameraConfig: { facingMode: string },
+    config: { fps: number; qrbox: { width: number; height: number } },
+    onSuccess: (decodedText: string) => void,
+    onError?: (errorMessage: string) => void,
+  ): Promise<void>;
+  stop(): Promise<void>;
+};
+
+type Html5QrcodeCtor = new (
+  elementId: string,
+  config: { formatsToSupport: Html5QrcodeFormatValue[]; verbose: boolean },
+) => Html5QrcodeScannerInstance;
+
+type Html5QrcodeFormats = {
+  QR_CODE: Html5QrcodeFormatValue;
+  EAN_13: Html5QrcodeFormatValue;
+  EAN_8: Html5QrcodeFormatValue;
+  CODE_128: Html5QrcodeFormatValue;
+  CODE_39: Html5QrcodeFormatValue;
+  UPC_A: Html5QrcodeFormatValue;
+  UPC_E: Html5QrcodeFormatValue;
+  ITF: Html5QrcodeFormatValue;
+};
+
+type Html5QrcodeModule = {
+  Html5Qrcode: Html5QrcodeCtor;
+  Html5QrcodeSupportedFormats: Html5QrcodeFormats;
+};
+
 async function safeJson<T>(res: Response): Promise<T> {
   return (await res.json()) as T;
 }
@@ -195,8 +239,9 @@ export default function ComprasPage() {
   const [showMatchesDialog, setShowMatchesDialog] = useState(false);
   const [dandoBaixa, setDandoBaixa] = useState(false);
 
-  const qrRef = useRef<any>(null);
-  const scannerRef = qrRef;
+  const scannerRef = useRef<Html5QrcodeScannerInstance | null>(null);
+  const html5QrcodeCtorRef = useRef<Html5QrcodeCtor | null>(null);
+  const html5QrcodeFormatsRef = useRef<Html5QrcodeFormats | null>(null);
 
   const [scannerContainerVisible, setScannerContainerVisible] = useState(false);
   const [scanMode, setScanMode] = useState<"qrcode" | "barcode">("qrcode");
@@ -210,6 +255,24 @@ export default function ComprasPage() {
       ""
     );
   }
+
+  const ensureScannerLib = useCallback(async () => {
+    if (html5QrcodeCtorRef.current && html5QrcodeFormatsRef.current) {
+      return {
+        Html5Qrcode: html5QrcodeCtorRef.current,
+        Html5QrcodeSupportedFormats: html5QrcodeFormatsRef.current,
+      };
+    }
+
+    const lib = (await import("html5-qrcode")) as unknown as Html5QrcodeModule;
+    html5QrcodeCtorRef.current = lib.Html5Qrcode;
+    html5QrcodeFormatsRef.current = lib.Html5QrcodeSupportedFormats;
+
+    return {
+      Html5Qrcode: lib.Html5Qrcode,
+      Html5QrcodeSupportedFormats: lib.Html5QrcodeSupportedFormats,
+    };
+  }, []);
 
   const fetchHistorico = useCallback(async () => {
     try {
@@ -226,10 +289,10 @@ export default function ComprasPage() {
         return;
       }
 
-      const data = await safeJson<any>(response);
-      const arr = Array.isArray(data) ? data : data?.lancamentos || [];
+      const data = await safeJson<CompraHistorico[] | LancamentosResponse>(response);
+      const arr = Array.isArray(data) ? data : data.lancamentos || [];
 
-      const compras = (arr as CompraHistorico[]).filter((item) => {
+      const compras = arr.filter((item) => {
         const cat = String(item?.categoria || "").toLowerCase();
         return (
           cat.includes("mercado") ||
@@ -279,8 +342,8 @@ export default function ComprasPage() {
   }, []);
 
   useEffect(() => {
-    fetchHistorico();
-    fetchListaCompras();
+    void fetchHistorico();
+    void fetchListaCompras();
   }, [fetchHistorico, fetchListaCompras]);
 
   const buscarMatchesListaCompras = useCallback(async (itensNfce: ItemNfce[]) => {
@@ -359,7 +422,7 @@ export default function ComprasPage() {
 
       if (!response.ok) {
         const j = await safeJson<ApiErr>(response).catch(() => ({} as ApiErr));
-        throw new Error(j?.error || "Erro ao dar baixa nos itens");
+        throw new Error(j.error || "Erro ao dar baixa nos itens");
       }
 
       setShowMatchesDialog(false);
@@ -393,7 +456,7 @@ export default function ComprasPage() {
 
       if (!response.ok) {
         const j = await safeJson<ApiErr>(response).catch(() => ({} as ApiErr));
-        throw new Error(j?.error || "Erro ao dar baixa no item");
+        throw new Error(j.error || "Erro ao dar baixa no item");
       }
 
       await fetchListaCompras();
@@ -416,6 +479,69 @@ export default function ComprasPage() {
     setScannerContainerVisible(true);
   };
 
+  const stopScanner = useCallback(async () => {
+    if (scannerRef.current) {
+      try {
+        await scannerRef.current.stop();
+        scannerRef.current = null;
+      } catch (err) {
+        console.error("Erro ao parar scanner:", err);
+      }
+    }
+    setScannerActive(false);
+    setScannerContainerVisible(false);
+  }, []);
+
+  const processarUrl = useCallback(
+    async (url: string) => {
+      if (!url.trim()) return;
+
+      setLoading(true);
+      setError(null);
+
+      try {
+        let response = await fetch("/api/nfce/ler-direto", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url }),
+        });
+
+        let data = await safeJson<ApiNfceResp>(response).catch(() => ({} as ApiNfceResp));
+
+        if (!response.ok && data.sugestao) {
+          response = await fetch("/api/nfce/ler", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url }),
+          });
+          data = await safeJson<ApiNfceResp>(response).catch(() => ({} as ApiNfceResp));
+        }
+
+        if (!response.ok || !data.dados) {
+          const errorMsg = data.error || "Erro ao ler NFC-e";
+          const sugestao =
+            data.sugestao ||
+            "Tire uma foto ou screenshot da nota e use a opção de upload de imagem.";
+          throw new Error(`${errorMsg}\n\n💡 ${sugestao}`);
+        }
+
+        setDadosNfce(data.dados);
+        setShowConfirmDialog(true);
+        setUrlManual("");
+        setActiveTab("mercado");
+
+        if (data.dados.itens.length > 0) {
+          void buscarMatchesListaCompras(data.dados.itens);
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Erro ao processar NFC-e");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [buscarMatchesListaCompras],
+  );
+
   useEffect(() => {
     if (!scannerContainerVisible || scannerActive) return;
 
@@ -430,6 +556,8 @@ export default function ComprasPage() {
       }
 
       try {
+        const { Html5Qrcode, Html5QrcodeSupportedFormats } = await ensureScannerLib();
+
         const formatsToSupport =
           scanMode === "barcode"
             ? [
@@ -451,17 +579,14 @@ export default function ComprasPage() {
         scannerRef.current = html5QrCode;
 
         const containerWidth = element.offsetWidth || 300;
-        const qrboxWidth = Math.min(
-          containerWidth - 40,
-          scanMode === "barcode" ? 320 : 250,
-        );
+        const qrboxWidth = Math.min(containerWidth - 40, scanMode === "barcode" ? 320 : 250);
         const qrboxHeight = scanMode === "barcode" ? 120 : qrboxWidth;
 
         await html5QrCode.start(
           { facingMode: "environment" },
           { fps: 10, qrbox: { width: qrboxWidth, height: qrboxHeight } },
           (decodedText: string) => {
-            stopScanner();
+            void stopScanner();
             if (scanMode === "barcode") {
               setError(null);
               alert(
@@ -475,12 +600,12 @@ export default function ComprasPage() {
         );
 
         setScannerActive(true);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Erro ao iniciar câmera:", err);
         setScannerContainerVisible(false);
 
-        const errorName = err?.name || "";
-        const errorMessage = err?.message || "";
+        const errorName = err instanceof Error ? err.name : "";
+        const errorMessage = err instanceof Error ? err.message : "";
 
         if (errorName === "NotAllowedError" || errorMessage.includes("Permission")) {
           setError(
@@ -507,68 +632,7 @@ export default function ComprasPage() {
     };
 
     void initScanner();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scannerContainerVisible, scannerActive, scanMode]);
-
-  const stopScanner = async () => {
-    if (scannerRef.current) {
-      try {
-        await scannerRef.current.stop();
-        scannerRef.current = null;
-      } catch (err) {
-        console.error("Erro ao parar scanner:", err);
-      }
-    }
-    setScannerActive(false);
-    setScannerContainerVisible(false);
-  };
-
-  const processarUrl = async (url: string) => {
-    if (!url?.trim()) return;
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      let response = await fetch("/api/nfce/ler-direto", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
-      });
-
-      let data = await safeJson<ApiNfceResp>(response).catch(() => ({} as ApiNfceResp));
-
-      if (!response.ok && data?.sugestao) {
-        response = await fetch("/api/nfce/ler", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url }),
-        });
-        data = await safeJson<ApiNfceResp>(response).catch(() => ({} as ApiNfceResp));
-      }
-
-      if (!response.ok || !data?.dados) {
-        const errorMsg = data?.error || "Erro ao ler NFC-e";
-        const sugestao =
-          data?.sugestao ||
-          "Tire uma foto ou screenshot da nota e use a opção de upload de imagem.";
-        throw new Error(`${errorMsg}\n\n💡 ${sugestao}`);
-      }
-
-      setDadosNfce(data.dados);
-      setShowConfirmDialog(true);
-      setUrlManual("");
-      setActiveTab("mercado");
-
-      if (data.dados?.itens?.length > 0) {
-        void buscarMatchesListaCompras(data.dados.itens);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao processar NFC-e");
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [ensureScannerLib, processarUrl, scanMode, scannerActive, scannerContainerVisible, stopScanner]);
 
   const processarImagem = async (file: File) => {
     setLoading(true);
@@ -583,46 +647,51 @@ export default function ComprasPage() {
         body: formData,
       });
 
-      const data = await safeJson<any>(response).catch(() => ({}));
+      const data = await safeJson<LerNotaIaResponse>(response).catch(
+        () => ({}) as LerNotaIaResponse,
+      );
 
       if (!response.ok) {
-        throw new Error(data?.error || "Erro ao processar imagem");
+        throw new Error(data.error || "Erro ao processar imagem");
       }
+
+      const itensConvertidos: ItemNfce[] = (data.itens || []).map((item) => {
+        const qtd = Number(item.quantidade || 1);
+        const vu = Number(item.valor_unitario || 0);
+
+        return {
+          codigo: "",
+          descricao: item.produto || item.descricao || "",
+          quantidade: qtd,
+          unidade: item.unidade || "UN",
+          valor_unitario: vu,
+          valor_total: qtd * vu,
+        };
+      });
 
       const dadosConvertidos: DadosNfce = {
         emitente: {
-          razao_social: data?.fornecedor || "Mercado",
-          nome_fantasia: data?.fornecedor,
+          razao_social: data.fornecedor || "Mercado",
+          nome_fantasia: data.fornecedor,
           cnpj: "",
           endereco: "",
         },
-        itens: (data?.itens || []).map((item: any) => {
-          const qtd = Number(item?.quantidade || 1);
-          const vu = Number(item?.valor_unitario || 0);
-          return {
-            codigo: "",
-            descricao: item?.produto || item?.descricao || "",
-            quantidade: qtd,
-            unidade: item?.unidade || "UN",
-            valor_unitario: vu,
-            valor_total: qtd * vu,
-          };
-        }),
+        itens: itensConvertidos,
         totais: {
-          subtotal: Number(data?.valor_total || 0),
+          subtotal: Number(data.valor_total || 0),
           desconto: 0,
           acrescimo: 0,
-          total: Number(data?.valor_total || 0),
+          total: Number(data.valor_total || 0),
         },
         pagamento: {
           forma: "Não identificado",
-          valor_pago: Number(data?.valor_total || 0),
+          valor_pago: Number(data.valor_total || 0),
           troco: 0,
         },
         dados_nfce: {
           numero: "",
           serie: "",
-          data_emissao: data?.data || new Date().toISOString().split("T")[0],
+          data_emissao: data.data || new Date().toISOString().split("T")[0],
           chave_acesso: "",
         },
       };
@@ -631,7 +700,7 @@ export default function ComprasPage() {
       setShowConfirmDialog(true);
       setActiveTab("mercado");
 
-      if (dadosConvertidos.itens?.length > 0) {
+      if (dadosConvertidos.itens.length > 0) {
         void buscarMatchesListaCompras(dadosConvertidos.itens);
       }
     } catch (err) {
@@ -665,10 +734,10 @@ export default function ComprasPage() {
       );
 
       if (!response.ok) {
-        throw new Error(data?.error || "Erro ao salvar compra");
+        throw new Error(data.error || "Erro ao salvar compra");
       }
 
-      setCompraRegistrada(data as unknown as CompraRegistrada);
+      setCompraRegistrada(data as CompraRegistrada);
       setShowConfirmDialog(false);
       setDadosNfce(null);
 
@@ -686,11 +755,9 @@ export default function ComprasPage() {
 
   useEffect(() => {
     return () => {
-      if (scannerRef.current) {
-        scannerRef.current.stop().catch(() => {});
-      }
+      void stopScanner();
     };
-  }, []);
+  }, [stopScanner]);
 
   const totalItensLista = useMemo(() => listaCompras.length, [listaCompras]);
 
@@ -703,7 +770,7 @@ export default function ComprasPage() {
   if (typeof isSubscriptionExpired === "function" && isSubscriptionExpired()) {
     return (
       <div className="p-6">
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 text-center">
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-center dark:border-red-800 dark:bg-red-900/20">
           <p className="text-red-700 dark:text-red-300">
             Sua assinatura expirou. Renove para continuar usando.
           </p>
@@ -713,28 +780,28 @@ export default function ComprasPage() {
   }
 
   return (
-    <div className="p-4 md:p-6 space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-6 p-4 md:p-6">
+      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            <ShoppingCart className="w-7 h-7 text-orange-500" />
+          <h1 className="flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-white">
+            <ShoppingCart className="h-7 w-7 text-orange-500" />
             Compras
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
+          <p className="mt-1 text-gray-600 dark:text-gray-400">
             Centralize lista, compra de mercado e baixa de itens em um só lugar
           </p>
         </div>
       </div>
 
       {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 flex items-start gap-3 whitespace-pre-wrap">
-          <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+        <div className="flex items-start gap-3 whitespace-pre-wrap rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
+          <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-500" />
           <div>
             <p className="text-red-700 dark:text-red-300">{error}</p>
             <Button
               variant="ghost"
               size="sm"
-              className="text-red-600 hover:text-red-700 mt-2 p-0 h-auto"
+              className="mt-2 h-auto p-0 text-red-600 hover:text-red-700"
               onClick={() => setError(null)}
             >
               Fechar
@@ -746,25 +813,25 @@ export default function ComprasPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid w-full max-w-2xl grid-cols-3">
           <TabsTrigger value="painel" className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4" />
+            <Sparkles className="h-4 w-4" />
             Painel
           </TabsTrigger>
           <TabsTrigger value="mercado" className="flex items-center gap-2">
-            <Receipt className="w-4 h-4" />
+            <Receipt className="h-4 w-4" />
             Compra Mercado
           </TabsTrigger>
           <TabsTrigger value="lista" className="flex items-center gap-2">
-            <ListChecks className="w-4 h-4" />
+            <ListChecks className="h-4 w-4" />
             Lista Compras
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="painel" className="space-y-6 mt-6">
-          <div className="grid md:grid-cols-3 gap-4">
+        <TabsContent value="painel" className="mt-6 space-y-6">
+          <div className="grid gap-4 md:grid-cols-3">
             <Card>
-              <CardContent className="py-5 flex items-center gap-3">
-                <div className="w-11 h-11 rounded-2xl bg-orange-100 flex items-center justify-center">
-                  <ClipboardList className="w-5 h-5 text-orange-600" />
+              <CardContent className="flex items-center gap-3 py-5">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-orange-100">
+                  <ClipboardList className="h-5 w-5 text-orange-600" />
                 </div>
                 <div>
                   <p className="text-xs text-gray-500">Itens na Lista</p>
@@ -774,9 +841,9 @@ export default function ComprasPage() {
             </Card>
 
             <Card>
-              <CardContent className="py-5 flex items-center gap-3">
-                <div className="w-11 h-11 rounded-2xl bg-blue-100 flex items-center justify-center">
-                  <Package className="w-5 h-5 text-blue-600" />
+              <CardContent className="flex items-center gap-3 py-5">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-100">
+                  <Package className="h-5 w-5 text-blue-600" />
                 </div>
                 <div>
                   <p className="text-xs text-gray-500">Quantidade Solicitada</p>
@@ -786,9 +853,9 @@ export default function ComprasPage() {
             </Card>
 
             <Card>
-              <CardContent className="py-5 flex items-center gap-3">
-                <div className="w-11 h-11 rounded-2xl bg-green-100 flex items-center justify-center">
-                  <PackageCheck className="w-5 h-5 text-green-600" />
+              <CardContent className="flex items-center gap-3 py-5">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-green-100">
+                  <PackageCheck className="h-5 w-5 text-green-600" />
                 </div>
                 <div>
                   <p className="text-xs text-gray-500">Últimas Compras</p>
@@ -798,19 +865,19 @@ export default function ComprasPage() {
             </Card>
           </div>
 
-          <Card className="dark:bg-gray-800 dark:border-gray-700">
+          <Card className="dark:border-gray-700 dark:bg-gray-800">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="flex items-center gap-2 dark:text-white">
-                <Receipt className="w-5 h-5 text-green-500" />
+                <Receipt className="h-5 w-5 text-green-500" />
                 Últimas Compras
               </CardTitle>
-              <Button variant="ghost" size="sm" onClick={fetchHistorico}>
-                <RefreshCw className="w-4 h-4" />
+              <Button variant="ghost" size="sm" onClick={() => void fetchHistorico()}>
+                <RefreshCw className="h-4 w-4" />
               </Button>
             </CardHeader>
             <CardContent>
               {historicoCompras.length === 0 ? (
-                <div className="text-sm text-gray-500 py-8 text-center">
+                <div className="py-8 text-center text-sm text-gray-500">
                   Nenhuma compra encontrada ainda.
                 </div>
               ) : (
@@ -818,10 +885,10 @@ export default function ComprasPage() {
                   {historicoCompras.slice(0, 6).map((compra) => (
                     <div
                       key={compra.id}
-                      className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded-lg"
+                      className="flex items-center justify-between rounded-lg bg-gray-50 p-3 dark:bg-gray-900"
                     >
                       <div className="flex items-center gap-3">
-                        <Store className="w-5 h-5 text-gray-400" />
+                        <Store className="h-5 w-5 text-gray-400" />
                         <div>
                           <p className="font-medium text-gray-900 dark:text-white">
                             {compra.fornecedor}
@@ -835,7 +902,7 @@ export default function ComprasPage() {
                         <p className="font-semibold text-gray-900 dark:text-white">
                           R$ {Number(compra.valor_real || compra.valor_previsto || 0).toFixed(2)}
                         </p>
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">
+                        <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700 dark:bg-green-900/30 dark:text-green-400">
                           Registrada
                         </span>
                       </div>
@@ -846,23 +913,23 @@ export default function ComprasPage() {
             </CardContent>
           </Card>
 
-          <Card className="dark:bg-gray-800 dark:border-gray-700">
+          <Card className="dark:border-gray-700 dark:bg-gray-800">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="flex items-center gap-2 dark:text-white">
-                <ListChecks className="w-5 h-5 text-blue-500" />
+                <ListChecks className="h-5 w-5 text-blue-500" />
                 Lista de Compras Pendente
               </CardTitle>
-              <Button variant="ghost" size="sm" onClick={fetchListaCompras}>
-                <RefreshCw className={`w-4 h-4 ${loadingLista ? "animate-spin" : ""}`} />
+              <Button variant="ghost" size="sm" onClick={() => void fetchListaCompras()}>
+                <RefreshCw className={`h-4 w-4 ${loadingLista ? "animate-spin" : ""}`} />
               </Button>
             </CardHeader>
             <CardContent>
               {loadingLista ? (
-                <div className="py-10 flex items-center justify-center">
-                  <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
+                <div className="flex items-center justify-center py-10">
+                  <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
                 </div>
               ) : listaCompras.length === 0 ? (
-                <div className="text-sm text-gray-500 py-8 text-center">
+                <div className="py-8 text-center text-sm text-gray-500">
                   Nenhum item pendente na lista.
                 </div>
               ) : (
@@ -870,7 +937,7 @@ export default function ComprasPage() {
                   {listaCompras.slice(0, 8).map((item) => (
                     <div
                       key={item.id}
-                      className="flex items-center justify-between p-3 rounded-lg border bg-white dark:bg-gray-900 dark:border-gray-700"
+                      className="flex items-center justify-between rounded-lg border bg-white p-3 dark:border-gray-700 dark:bg-gray-900"
                     >
                       <div>
                         <p className="font-medium text-gray-900 dark:text-white">
@@ -888,7 +955,7 @@ export default function ComprasPage() {
                           className="bg-green-500 hover:bg-green-600"
                           onClick={() => void darBaixaManualLista(item.id)}
                         >
-                          <CheckCircle2 className="w-4 h-4 mr-1" />
+                          <CheckCircle2 className="mr-1 h-4 w-4" />
                           Dar baixa
                         </Button>
                       </div>
@@ -900,15 +967,15 @@ export default function ComprasPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="mercado" className="space-y-6 mt-6">
-          <div className="grid md:grid-cols-2 gap-6">
-            <Card className="dark:bg-gray-800 dark:border-gray-700">
+        <TabsContent value="mercado" className="mt-6 space-y-6">
+          <div className="grid gap-6 md:grid-cols-2">
+            <Card className="dark:border-gray-700 dark:bg-gray-800">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 dark:text-white">
                   {scanMode === "barcode" ? (
-                    <Barcode className="w-5 h-5 text-orange-500" />
+                    <Barcode className="h-5 w-5 text-orange-500" />
                   ) : (
-                    <QrCode className="w-5 h-5 text-orange-500" />
+                    <QrCode className="h-5 w-5 text-orange-500" />
                   )}
                   Escanear {scanMode === "barcode" ? "Código de Barras" : "QR Code"}
                 </CardTitle>
@@ -916,7 +983,7 @@ export default function ComprasPage() {
               <CardContent className="space-y-4">
                 <div
                   id="qr-reader"
-                  className={`w-full rounded-lg overflow-hidden bg-black qr-scanner-container ${
+                  className={`qr-scanner-container w-full overflow-hidden rounded-lg bg-black ${
                     scannerContainerVisible ? "" : "hidden"
                   }`}
                   style={{ minHeight: scannerContainerVisible ? "300px" : "0" }}
@@ -932,13 +999,13 @@ export default function ComprasPage() {
                 `}</style>
 
                 {!scannerContainerVisible && !loading && (
-                  <div className="w-full aspect-square rounded-lg bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20 flex flex-col items-center justify-center border-2 border-dashed border-orange-200 dark:border-orange-800">
+                  <div className="flex aspect-square w-full flex-col items-center justify-center rounded-lg border-2 border-dashed border-orange-200 bg-gradient-to-br from-orange-50 to-amber-50 dark:border-orange-800 dark:from-orange-900/20 dark:to-amber-900/20">
                     {scanMode === "barcode" ? (
-                      <Barcode className="w-20 h-20 text-orange-300 dark:text-orange-700 mb-4" />
+                      <Barcode className="mb-4 h-20 w-20 text-orange-300 dark:text-orange-700" />
                     ) : (
-                      <QrCode className="w-20 h-20 text-orange-300 dark:text-orange-700 mb-4" />
+                      <QrCode className="mb-4 h-20 w-20 text-orange-300 dark:text-orange-700" />
                     )}
-                    <p className="text-gray-600 dark:text-gray-400 text-center px-4">
+                    <p className="px-4 text-center text-gray-600 dark:text-gray-400">
                       {scanMode === "barcode"
                         ? "Aponte a câmera para o código de barras do produto"
                         : "Aponte a câmera para o QR Code do cupom fiscal"}
@@ -947,28 +1014,32 @@ export default function ComprasPage() {
                 )}
 
                 {loading && (
-                  <div className="w-full aspect-square rounded-lg bg-gray-100 dark:bg-gray-900 flex flex-col items-center justify-center">
-                    <Loader2 className="w-12 h-12 text-orange-500 animate-spin mb-4" />
+                  <div className="flex aspect-square w-full flex-col items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-900">
+                    <Loader2 className="mb-4 h-12 w-12 animate-spin text-orange-500" />
                     <p className="text-gray-600 dark:text-gray-400">Lendo NFC-e...</p>
                   </div>
                 )}
 
                 {!scannerContainerVisible && (
-                  <div className="flex gap-2 mb-3">
+                  <div className="mb-3 flex gap-2">
                     <Button
                       variant={scanMode === "qrcode" ? "default" : "outline"}
-                      className={`flex-1 ${scanMode === "qrcode" ? "bg-orange-500 hover:bg-orange-600" : ""}`}
+                      className={`flex-1 ${
+                        scanMode === "qrcode" ? "bg-orange-500 hover:bg-orange-600" : ""
+                      }`}
                       onClick={() => setScanMode("qrcode")}
                     >
-                      <QrCode className="w-4 h-4 mr-2" />
+                      <QrCode className="mr-2 h-4 w-4" />
                       QR Code
                     </Button>
                     <Button
                       variant={scanMode === "barcode" ? "default" : "outline"}
-                      className={`flex-1 ${scanMode === "barcode" ? "bg-orange-500 hover:bg-orange-600" : ""}`}
+                      className={`flex-1 ${
+                        scanMode === "barcode" ? "bg-orange-500 hover:bg-orange-600" : ""
+                      }`}
                       onClick={() => setScanMode("barcode")}
                     >
-                      <Barcode className="w-4 h-4 mr-2" />
+                      <Barcode className="mr-2 h-4 w-4" />
                       Código
                     </Button>
                   </div>
@@ -981,12 +1052,12 @@ export default function ComprasPage() {
                       onClick={startScanner}
                       disabled={loading}
                     >
-                      <Camera className="w-4 h-4 mr-2" />
+                      <Camera className="mr-2 h-4 w-4" />
                       Abrir Câmera
                     </Button>
                   ) : (
                     <Button className="flex-1" variant="outline" onClick={() => void stopScanner()}>
-                      <X className="w-4 h-4 mr-2" />
+                      <X className="mr-2 h-4 w-4" />
                       Parar
                     </Button>
                   )}
@@ -994,10 +1065,10 @@ export default function ComprasPage() {
               </CardContent>
             </Card>
 
-            <Card className="dark:bg-gray-800 dark:border-gray-700">
+            <Card className="dark:border-gray-700 dark:bg-gray-800">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 dark:text-white">
-                  <LinkIcon className="w-5 h-5 text-blue-500" />
+                  <LinkIcon className="h-5 w-5 text-blue-500" />
                   Digitar URL
                 </CardTitle>
               </CardHeader>
@@ -1012,7 +1083,7 @@ export default function ComprasPage() {
                     value={urlManual}
                     onChange={(e) => setUrlManual(e.target.value)}
                     placeholder="https://www.nfce.fazenda..."
-                    className="dark:bg-gray-900 dark:border-gray-600"
+                    className="dark:border-gray-600 dark:bg-gray-900"
                   />
                 </div>
 
@@ -1023,12 +1094,12 @@ export default function ComprasPage() {
                 >
                   {loading ? (
                     <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Processando...
                     </>
                   ) : (
                     <>
-                      <Receipt className="w-4 h-4 mr-2" />
+                      <Receipt className="mr-2 h-4 w-4" />
                       Ler NFC-e
                     </>
                   )}
@@ -1036,16 +1107,17 @@ export default function ComprasPage() {
               </CardContent>
             </Card>
 
-            <Card className="dark:bg-gray-800 dark:border-gray-700 md:col-span-2">
+            <Card className="md:col-span-2 dark:border-gray-700 dark:bg-gray-800">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 dark:text-white">
-                  <ImageIcon className="w-5 h-5 text-purple-500" />
+                  <ImageIcon className="h-5 w-5 text-purple-500" />
                   Upload de Foto / Screenshot
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Se a SEFAZ bloquear, envie uma foto/screenshot do cupom fiscal e a IA extrai os dados.
+                  Se a SEFAZ bloquear, envie uma foto/screenshot do cupom fiscal e a IA extrai os
+                  dados.
                 </p>
 
                 <label className="flex-1">
@@ -1062,17 +1134,17 @@ export default function ComprasPage() {
                     }}
                     disabled={loading}
                   />
-                  <div className="flex items-center justify-center gap-2 p-4 border-2 border-dashed border-purple-300 dark:border-purple-700 rounded-lg cursor-pointer hover:border-purple-500 transition-colors bg-purple-50 dark:bg-purple-900/20">
+                  <div className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed border-purple-300 bg-purple-50 p-4 transition-colors hover:border-purple-500 dark:border-purple-700 dark:bg-purple-900/20">
                     {loading ? (
                       <>
-                        <Loader2 className="w-5 h-5 text-purple-500 animate-spin" />
+                        <Loader2 className="h-5 w-5 animate-spin text-purple-500" />
                         <span className="text-purple-700 dark:text-purple-300">
                           Processando imagem...
                         </span>
                       </>
                     ) : (
                       <>
-                        <Upload className="w-5 h-5 text-purple-500" />
+                        <Upload className="h-5 w-5 text-purple-500" />
                         <span className="text-purple-700 dark:text-purple-300">
                           Clique para enviar foto ou screenshot
                         </span>
@@ -1085,24 +1157,24 @@ export default function ComprasPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="lista" className="space-y-6 mt-6">
-          <Card className="dark:bg-gray-800 dark:border-gray-700">
+        <TabsContent value="lista" className="mt-6 space-y-6">
+          <Card className="dark:border-gray-700 dark:bg-gray-800">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="flex items-center gap-2 dark:text-white">
-                <ListChecks className="w-5 h-5 text-blue-500" />
+                <ListChecks className="h-5 w-5 text-blue-500" />
                 Lista de Compras
               </CardTitle>
-              <Button variant="ghost" size="sm" onClick={fetchListaCompras}>
-                <RefreshCw className={`w-4 h-4 ${loadingLista ? "animate-spin" : ""}`} />
+              <Button variant="ghost" size="sm" onClick={() => void fetchListaCompras()}>
+                <RefreshCw className={`h-4 w-4 ${loadingLista ? "animate-spin" : ""}`} />
               </Button>
             </CardHeader>
             <CardContent>
               {loadingLista ? (
-                <div className="py-10 flex items-center justify-center">
-                  <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
+                <div className="flex items-center justify-center py-10">
+                  <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
                 </div>
               ) : listaCompras.length === 0 ? (
-                <div className="text-sm text-gray-500 py-8 text-center">
+                <div className="py-8 text-center text-sm text-gray-500">
                   Nenhum item pendente na lista.
                 </div>
               ) : (
@@ -1110,7 +1182,7 @@ export default function ComprasPage() {
                   {listaCompras.map((item) => (
                     <div
                       key={item.id}
-                      className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-4 rounded-lg border bg-white dark:bg-gray-900 dark:border-gray-700"
+                      className="flex flex-col justify-between gap-3 rounded-lg border bg-white p-4 dark:border-gray-700 dark:bg-gray-900 md:flex-row md:items-center"
                     >
                       <div>
                         <p className="font-medium text-gray-900 dark:text-white">
@@ -1120,18 +1192,18 @@ export default function ComprasPage() {
                           {item.quantidade_solicitada} {item.unidade_medida || "un"}
                         </p>
                         {item.observacao ? (
-                          <p className="text-xs text-gray-400 mt-1">{item.observacao}</p>
+                          <p className="mt-1 text-xs text-gray-400">{item.observacao}</p>
                         ) : null}
                       </div>
 
-                      <div className="flex items-center gap-2 flex-wrap">
+                      <div className="flex flex-wrap items-center gap-2">
                         <Badge variant="outline">{item.status_solicitacao}</Badge>
                         <Button
                           size="sm"
                           className="bg-green-500 hover:bg-green-600"
                           onClick={() => void darBaixaManualLista(item.id)}
                         >
-                          <CheckCircle2 className="w-4 h-4 mr-1" />
+                          <CheckCircle2 className="mr-1 h-4 w-4" />
                           Dar baixa
                         </Button>
                       </div>
@@ -1145,19 +1217,19 @@ export default function ComprasPage() {
       </Tabs>
 
       <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto dark:bg-gray-800">
+        <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto dark:bg-gray-800">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 dark:text-white">
-              <Receipt className="w-5 h-5 text-green-500" />
+              <Receipt className="h-5 w-5 text-green-500" />
               Confirmar Compra
             </DialogTitle>
           </DialogHeader>
 
           {dadosNfce && (
             <div className="space-y-4">
-              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                <div className="flex items-center gap-2 mb-2">
-                  <Store className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+              <div className="rounded-lg bg-blue-50 p-3 dark:bg-blue-900/20">
+                <div className="mb-2 flex items-center gap-2">
+                  <Store className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                   <span className="font-semibold text-blue-900 dark:text-blue-300">
                     {dadosNfce.emitente.nome_fantasia || dadosNfce.emitente.razao_social}
                   </span>
@@ -1168,26 +1240,24 @@ export default function ComprasPage() {
               </div>
 
               <div>
-                <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
-                  <Package className="w-4 h-4" />
+                <h4 className="mb-2 flex items-center gap-2 font-medium text-gray-700 dark:text-gray-300">
+                  <Package className="h-4 w-4" />
                   Itens ({dadosNfce.itens.length})
                 </h4>
-                <div className="max-h-48 overflow-y-auto space-y-2">
+                <div className="max-h-48 space-y-2 overflow-y-auto">
                   {dadosNfce.itens.map((item, idx) => (
                     <div
                       key={idx}
-                      className="flex justify-between text-sm p-2 bg-gray-50 dark:bg-gray-900 rounded"
+                      className="flex justify-between rounded bg-gray-50 p-2 text-sm dark:bg-gray-900"
                     >
-                      <div className="flex-1 min-w-0">
-                        <p className="truncate text-gray-900 dark:text-white">
-                          {item.descricao}
-                        </p>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-gray-900 dark:text-white">{item.descricao}</p>
                         <p className="text-gray-500 dark:text-gray-400">
                           {item.quantidade} {item.unidade} × R${" "}
                           {Number(item.valor_unitario || 0).toFixed(2)}
                         </p>
                       </div>
-                      <span className="font-medium text-gray-900 dark:text-white ml-2">
+                      <span className="ml-2 font-medium text-gray-900 dark:text-white">
                         R$ {Number(item.valor_total || 0).toFixed(2)}
                       </span>
                     </div>
@@ -1195,18 +1265,18 @@ export default function ComprasPage() {
                 </div>
               </div>
 
-              <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+              <div className="rounded-lg bg-green-50 p-3 dark:bg-green-900/20">
                 <div className="flex items-center justify-between">
                   <span className="flex items-center gap-2 text-green-800 dark:text-green-300">
-                    <DollarSign className="w-5 h-5" />
+                    <DollarSign className="h-5 w-5" />
                     Total
                   </span>
                   <span className="text-xl font-bold text-green-700 dark:text-green-400">
-                    R$ {Number(dadosNfce.totais?.total || 0).toFixed(2)}
+                    R$ {Number(dadosNfce.totais.total || 0).toFixed(2)}
                   </span>
                 </div>
-                {dadosNfce.pagamento?.forma && (
-                  <p className="text-sm text-green-600 dark:text-green-400 mt-1">
+                {dadosNfce.pagamento.forma && (
+                  <p className="mt-1 text-sm text-green-600 dark:text-green-400">
                     Pago em: {dadosNfce.pagamento.forma}
                   </p>
                 )}
@@ -1215,7 +1285,7 @@ export default function ComprasPage() {
               <div className="space-y-2">
                 <Label>Categoria</Label>
                 <Select value={categoria} onValueChange={setCategoria}>
-                  <SelectTrigger className="dark:bg-gray-900 dark:border-gray-600">
+                  <SelectTrigger className="dark:border-gray-600 dark:bg-gray-900">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1238,7 +1308,7 @@ export default function ComprasPage() {
                   }}
                   disabled={salvando}
                 >
-                  <X className="w-4 h-4 mr-2" />
+                  <X className="mr-2 h-4 w-4" />
                   Cancelar
                 </Button>
                 <Button
@@ -1248,12 +1318,12 @@ export default function ComprasPage() {
                 >
                   {salvando ? (
                     <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Salvando...
                     </>
                   ) : (
                     <>
-                      <Check className="w-4 h-4 mr-2" />
+                      <Check className="mr-2 h-4 w-4" />
                       Confirmar
                     </>
                   )}
@@ -1266,18 +1336,18 @@ export default function ComprasPage() {
 
       <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
         <DialogContent className="max-w-sm dark:bg-gray-800">
-          <div className="text-center py-4">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-              <Check className="w-8 h-8 text-green-500" />
+          <div className="py-4 text-center">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
+              <Check className="h-8 w-8 text-green-500" />
             </div>
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+            <h3 className="mb-2 text-xl font-bold text-gray-900 dark:text-white">
               Compra Registrada!
             </h3>
 
             {compraRegistrada && (
               <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
                 <p>{compraRegistrada.itens_registrados} itens registrados</p>
-                <p className="font-semibold text-lg text-gray-900 dark:text-white">
+                <p className="text-lg font-semibold text-gray-900 dark:text-white">
                   R$ {Number(compraRegistrada.valor_total || 0).toFixed(2)}
                 </p>
                 {compraRegistrada.fornecedor_criado && (
@@ -1312,10 +1382,10 @@ export default function ComprasPage() {
           }
         }}
       >
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto dark:bg-gray-800">
+        <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto dark:bg-gray-800">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 dark:text-white">
-              <ClipboardList className="w-5 h-5 text-blue-500" />
+              <ClipboardList className="h-5 w-5 text-blue-500" />
               Itens Encontrados na Lista de Compras
             </DialogTitle>
           </DialogHeader>
@@ -1323,18 +1393,17 @@ export default function ComprasPage() {
           <div className="space-y-4">
             <p className="text-sm text-gray-600 dark:text-gray-400">
               Encontramos {matchesEncontrados.length} itens da nota que podem corresponder a itens
-              na sua Lista de Compras. Selecione os que deseja marcar como{" "}
-              <strong>comprados</strong>.
+              na sua Lista de Compras. Selecione os que deseja marcar como <strong>comprados</strong>.
             </p>
 
-            <div className="max-h-64 overflow-y-auto space-y-3">
+            <div className="max-h-64 space-y-3 overflow-y-auto">
               {matchesEncontrados.map((match, idx) => (
                 <div
                   key={idx}
-                  className={`p-3 rounded-lg border transition-colors cursor-pointer ${
+                  className={`cursor-pointer rounded-lg border p-3 transition-colors ${
                     matchesSelecionados.has(match.itemLista.id)
                       ? "border-green-500 bg-green-50 dark:bg-green-900/20"
-                      : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
+                      : "border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600"
                   }`}
                   onClick={() => toggleMatchSelecionado(match.itemLista.id)}
                 >
@@ -1344,10 +1413,10 @@ export default function ComprasPage() {
                       onCheckedChange={() => toggleMatchSelecionado(match.itemLista.id)}
                       className="mt-1"
                     />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-1 flex items-center gap-2">
                         <span
-                          className={`text-xs px-2 py-0.5 rounded-full ${
+                          className={`rounded-full px-2 py-0.5 text-xs ${
                             match.similaridade >= 0.7
                               ? "bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300"
                               : match.similaridade >= 0.5
@@ -1362,8 +1431,8 @@ export default function ComprasPage() {
                         Nota: {match.itemNfce.descricao}
                       </p>
                       <p className="text-sm text-blue-600 dark:text-blue-400">
-                        Lista: {match.itemLista.produto_nome} ({match.itemLista.quantidade_solicitada}{" "}
-                        {match.itemLista.unidade_medida || "un"})
+                        Lista: {match.itemLista.produto_nome} (
+                        {match.itemLista.quantidade_solicitada} {match.itemLista.unidade_medida || "un"})
                       </p>
                     </div>
                   </div>
@@ -1391,12 +1460,12 @@ export default function ComprasPage() {
               >
                 {dandoBaixa ? (
                   <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Atualizando...
                   </>
                 ) : (
                   <>
-                    <CheckCircle2 className="w-4 h-4 mr-2" />
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
                     Dar Baixa ({matchesSelecionados.size})
                   </>
                 )}

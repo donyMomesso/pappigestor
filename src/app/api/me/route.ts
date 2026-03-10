@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { getSupabaseClient } from "@/lib/supabaseClient";
 import type { LocalUser, NivelAcesso } from "@/hooks/useAppAuth";
 
-function normalizeRole(role: any): NivelAcesso {
+function normalizeRole(role: unknown): NivelAcesso {
   const r = String(role ?? "").toLowerCase().trim();
 
   if (r === "super_admin") return "super_admin";
@@ -70,9 +70,9 @@ export async function GET() {
       .select("feature, enabled")
       .eq("company_id", companyId);
 
-    const features = (feats ?? [])
-      .filter((f: any) => !!f.enabled)
-      .map((f: any) => f.feature as string);
+    const features: string[] = (feats ?? [])
+      .filter((f: { feature: string; enabled: boolean }) => !!f.enabled)
+      .map((f) => f.feature);
 
     const localUser: LocalUser = {
       id: userId,
@@ -85,7 +85,7 @@ export async function GET() {
     };
 
     return NextResponse.json(localUser);
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("auth/me error:", err);
     return NextResponse.json(null, { status: 500 });
   }

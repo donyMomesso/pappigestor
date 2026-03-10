@@ -1,87 +1,11 @@
+// src/hooks/useDashboard.ts
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { getSupabaseClient } from "@/lib/supabaseClient";
-
-type FinanceiroRow = {
-  id?: string;
-  empresa_id?: string | null;
-  tipo?: "receita" | "despesa" | string;
-  valor?: number | string | null;
-  created_at?: string | null;
-  data?: string | null;
-};
-
-type ProdutoRow = {
-  id?: string;
-  empresa_id?: string | null;
-  nome?: string | null;
-  estoque_atual?: number | null;
-  estoque_minimo?: number | null;
-  custo_unitario?: number | null;
-};
-
-type RecebimentoRow = {
-  id?: string;
-  empresa_id?: string | null;
-  status?: string | null;
-  created_at?: string | null;
-  data_recebimento?: string | null;
-  conferido?: boolean | null;
-};
+import { useState, useEffect, useMemo } from "react";
+import { useApi } from "@/hooks/useApi";
 
 type MesSerie = { name: string; receitas: number; despesas: number };
 type EstoquePizza = { name: string; value: number };
-
-function toNumber(v: any) {
-  if (v === null || v === undefined) return 0;
-  if (typeof v === "number") return Number.isFinite(v) ? v : 0;
-  if (typeof v === "string") {
-    const s = v.trim().replace(/\./g, "").replace(",", ".");
-    const n = Number(s);
-    return Number.isFinite(n) ? n : 0;
-  }
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
-}
-
-function monthKey(d: Date) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-}
-
-function monthLabel(d: Date) {
-  return d.toLocaleString("pt-BR", { month: "short" }).replace(".", "");
-}
-
-function lastMonths(count: number) {
-  const out: Date[] = [];
-  const now = new Date();
-  for (let i = count - 1; i >= 0; i--) {
-    const dt = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    out.push(dt);
-  }
-  return out;
-}
-
-function safeDate(raw: any): Date | null {
-  if (!raw) return null;
-  const dt = new Date(raw);
-  return Number.isNaN(dt.getTime()) ? null : dt;
-}
-
-function isRecebimentoPendente(row: RecebimentoRow) {
-  const status = String(row.status ?? "").toLowerCase().trim();
-
-  if (status === "pendente") return true;
-  if (status === "aguardando") return true;
-  if (status === "em_aberto") return true;
-  if (status === "aberto") return true;
-
-  if (row.conferido === false) return true;
-  if (!row.data_recebimento) return true;
-
-  return false;
-}
 
 export function useDashboard() {
   const [loading, setLoading] = useState(true);
@@ -102,146 +26,76 @@ export function useDashboard() {
     recebimentosPendentes: 0,
   });
 
-  const refresh = useCallback(async () => {
+  // Consome múltiplos endpoints via useApi
+  const { data: financeiro, error: finErr } = useApi<any[]>("/api/financeiro");
+  const { data: produtos, error: prodErr } = useApi<any[]>("/api/produtos");
+  const { data: recebimentos, error: recErr } = useApi<any[]>("/api/recebimentos");
+
+  useEffect(() => {
     setLoading(true);
     setError(null);
 
-    const supabase = getSupabaseClient();
-    if (!supabase) {
-      const fake = lastMonths(6).map((d) => ({
-        name: monthLabel(d),
-        receitas: 8000,
-        despesas: 5200,
-      }));
-
-      setSeriesMensal(fake);
-      setEstoquePizza([
-        { name: "Ok", value: 18 },
-        { name: "Crítico", value: 4 },
-      ]);
-      setItensCriticos([
-        { id: "1", nome: "Mussarela", atual: 2, minimo: 6 },
-        { id: "2", nome: "Calabresa", atual: 1, minimo: 4 },
-        { id: "3", nome: "Catupiry", atual: 1, minimo: 3 },
-      ]);
-      setKpis({
-        receitaTotal: 48000,
-        despesaTotal: 31200,
-        lucro: 16800,
-        margem: 35,
-        itensCriticos: 4,
-        recebimentosPendentes: 1,
-      });
-
-      setLoading(false);
-      return;
-    }
-
-    const empresaId =
-      typeof window !== "undefined" ? localStorage.getItem("empresa_id") || "" : "";
-
     try {
-      let finQuery = supabase.from("financeiro").select("*");
-      if (empresaId) finQuery = finQuery.eq("empresa_id", empresaId);
-
-      let prodQuery = supabase.from("produtos").select("*");
-      if (empresaId) prodQuery = prodQuery.eq("empresa_id", empresaId);
-
-      // tentativa segura: se a tabela ainda não existir, não derruba o dashboard
-      let recebimentosRows: RecebimentoRow[] = [];
-      try {
-        let recebQuery = supabase.from("recebimentos").select("*");
-        if (empresaId) recebQuery = recebQuery.eq("empresa_id", empresaId);
-
-        const { data: recebData, error: recebErr } = await recebQuery;
-        if (!recebErr) {
-          recebimentosRows = (recebData ?? []) as RecebimentoRow[];
-        }
-      } catch {
-        recebimentosRows = [];
+      if (finErr || prodErr || recErr) {
+        throw new Error(finErr || prodErr || recErr || "Erro ao carregar dados");
       }
 
-      const [{ data: fin, error: finErr }, { data: prods, error: prodErr }] =
-        await Promise.all([finQuery, prodQuery]);
+      const finRows = financeiro || [];
+      const prodRows = produtos || [];
+      const recebRows = recebimentos || [];
 
-      if (finErr) throw finErr;
-      if (prodErr) throw prodErr;
-
-      const finRows = (fin ?? []) as FinanceiroRow[];
-      const prodRows = (prods ?? []) as ProdutoRow[];
-
-      const months = lastMonths(6);
-      const buckets = new Map<
-        string,
-        { receitas: number; despesas: number; label: string }
-      >();
-
-      months.forEach((d) => {
-        buckets.set(monthKey(d), {
-          receitas: 0,
-          despesas: 0,
-          label: monthLabel(d),
-        });
-      });
-
-      for (const row of finRows) {
-        const dt = safeDate(row.created_at || row.data);
-        if (!dt) continue;
-
-        const key = monthKey(new Date(dt.getFullYear(), dt.getMonth(), 1));
-        const b = buckets.get(key);
-        if (!b) continue;
-
-        const valor = toNumber(row.valor);
-        const tipo = String(row.tipo || "").toLowerCase();
-
-        if (tipo === "receita") b.receitas += valor;
-        if (tipo === "despesa") b.despesas += valor;
-      }
-
-      const serie: MesSerie[] = months.map((d) => {
-        const b = buckets.get(monthKey(d))!;
-        return {
-          name: b.label,
-          receitas: Math.round(b.receitas),
-          despesas: Math.round(b.despesas),
-        };
-      });
-
+      // KPIs básicos
       const receitaTotal = finRows
         .filter((t) => String(t.tipo || "").toLowerCase() === "receita")
-        .reduce((acc, t) => acc + toNumber(t.valor), 0);
+        .reduce((acc, t) => acc + Number(t.valor || 0), 0);
 
       const despesaTotal = finRows
         .filter((t) => String(t.tipo || "").toLowerCase() === "despesa")
-        .reduce((acc, t) => acc + toNumber(t.valor), 0);
+        .reduce((acc, t) => acc + Number(t.valor || 0), 0);
 
       const lucro = receitaTotal - despesaTotal;
       const margem = receitaTotal > 0 ? (lucro / receitaTotal) * 100 : 0;
 
+      // Estoque crítico
       const criticos = prodRows
         .map((p) => ({
           id: p.id,
           nome: String(p.nome ?? "Item"),
-          atual: toNumber(p.estoque_atual),
-          minimo: toNumber(p.estoque_minimo),
+          atual: Number(p.estoque_atual || 0),
+          minimo: Number(p.estoque_minimo || 0),
         }))
         .filter((p) => p.minimo > 0 && p.atual <= p.minimo)
-        .sort((a, b) => a.atual / a.minimo - b.atual / b.minimo)
         .slice(0, 8);
 
       const totalOk = prodRows.filter((p) => {
-        const a = toNumber(p.estoque_atual);
-        const m = toNumber(p.estoque_minimo);
-        if (m <= 0) return true;
-        return a > m;
+        const a = Number(p.estoque_atual || 0);
+        const m = Number(p.estoque_minimo || 0);
+        return m <= 0 || a > m;
       }).length;
 
       const totalCrit = Math.max(0, prodRows.length - totalOk);
 
-      const totalRecebimentosPendentes = recebimentosRows.filter(isRecebimentoPendente).length;
+      const totalRecebimentosPendentes = recebRows.filter((r) => {
+        const status = String(r.status ?? "").toLowerCase().trim();
+        return (
+          status === "pendente" ||
+          status === "aguardando" ||
+          status === "em_aberto" ||
+          status === "aberto" ||
+          r.conferido === false ||
+          !r.data_recebimento
+        );
+      }).length;
 
-      setSeriesMensal(serie);
+      setSeriesMensal([
+        { name: "Jan", receitas: receitaTotal / 6, despesas: despesaTotal / 6 },
+        { name: "Fev", receitas: receitaTotal / 6, despesas: despesaTotal / 6 },
+        { name: "Mar", receitas: receitaTotal / 6, despesas: despesaTotal / 6 },
+        { name: "Abr", receitas: receitaTotal / 6, despesas: despesaTotal / 6 },
+        { name: "Mai", receitas: receitaTotal / 6, despesas: despesaTotal / 6 },
+        { name: "Jun", receitas: receitaTotal / 6, despesas: despesaTotal / 6 },
+      ]);
+
       setItensCriticos(criticos);
       setEstoquePizza([
         { name: "Ok", value: totalOk },
@@ -249,24 +103,19 @@ export function useDashboard() {
       ]);
 
       setKpis({
-        receitaTotal: Math.round(receitaTotal),
-        despesaTotal: Math.round(despesaTotal),
-        lucro: Math.round(lucro),
-        margem: Number.isFinite(margem) ? Math.round(margem * 10) / 10 : 0,
+        receitaTotal,
+        despesaTotal,
+        lucro,
+        margem,
         itensCriticos: totalCrit,
         recebimentosPendentes: totalRecebimentosPendentes,
       });
     } catch (e: any) {
-      console.error(e);
       setError(e?.message || "Erro ao carregar dashboard");
     } finally {
       setLoading(false);
     }
-  }, []);
-
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
+  }, [financeiro, produtos, recebimentos, finErr, prodErr, recErr]);
 
   const alertas = useMemo(() => {
     const alerts: Array<{ tipo: "warn" | "danger"; texto: string }> = [];
@@ -293,12 +142,11 @@ export function useDashboard() {
     }
 
     return alerts;
-  }, [kpis.itensCriticos, kpis.lucro, kpis.recebimentosPendentes]);
+  }, [kpis]);
 
   return {
     loading,
     error,
-    refresh,
     serieMensal: seriesMensal,
     estoquePizza,
     itensCriticos,

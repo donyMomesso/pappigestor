@@ -10,109 +10,6 @@ interface AppLayoutProps {
   children: ReactNode;
 }
 
-type UnknownRecord = Record<string, unknown>;
-
-function isRecord(value: unknown): value is UnknownRecord {
-  return typeof value === "object" && value !== null;
-}
-
-function getNestedRecord(
-  source: UnknownRecord,
-  keys: string[]
-): UnknownRecord | null {
-  for (const key of keys) {
-    const value = source[key];
-    if (isRecord(value)) return value;
-  }
-  return null;
-}
-
-function getString(source: UnknownRecord, keys: string[]): string | null {
-  for (const key of keys) {
-    const value = source[key];
-    if (typeof value === "string" && value.trim()) {
-      return value.trim();
-    }
-  }
-  return null;
-}
-
-function getBoolean(source: UnknownRecord, keys: string[]): boolean | null {
-  for (const key of keys) {
-    const value = source[key];
-    if (typeof value === "boolean") {
-      return value;
-    }
-  }
-  return null;
-}
-
-function isExpiredDate(dateString: string | null): boolean {
-  if (!dateString) return false;
-
-  const timestamp = Date.parse(dateString);
-  if (Number.isNaN(timestamp)) return false;
-
-  return timestamp < Date.now();
-}
-
-function hasExpiredSubscription(user: unknown): boolean {
-  if (!isRecord(user)) return false;
-
-  const companyLike =
-    getNestedRecord(user, [
-      "empresaAtual",
-      "empresa_atual",
-      "empresa",
-      "company",
-      "tenant",
-    ]) ?? user;
-
-  const explicitExpired =
-    getBoolean(companyLike, [
-      "assinatura_expirada",
-      "subscription_expired",
-      "trial_expired",
-      "expired",
-    ]) ?? false;
-
-  if (explicitExpired) return true;
-
-  const status = getString(companyLike, [
-    "status_assinatura",
-    "subscription_status",
-    "plano_status",
-    "trial_status",
-    "status",
-  ])?.toLowerCase();
-
-  if (
-    status &&
-    [
-      "expired",
-      "expirada",
-      "trial_expired",
-      "inactive",
-      "inativo",
-      "blocked",
-      "bloqueado",
-      "past_due_blocked",
-    ].includes(status)
-  ) {
-    return true;
-  }
-
-  const expirationDate = getString(companyLike, [
-    "subscription_expires_at",
-    "assinatura_expira_em",
-    "trial_ends_at",
-    "expires_at",
-    "valid_until",
-  ]);
-
-  return isExpiredDate(expirationDate);
-}
-
 function FullScreenMessage({
   title,
   description,
@@ -126,15 +23,12 @@ function FullScreenMessage({
         <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-orange-500 text-sm font-bold text-white shadow-sm">
           PG
         </div>
-
         <h1 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
           {title}
         </h1>
-
         <p className="mt-2 text-sm leading-6 text-zinc-500 dark:text-zinc-400">
           {description}
         </p>
-
         <div className="mt-6 h-1.5 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
           <div className="h-full w-1/2 animate-pulse rounded-full bg-orange-500" />
         </div>
@@ -149,7 +43,21 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const { localUser, isLoading } = useAppAuth();
 
   const subscriptionExpired = useMemo(() => {
-    return hasExpiredSubscription(localUser);
+    if (!localUser) return false;
+
+    const company = localUser.empresaAtual ?? localUser.empresa ?? localUser;
+    const status = company?.status_assinatura?.toLowerCase();
+
+    if (company?.assinatura_expirada || ["expired", "inativo", "bloqueado"].includes(status)) {
+      return true;
+    }
+
+    const expirationDate = company?.subscription_expires_at;
+    if (expirationDate && Date.parse(expirationDate) < Date.now()) {
+      return true;
+    }
+
+    return false;
   }, [localUser]);
 
   useEffect(() => {
@@ -161,7 +69,6 @@ export default function AppLayout({ children }: AppLayoutProps) {
     }
 
     const isConfiguracoesPage = pathname?.startsWith("/app/configuracoes");
-
     if (subscriptionExpired && !isConfiguracoesPage) {
       router.replace("/app/configuracoes?tab=assinatura");
     }
@@ -197,10 +104,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
   return (
     <div className="flex h-screen overflow-hidden bg-zinc-50 dark:bg-zinc-950">
       <AppSidebar />
-
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <TopHeader />
-
         <main className="flex-1 overflow-y-auto p-4 md:p-6">
           <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
             {children}

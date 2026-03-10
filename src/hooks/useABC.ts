@@ -1,7 +1,7 @@
+// src/hooks/useABC.ts
 "use client";
 
-import { useEffect, useState } from "react";
-import { getSupabaseClient } from "@/lib/supabaseClient";
+import { useApi } from "@/hooks/useApi";
 
 export type ABCCategoria = {
   categoria: string;
@@ -9,58 +9,32 @@ export type ABCCategoria = {
 };
 
 export function useABC() {
-  const [data, setData] = useState<ABCCategoria[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Busca os produtos e calcula a curva ABC
+  const { data: produtos, error, loading } = useApi<any[]>("/api/produtos");
 
-  useEffect(() => {
-    async function load() {
-      const supabase = getSupabaseClient();
+  let resultado: ABCCategoria[] = [];
 
-      if (!supabase) {
-        setData([]);
-        setLoading(false);
-        return;
-      }
+  if (produtos) {
+    const mapa: Record<string, number> = {};
 
-      const { data: produtos, error } = await supabase
-        .from("produtos")
-        .select("categoria, custo_unitario, estoque_atual");
+    for (const item of produtos) {
+      const categoria = String(item.categoria ?? "outros");
+      const custo = Number(item.custo_unitario ?? 0);
+      const estoque = Number(item.estoque_atual ?? 0);
+      const valor = custo * estoque;
 
-      if (error) {
-        console.error("Erro ao carregar Curva ABC:", error);
-        setData([]);
-        setLoading(false);
-        return;
-      }
-
-      const mapa: Record<string, number> = {};
-
-      for (const item of produtos ?? []) {
-        const categoria = String(item.categoria ?? "outros");
-        const custo = Number(item.custo_unitario ?? 0);
-        const estoque = Number(item.estoque_atual ?? 0);
-        const valor = custo * estoque;
-
-        if (!mapa[categoria]) mapa[categoria] = 0;
-        mapa[categoria] += valor;
-      }
-
-      const resultado: ABCCategoria[] = Object.entries(mapa)
-        .map(([categoria, valor]) => ({
-          categoria,
-          valor,
-        }))
-        .sort((a, b) => b.valor - a.valor);
-
-      setData(resultado);
-      setLoading(false);
+      if (!mapa[categoria]) mapa[categoria] = 0;
+      mapa[categoria] += valor;
     }
 
-    load();
-  }, []);
+    resultado = Object.entries(mapa)
+      .map(([categoria, valor]) => ({ categoria, valor }))
+      .sort((a, b) => b.valor - a.valor);
+  }
 
   return {
-    data,
+    data: resultado,
+    error,
     loading,
   };
 }

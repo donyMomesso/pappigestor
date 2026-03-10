@@ -1,7 +1,7 @@
+// src/hooks/useFinanceiro.ts
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { getSupabaseClient } from "@/lib/supabaseClient";
+import { useApi } from "@/hooks/useApi";
 
 export type TransacaoFinanceiro = {
   id: string;
@@ -14,31 +14,12 @@ export type TransacaoFinanceiro = {
 };
 
 export function useFinanceiro() {
-  const [transacoes, setTransacoes] = useState<TransacaoFinanceiro[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Hook genérico que chama a API de financeiro
+  const { data, error, loading } = useApi<TransacaoFinanceiro[]>("/api/financeiro");
 
-  const fetchFinanceiro = useCallback(async () => {
-    const supabase = getSupabaseClient();
-    if (!supabase) {
-      setTransacoes([]);
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-
-    const { data, error } = await supabase
-      .from("financeiro")
-      .select("*")
-      .order("vencimento", { ascending: true });
-
-    if (!error) setTransacoes((data ?? []) as TransacaoFinanceiro[]);
-    setLoading(false);
-  }, []);
-
-  useEffect(() => {
-    fetchFinanceiro();
-  }, [fetchFinanceiro]);
-
-  return { transacoes, loading, refresh: fetchFinanceiro };
+  return {
+    transacoes: data || [],
+    error,
+    loading,
+  };
 }

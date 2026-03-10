@@ -15,8 +15,15 @@ interface RootLayoutProps {
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="pt-BR" suppressHydrationWarning>
-      <body suppressHydrationWarning>
-        <Providers>{children}</Providers>
+      <body
+        className="min-h-screen bg-background text-foreground font-sans antialiased"
+        suppressHydrationWarning
+      >
+        <Providers>
+          <main className="container-pappi custom-scrollbar">
+            {children}
+          </main>
+        </Providers>
       </body>
     </html>
   );

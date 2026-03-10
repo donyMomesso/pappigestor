@@ -91,3 +91,4 @@ export async function api<T = any>(path: string, opts: ApiOptions = {}): Promise
 export async function apiPublic<T = any>(path: string, opts: Omit<ApiOptions, "publicRoute"> = {}) {
   return api<T>(path, { ...opts, publicRoute: true });
 }
+ 

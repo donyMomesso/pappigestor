@@ -1,20 +1,20 @@
 import type { Config } from "tailwindcss";
+import tailwindcssAnimate from "tailwindcss-animate";
 
-export default {
+const config: Config = {
   darkMode: "class",
   content: [
-    "./src/app/**/*.{ts,tsx}",
-    "./src/components/**/*.{ts,tsx}",
-    "./src/hooks/**/*.{ts,tsx}",
-    "./src/lib/**/*.{ts,tsx}",
-    "./src/contexts/**/*.{ts,tsx}",
-    "./src/types/**/*.{ts,tsx}",
-    "./src/shared/**/*.{ts,tsx}",
-    "./src/worker/**/*.{ts,tsx}",
-    "./src/data/**/*.{ts,tsx}",
-    "./src/shims/**/*.{ts,tsx}",
+    "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/hooks/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/lib/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/contexts/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/types/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/shared/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/worker/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/data/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/shims/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/proxy.ts",
-    "./src/react-app/**/*.{ts,tsx}",
   ],
   theme: {
     extend: {
@@ -85,5 +85,7 @@ export default {
       },
     },
   },
-  plugins: [require("tailwindcss-animate")],
-} satisfies Config;
+  plugins: [tailwindcssAnimate],
+};
+
+export default config;

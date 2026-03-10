@@ -51,34 +51,34 @@ export default function LoginPage() {
   const highlights = useMemo(
     () => [
       {
-        icon: <Bot className="w-5 h-5" />,
-        title: "IA aplicada ao food service",
+        icon: <Bot className="h-5 w-5" />,
+        title: "IA aplicada à operação",
         description:
-          "Leitura de notas, apoio operacional e decisões mais rápidas.",
+          "Leitura de documentos, apoio operacional e decisões mais rápidas no dia a dia.",
       },
       {
-        icon: <Store className="w-5 h-5" />,
-        title: "Feito para operação real",
+        icon: <Store className="h-5 w-5" />,
+        title: "Feito para food service",
         description:
-          "Pizzaria, restaurante, hamburgueria e rotinas do dia a dia.",
+          "Pizzaria, restaurante, hamburgueria e rotinas reais de operação.",
       },
       {
-        icon: <BarChart3 className="w-5 h-5" />,
-        title: "Gestão que vira lucro",
+        icon: <BarChart3 className="h-5 w-5" />,
+        title: "Gestão conectada",
         description:
-          "Estoque, compras e financeiro conectados em uma só visão.",
+          "Estoque, compras e financeiro trabalhando juntos em uma visão única.",
       },
     ],
-    [],
+    []
   );
 
   const trustItems = useMemo(
     () => [
-      "Entrada rápida com Google",
-      "Ambiente seguro por empresa",
-      "Experiência guiada no primeiro acesso",
+      "Acesso rápido com Google",
+      "Ambiente isolado por empresa",
+      "Entrada guiada no primeiro acesso",
     ],
-    [],
+    []
   );
 
   const handleLogin = async () => {
@@ -115,167 +115,187 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white flex flex-col md:flex-row overflow-hidden font-sans">
-      <section className="flex-1 bg-gradient-to-br from-orange-600 via-orange-500 to-pink-600 p-8 md:p-16 flex flex-col justify-between relative overflow-hidden text-white">
-        <div className="relative z-10 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-4">
-            <div className="p-3 bg-white/10 backdrop-blur-xl rounded-[22px] border border-white/20 shadow-2xl">
-              <Sparkles className="w-8 h-8 text-white" />
-            </div>
-            <span className="text-3xl font-black italic uppercase tracking-tighter">
-              Pappi Gestor
-            </span>
-          </Link>
-        </div>
+    <div className="min-h-screen bg-[#fffaf7]">
+      <div className="grid min-h-screen lg:grid-cols-[1.08fr_0.92fr]">
+        <section className="relative overflow-hidden bg-gradient-to-br from-[#18181b] via-[#27272a] to-[#111827] text-white">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(234,88,12,0.28),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(219,39,119,0.18),transparent_28%)]" />
+          <div className="absolute -left-24 top-24 h-72 w-72 rounded-full bg-orange-500/20 blur-3xl" />
+          <div className="absolute bottom-0 right-0 h-80 w-80 rounded-full bg-pink-500/10 blur-3xl" />
 
-        <div className="relative z-10 py-12 md:py-20">
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 backdrop-blur-xl shadow-lg mb-8">
-            <Sparkles className="w-4 h-4" />
-            <span className="text-[11px] font-black italic uppercase tracking-[0.28em]">
-              inteligência operacional ativa
-            </span>
-          </div>
-
-          <h1 className="text-5xl md:text-7xl font-black italic uppercase tracking-tighter leading-[0.9] mb-6 drop-shadow-2xl max-w-4xl">
-            ENTRE E FAÇA SEU NEGÓCIO PENSAR MELHOR.
-          </h1>
-
-          <p className="text-orange-50 text-base md:text-xl font-bold max-w-2xl leading-relaxed">
-            O Pappi Gestor conecta estoque, compras, financeiro e inteligência
-            para transformar rotina em decisão.
-          </p>
-
-          <div className="mt-10 grid grid-cols-1 gap-4 max-w-2xl">
-            {highlights.map((item) => (
-              <div
-                key={item.title}
-                className="rounded-[24px] border border-white/15 bg-white/10 backdrop-blur-xl px-5 py-4 shadow-xl"
-              >
-                <div className="flex items-start gap-4">
-                  <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-2xl bg-white/15 border border-white/15">
-                    {item.icon}
-                  </div>
-
-                  <div>
-                    <p className="text-sm md:text-base font-black italic uppercase tracking-tight">
-                      {item.title}
-                    </p>
-                    <p className="text-sm text-orange-50/90 leading-relaxed mt-1">
-                      {item.description}
-                    </p>
-                  </div>
+          <div className="relative z-10 flex h-full flex-col justify-between px-8 py-8 md:px-12 md:py-10 xl:px-16 xl:py-12">
+            <div className="flex items-center justify-between">
+              <Link href="/" className="flex items-center gap-4">
+                <div className="flex h-14 w-14 items-center justify-center rounded-[22px] border border-white/10 bg-white/10 shadow-2xl backdrop-blur-xl">
+                  <Sparkles className="h-7 w-7 text-orange-300" />
                 </div>
-              </div>
-            ))}
-          </div>
-        </div>
 
-        <div className="relative z-10 flex flex-col gap-3">
-          <p className="text-[11px] font-black italic uppercase tracking-[0.22em] text-orange-100/90">
-            feito para quem quer controle, clareza e lucro
-          </p>
-        </div>
-
-        <div className="absolute -right-20 -bottom-20 text-[500px] font-black italic text-white/5 leading-none uppercase select-none pointer-events-none">
-          P
-        </div>
-      </section>
-
-      <section className="w-full md:w-[680px] p-8 md:p-16 flex flex-col justify-center bg-white overflow-y-auto">
-        <div className="w-full max-w-xl mx-auto space-y-10">
-          <div className="space-y-4 text-center md:text-left">
-            <div className="inline-flex items-center gap-2 rounded-full bg-orange-50 text-orange-600 px-4 py-2">
-              <Sparkles className="w-4 h-4" />
-              <span className="text-[11px] font-black italic uppercase tracking-[0.24em]">
-                entrada inteligente
-              </span>
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-orange-300/90">
+                    Pappi Gestor
+                  </p>
+                  <p className="text-lg font-black tracking-tight text-white">
+                    ERP para Food Service
+                  </p>
+                </div>
+              </Link>
             </div>
 
-            <h2 className="text-4xl md:text-5xl font-black italic uppercase tracking-tighter text-gray-900 leading-none">
-              Bem-vindo de volta
-            </h2>
+            <div className="max-w-3xl py-12 md:py-16 xl:py-20">
+              <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-4 py-2 backdrop-blur-xl">
+                <Sparkles className="h-4 w-4 text-orange-300" />
+                <span className="text-[11px] font-bold uppercase tracking-[0.28em] text-white/90">
+                  inteligência operacional ativa
+                </span>
+              </div>
 
-            <p className="text-gray-500 font-medium text-base leading-relaxed max-w-lg">
-              Entre no seu centro de inteligência e continue a evolução da sua
-              operação.
-            </p>
-          </div>
+              <h1 className="max-w-4xl text-4xl font-black leading-[0.95] tracking-[-0.04em] text-white md:text-6xl xl:text-7xl">
+                Controle a operação.
+                <br />
+                <span className="text-orange-400">Decida melhor.</span>
+              </h1>
 
-          <div className="rounded-[36px] border border-gray-100 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.08)] p-6 md:p-8 space-y-6">
-            <Button
-              onClick={handleLogin}
-              disabled={isLoading}
-              className="w-full h-16 md:h-20 bg-white border-2 border-gray-100 rounded-[26px] flex items-center justify-center gap-4 text-gray-800 font-black italic uppercase text-xs tracking-[0.18em] hover:border-orange-500 hover:bg-orange-50 transition-all shadow-lg shadow-gray-100 group disabled:opacity-70"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin text-orange-500" />
-                  Conectando...
-                </>
-              ) : (
-                <>
-                  <img
-                    src="https://www.google.com/favicon.ico"
-                    className="w-5 h-5"
-                    alt="Google"
-                  />
-                  Entrar com Google
-                  <ArrowRight className="w-4 h-4 text-orange-500 group-hover:translate-x-1.5 transition-transform" />
-                </>
-              )}
-            </Button>
-
-            <div className="rounded-[28px] bg-gray-50 border border-gray-100 p-5">
-              <p className="text-[11px] font-black italic uppercase tracking-[0.22em] text-gray-500 mb-4">
-                o que você encontra ao entrar
+              <p className="mt-6 max-w-2xl text-base leading-8 text-zinc-200 md:text-lg">
+                O Pappi Gestor conecta estoque, compras, financeiro e
+                inteligência para transformar rotina em clareza, margem e
+                crescimento.
               </p>
 
-              <div className="space-y-3">
-                {trustItems.map((item) => (
-                  <div key={item} className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-2xl bg-green-50 text-green-600">
-                      <CheckCircle2 className="w-4 h-4" />
+              <div className="mt-10 grid gap-4 md:grid-cols-1 xl:max-w-2xl">
+                {highlights.map((item) => (
+                  <div
+                    key={item.title}
+                    className="rounded-[26px] border border-white/10 bg-white/8 px-5 py-5 backdrop-blur-xl"
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/10 text-orange-300">
+                        {item.icon}
+                      </div>
+
+                      <div>
+                        <p className="text-sm font-black uppercase tracking-[0.08em] text-white md:text-[15px]">
+                          {item.title}
+                        </p>
+                        <p className="mt-1.5 text-sm leading-7 text-zinc-300">
+                          {item.description}
+                        </p>
+                      </div>
                     </div>
-                    <p className="text-sm font-semibold text-gray-700">{item}</p>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="rounded-[28px] border border-orange-100 bg-gradient-to-br from-orange-50 to-white p-5">
-              <p className="text-[11px] font-black italic uppercase tracking-[0.22em] text-orange-600 mb-2">
-                novo por aqui?
+            <div className="flex flex-col gap-3 border-t border-white/10 pt-6">
+              <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-zinc-400">
+                feito para quem quer controle, clareza e lucro
               </p>
-              <p className="text-sm text-gray-700 leading-relaxed mb-4">
-                Crie sua conta e monte seu ambiente para começar com a base
-                certa.
-              </p>
+            </div>
+          </div>
+        </section>
 
-              <Link href="/cadastro" className="block">
-                <Button className="w-full h-14 rounded-[22px] bg-gradient-to-r from-orange-600 via-orange-500 to-pink-600 text-white font-black italic uppercase tracking-[0.16em] hover:opacity-95 shadow-lg">
-                  Criar conta grátis
+        <section className="relative flex items-center justify-center overflow-y-auto bg-[#fffaf7] px-6 py-10 md:px-10 lg:px-12">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(234,88,12,0.06),transparent_30%)]" />
+
+          <div className="relative z-10 w-full max-w-xl">
+            <div className="rounded-[36px] border border-orange-100/60 bg-white/92 p-6 shadow-[0_30px_80px_rgba(15,23,42,0.08)] backdrop-blur md:p-8">
+              <div className="space-y-4">
+                <div className="inline-flex items-center gap-2 rounded-full bg-orange-50 px-4 py-2 text-orange-600">
+                  <Sparkles className="h-4 w-4" />
+                  <span className="text-[11px] font-bold uppercase tracking-[0.24em]">
+                    entrada inteligente
+                  </span>
+                </div>
+
+                <div>
+                  <h2 className="text-3xl font-black tracking-tight text-zinc-950 md:text-5xl">
+                    Bem-vindo de volta
+                  </h2>
+                  <p className="mt-3 max-w-lg text-sm leading-7 text-zinc-500 md:text-base">
+                    Entre no seu centro de inteligência e continue a evolução da
+                    sua operação com uma visão mais clara do negócio.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-8 space-y-6">
+                <Button
+                  onClick={handleLogin}
+                  disabled={isLoading}
+                  className="group h-16 w-full rounded-[24px] bg-gradient-to-r from-orange-600 via-orange-500 to-pink-600 px-6 text-xs font-black uppercase tracking-[0.18em] text-white shadow-[0_20px_40px_rgba(234,88,12,0.28)] transition-all hover:scale-[1.01] hover:opacity-95 disabled:opacity-70"
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Conectando...
+                    </>
+                  ) : (
+                    <>
+                      <img
+                        src="https://www.google.com/favicon.ico"
+                        className="h-5 w-5"
+                        alt="Google"
+                      />
+                      Entrar com Google
+                      <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                    </>
+                  )}
                 </Button>
-              </Link>
+
+                <div className="rounded-[28px] border border-zinc-100 bg-zinc-50/80 p-5">
+                  <p className="mb-4 text-[11px] font-bold uppercase tracking-[0.22em] text-zinc-500">
+                    o que você encontra ao entrar
+                  </p>
+
+                  <div className="space-y-3">
+                    {trustItems.map((item) => (
+                      <div key={item} className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-green-50 text-green-600">
+                          <CheckCircle2 className="h-4 w-4" />
+                        </div>
+                        <p className="text-sm font-semibold text-zinc-700">
+                          {item}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-[28px] border border-orange-100 bg-gradient-to-br from-orange-50 to-white p-5">
+                  <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.22em] text-orange-600">
+                    novo por aqui?
+                  </p>
+                  <p className="mb-4 text-sm leading-7 text-zinc-700">
+                    Crie sua conta e monte seu ambiente para começar com a base
+                    certa, sem perder tempo.
+                  </p>
+
+                  <Link href="/cadastro" className="block">
+                    <Button className="h-14 w-full rounded-[22px] bg-white text-sm font-black uppercase tracking-[0.14em] text-orange-700 shadow-sm ring-1 ring-orange-200 hover:bg-orange-50">
+                      Criar conta grátis
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 flex items-start gap-4 rounded-[28px] border border-zinc-100 bg-white/80 p-5 shadow-sm">
+              <div className="rounded-2xl bg-green-50 p-3 text-green-600">
+                <ShieldCheck size={22} />
+              </div>
+
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.08em] text-zinc-900">
+                  Ambiente seguro e isolado
+                </p>
+                <p className="mt-1.5 text-[13px] leading-6 text-zinc-500">
+                  Seus dados e os dados da sua operação ficam protegidos com
+                  autenticação segura e separação por empresa.
+                </p>
+              </div>
             </div>
           </div>
-
-          <div className="pt-2 flex items-start gap-4">
-            <div className="p-3 bg-green-50 text-green-600 rounded-2xl">
-              <ShieldCheck size={22} />
-            </div>
-
-            <div>
-              <p className="text-xs font-black italic uppercase text-gray-900 tracking-tight">
-                Ambiente seguro e isolado
-              </p>
-              <p className="text-[11px] text-gray-500 font-medium leading-relaxed max-w-md">
-                Seus dados e os dados da sua operação ficam protegidos com
-                isolamento por empresa e autenticação segura.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
+        </section>
+      </div>
     </div>
   );
 }

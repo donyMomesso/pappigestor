@@ -17,6 +17,17 @@ import {
   Loader2,
 } from "lucide-react";
 
+import { apiClient } from "@/lib/apiClient";
+
+async function carregarDados() {
+  try {
+    const dados = await apiClient("/api/produtos");
+    console.log(dados);
+  } catch (err) {
+    console.error(err);
+  }
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
@@ -94,7 +105,7 @@ export default function LoginPage() {
             </span>
           </div>
 
-          <h1 className="text-5xl md:text-7xl font-black italic uppercase tracking-tighter leading-[0.9] mb-6 drop-shadow-2xl max-w-4xl">
+          <h1 className="text-3xl sm:text-5xl md:text-7xl font-black italic uppercase tracking-tighter leading-[0.9] mb-6 drop-shadow-2xl max-w-4xl">
             ENTRE E FAÇA SEU NEGÓCIO PENSAR MELHOR.
           </h1>
 
@@ -107,7 +118,7 @@ export default function LoginPage() {
             {highlights.map((item) => (
               <div
                 key={item.title}
-                className="rounded-[24px] border border-white/15 bg-white/10 backdrop-blur-xl px-5 py-4 shadow-xl"
+                className="rounded-[24px] border border-white/15 bg-white/10 backdrop-blur-xl px-5 py-4 shadow-xl hover:shadow-2xl transition-shadow"
               >
                 <div className="flex items-start gap-4">
                   <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-2xl bg-white/15 border border-white/15">
@@ -153,7 +164,7 @@ export default function LoginPage() {
               Bem-vindo de volta
             </h2>
 
-            <p className="text-gray-500 font-medium text-base leading-relaxed max-w-lg">
+            <p className="text-gray-700 font-medium text-base leading-relaxed max-w-lg">
               Entre no seu centro de inteligência e continue a evolução da sua
               operação.
             </p>
@@ -163,7 +174,12 @@ export default function LoginPage() {
             <Button
               onClick={handleLogin}
               disabled={isLoading}
-              className="w-full h-16 md:h-20 bg-white border-2 border-gray-100 rounded-[26px] flex items-center justify-center gap-4 text-gray-800 font-black italic uppercase text-xs tracking-[0.18em] hover:border-orange-500 hover:bg-orange-50 transition-all shadow-lg shadow-gray-100 group disabled:opacity-70"
+              className={`w-full h-16 md:h-20 rounded-[26px] flex items-center justify-center gap-4 font-black italic uppercase text-xs tracking-[0.18em] transition-all shadow-lg shadow-gray-100 group disabled:opacity-70
+                ${
+                  isLoading
+                    ? "bg-orange-50 border-orange-200 text-orange-600"
+                    : "bg-white border-2 border-gray-100 text-gray-800 hover:border-orange-500 hover:bg-orange-50"
+                }`}
             >
               {isLoading ? (
                 <>
@@ -173,7 +189,7 @@ export default function LoginPage() {
               ) : (
                 <>
                   <Image
-                    src="/google-icon.png" // ✅ ícone local em /public
+                    src="/google-icon.png"
                     width={20}
                     height={20}
                     alt="Google"

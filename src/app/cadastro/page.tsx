@@ -1,3 +1,4 @@
+// src/app/cadastro/page.tsx
 "use client";
 
 import { useMemo, useState } from "react";
@@ -53,6 +54,7 @@ export default function CadastroPage() {
 
   const [error, setError] = useState("");
   const [buscandoCnpj, setBuscandoCnpj] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
 
   const highlights = useMemo(
     () => [
@@ -71,8 +73,7 @@ export default function CadastroPage() {
       {
         icon: <BarChart3 className="w-5 h-5" />,
         title: "Mais clareza e lucro",
-        description:
-          "Organize a casa e transforme rotina em decisões melhores.",
+        description: "Organize a casa e transforme rotina em decisões melhores.",
       },
     ],
     [],
@@ -83,6 +84,30 @@ export default function CadastroPage() {
       "Seu ambiente base começa a ser preparado",
       "Você entra com a estrutura mais organizada",
       "Depois o sistema guia os próximos passos",
+    ],
+    [],
+  );
+
+  const PLANS = useMemo(
+    () => [
+      {
+        id: "start",
+        title: "Pappi Start",
+        priceLabel: "GRÁTIS",
+        bullets: ["Gestão de Estoque Manual", "Cadastro de Insumos"],
+      },
+      {
+        id: "pro",
+        title: "Pappi Pro IA",
+        priceLabel: "R$ 99 / mês",
+        bullets: ["Assessor IA de Compras", "Scanner HD de Notas", "IA no WhatsApp"],
+      },
+      {
+        id: "gestor",
+        title: "Pappi Gestor",
+        priceLabel: "R$ 49 / mês",
+        bullets: ["Financeiro DDA", "Estoque em Tempo Real"],
+      },
     ],
     [],
   );
@@ -126,6 +151,7 @@ export default function CadastroPage() {
     }));
   };
 
+  // Busca CNPJ somente quando o usuário clicar no botão
   const buscarCnpj = async () => {
     const cnpjNumbers = formData.cnpj_cpf.replace(/\D/g, "");
 
@@ -167,6 +193,7 @@ export default function CadastroPage() {
   const isEmailValido = (email: string) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
+  // salva dados temporários e mantém o usuário na página para ver apelo e planos
   const handleFinalize = async () => {
     setError("");
 
@@ -197,23 +224,53 @@ export default function CadastroPage() {
       return;
     }
 
+    // salva dados temporariamente para uso posterior (planos / vinculação)
+    try {
+      sessionStorage.setItem("cadastroData", JSON.stringify(formData));
+    } catch (e) {
+      console.warn("sessionStorage unavailable", e);
+    }
+
     setStep("processing");
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1400));
+      // pequena espera para UX
+      await new Promise((resolve) => setTimeout(resolve, 900));
       setStep("success");
 
-      setTimeout(() => {
-        router.push("/app");
-      }, 1600);
+      // usuário permanece na página; oferecemos CTA para trial ou login
     } catch (e: any) {
       setStep("form");
       setError(e?.message || "Erro ao finalizar cadastro");
     }
   };
 
+  // ação rápida: começar grátis com trial do Pro (salva seleção e manda para login)
+  const startFreeTrial = async () => {
+    try {
+      const payload = { cadastro: formData, plano: "pro", trialDays: 15 };
+      sessionStorage.setItem("cadastroSelection", JSON.stringify(payload));
+    } catch (e) {
+      console.warn("sessionStorage write failed", e);
+    }
+    // redireciona para login (onde o usuário fará sign-in com Google)
+    router.push("/app");
+  };
+
+  // apenas salva seleção informativa (não compra) e mantém na página
+  const choosePlanInformational = (planId: string) => {
+    setSelectedPlan(planId);
+    try {
+      const payload = { cadastro: formData, plano: planId };
+      sessionStorage.setItem("cadastroSelection", JSON.stringify(payload));
+    } catch (e) {
+      console.warn("sessionStorage write failed", e);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-white flex flex-col lg:flex-row overflow-hidden">
+      {/* LEFT: apelo visual */}
       <section className="relative flex-1 bg-gradient-to-br from-orange-600 via-orange-500 to-pink-600 text-white px-6 py-10 sm:px-10 sm:py-12 lg:px-14 lg:py-16 overflow-hidden">
         <div className="relative z-10 h-full flex flex-col justify-between">
           <div className="flex items-center justify-between gap-4">
@@ -235,14 +292,33 @@ export default function CadastroPage() {
               </span>
             </div>
 
-            <h1 className="text-4xl sm:text-5xl lg:text-7xl font-black italic uppercase tracking-tighter leading-[0.92] max-w-4xl">
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black italic uppercase tracking-tighter leading-[0.92] max-w-4xl">
               MONTE SEU CENTRO DE INTELIGÊNCIA.
             </h1>
 
-            <p className="mt-5 text-white/90 text-sm sm:text-base lg:text-xl font-medium max-w-2xl leading-relaxed">
-              Crie sua conta e prepare um ambiente pensado para food service,
-              com operação mais organizada desde o começo.
+            <p className="mt-5 text-white/90 text-sm sm:text-base lg:text-lg font-medium max-w-2xl leading-relaxed">
+              Crie sua conta agora — comece grátis e experimente o melhor do Pappi Pro
+              por <strong>15 dias de trial</strong>. Sem compromisso: os planos ficam
+              apenas para você conhecer; a cobrança e escolha final acontecem depois,
+              dentro das configurações do painel.
             </p>
+
+            <div className="mt-8 flex gap-3 items-center">
+              <Button
+                onClick={startFreeTrial}
+                className="bg-white text-black font-black rounded-2xl px-6 py-3 shadow-lg"
+              >
+                Comece grátis — 15 dias de trial
+              </Button>
+
+              <Button
+                variant="outline"
+                onClick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" })}
+                className="rounded-2xl px-5 py-3 font-black"
+              >
+                Ver planos (só informação)
+              </Button>
+            </div>
 
             <div className="mt-8 grid grid-cols-1 gap-4 max-w-2xl">
               {highlights.map((item) => (
@@ -281,6 +357,7 @@ export default function CadastroPage() {
         </div>
       </section>
 
+      {/* RIGHT: formulário + planos informativos */}
       <section className="w-full lg:w-[720px] bg-white px-4 py-8 sm:px-8 sm:py-10 lg:px-12 lg:py-14 overflow-y-auto">
         <div className="w-full max-w-xl mx-auto">
           {step === "form" && (
@@ -299,7 +376,7 @@ export default function CadastroPage() {
 
                 <p className="text-gray-500 font-medium text-sm sm:text-base leading-relaxed max-w-lg">
                   Comece seu ambiente com o responsável principal da operação.
-                  Depois você evolui a estrutura por dentro do sistema.
+                  Depois você escolhe ou confirma o plano dentro do painel.
                 </p>
               </div>
 
@@ -326,9 +403,7 @@ export default function CadastroPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <Button
                     type="button"
-                    variant={
-                      formData.tipo_pessoa === "pj" ? "default" : "outline"
-                    }
+                    variant={formData.tipo_pessoa === "pj" ? "default" : "outline"}
                     className={`h-14 rounded-[22px] font-black italic uppercase tracking-[0.16em] border ${
                       formData.tipo_pessoa === "pj"
                         ? "bg-gradient-to-r from-orange-600 via-orange-500 to-pink-600 text-white border-transparent hover:opacity-95"
@@ -348,9 +423,7 @@ export default function CadastroPage() {
 
                   <Button
                     type="button"
-                    variant={
-                      formData.tipo_pessoa === "pf" ? "default" : "outline"
-                    }
+                    variant={formData.tipo_pessoa === "pf" ? "default" : "outline"}
                     className={`h-14 rounded-[22px] font-black italic uppercase tracking-[0.16em] border ${
                       formData.tipo_pessoa === "pf"
                         ? "bg-gradient-to-r from-orange-600 via-orange-500 to-pink-600 text-white border-transparent hover:opacity-95"
@@ -396,7 +469,7 @@ export default function CadastroPage() {
                             : "000.000.000-00"
                         }
                       />
-
+                      {/* Busca só ao clicar */}
                       {formData.tipo_pessoa === "pj" && (
                         <Button
                           type="button"
@@ -531,10 +604,7 @@ export default function CadastroPage() {
 
                 <p className="text-[11px] text-gray-500 text-center leading-relaxed">
                   Já tem conta?{" "}
-                  <Link
-                    href="/login"
-                    className="font-black italic uppercase text-orange-600"
-                  >
+                  <Link href="/app" className="font-black italic uppercase text-orange-600">
                     Entrar agora
                   </Link>
                 </p>
@@ -562,48 +632,66 @@ export default function CadastroPage() {
                   clareza e começar do jeito certo.
                 </p>
               </div>
-
-              <div className="mt-8 w-full max-w-md rounded-[28px] bg-gray-50 border border-gray-100 p-5 text-left space-y-4">
-                <div className="flex items-center gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-green-600" />
-                  <p className="text-sm font-semibold text-gray-700">
-                    Validando dados principais
-                  </p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Loader2 className="w-5 h-5 animate-spin text-orange-500" />
-                  <p className="text-sm font-semibold text-gray-700">
-                    Preparando seu ambiente inicial
-                  </p>
-                </div>
-                <div className="flex items-center gap-3 opacity-60">
-                  <CheckCircle2 className="w-5 h-5 text-gray-400" />
-                  <p className="text-sm font-semibold text-gray-500">
-                    Encaminhando para o dashboard
-                  </p>
-                </div>
-              </div>
             </div>
           )}
 
           {step === "success" && (
-            <div className="rounded-[36px] border border-gray-100 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.08)] p-8 sm:p-10 min-h-[520px] flex flex-col items-center justify-center text-center">
-              <div className="w-24 h-24 bg-green-50 rounded-full flex items-center justify-center border border-green-100 mb-6">
-                <CheckCircle className="text-green-600 w-12 h-12" />
+            <div className="space-y-6">
+              <div className="rounded-[24px] border border-gray-100 bg-white shadow p-6 text-center">
+                <div className="mb-4">
+                  <div className="mx-auto mb-4 w-16 h-16 rounded-full bg-green-50 flex items-center justify-center">
+                    <CheckCircle className="w-8 h-8 text-green-600" />
+                  </div>
+                  <h3 className="text-2xl font-black text-gray-900 mb-1">Conta criada</h3>
+                  <p className="text-gray-600">Seu ambiente inicial foi criado com sucesso.</p>
+                </div>
+
+                <div className="mt-4">
+                  <p className="text-sm text-gray-700 mb-3 font-semibold">Comece grátis agora</p>
+                  <div className="flex gap-3 justify-center">
+                    <Button onClick={startFreeTrial} className="bg-gradient-to-r from-orange-600 via-orange-500 to-pink-600 text-white rounded-2xl px-5 py-3 font-black">
+                      Comece grátis — 15 dias
+                    </Button>
+
+                    <Link href="/app" className="inline-flex items-center justify-center px-5 py-3 rounded-2xl border border-gray-200 font-black">
+                      Entrar com Google
+                    </Link>
+                  </div>
+                </div>
               </div>
 
-              <div className="space-y-4 max-w-md">
-                <p className="text-[11px] font-black italic uppercase tracking-[0.24em] text-green-600">
-                  primeira etapa concluída
-                </p>
+              {/* Planos informativos (apenas para conhecimento) */}
+              <div className="rounded-[24px] border border-gray-100 bg-white shadow p-6">
+                <h4 className="font-black mb-4">Planos (apenas informativo)</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {PLANS.map((p) => (
+                    <div key={p.id} className={`p-4 rounded-lg border ${selectedPlan === p.id ? "ring-2 ring-orange-400" : ""}`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <strong>{p.title}</strong>
+                        <span className="text-sm text-gray-600">{p.priceLabel}</span>
+                      </div>
+                      <ul className="text-sm text-gray-700 mb-3 space-y-1">
+                        {p.bullets.map((b) => (
+                          <li key={b} className="flex items-center gap-2">
+                            <CheckCircle2 className="w-4 h-4 text-green-500" />
+                            <span>{b}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      <div className="flex gap-2">
+                        <Button onClick={() => choosePlanInformational(p.id)} className="flex-1">
+                          Selecionar (informativo)
+                        </Button>
+                        <Button onClick={() => { setSelectedPlan(p.id); startFreeTrial(); }} className="flex-1 bg-orange-600 text-white">
+                          Testar 15 dias
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
 
-                <h2 className="text-3xl font-black uppercase italic tracking-tighter text-gray-900">
-                  Tudo certo!
-                </h2>
-
-                <p className="text-gray-500 text-sm leading-relaxed">
-                  Sua conta foi preparada. Agora o Pappi Gestor pode começar a
-                  organizar sua operação com mais inteligência.
+                <p className="text-xs text-gray-500 mt-4">
+                  Os planos acima são apenas para você conhecer as opções. A cobrança e a confirmação final do plano acontecem dentro do painel, nas configurações, quando você estiver pronto.
                 </p>
               </div>
             </div>

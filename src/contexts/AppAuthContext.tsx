@@ -11,6 +11,13 @@ import {
 import { usePathname, useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 
+type SessionUserExtra = {
+  name?: string | null;
+  email?: string | null;
+  empresa_id?: string;
+  role?: string;
+};
+
 type LocalUser = {
   id?: string;
   email?: string;
@@ -36,6 +43,7 @@ export function AppAuthProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
   const isLoading = status === "loading";
+  const sessionUser = (session?.user ?? null) as SessionUserExtra | null;
 
   useEffect(() => {
     let active = true;
@@ -43,36 +51,37 @@ export function AppAuthProvider({ children }: { children: ReactNode }) {
     async function loadUser() {
       if (status === "loading") return;
 
-      if (!session?.user) {
-        setLocalUser(null);
+      if (!sessionUser) {
+        if (active) {
+          setLocalUser(null);
 
-        if (pathname !== "/login" && pathname !== "/cadastro") {
-          router.replace("/login");
+          if (pathname !== "/login" && pathname !== "/cadastro") {
+            router.replace("/login");
+          }
         }
         return;
       }
 
       try {
-        const res = await fetch("/api/auth/me", { cache: "no-store" });
+        const res = await fetch("/api/auth/me", {
+          cache: "no-store",
+        });
 
         if (!active) return;
 
         if (!res.ok) {
           setLocalUser({
-            email: session.user.email ?? undefined,
-            empresa_id:
-              "empresa_id" in session.user && typeof session.user.empresa_id === "string"
-                ? session.user.empresa_id
-                : undefined,
-            role:
-              "role" in session.user && typeof session.user.role === "string"
-                ? session.user.role
-                : undefined,
+            nome: sessionUser.name ?? undefined,
+            email: sessionUser.email ?? undefined,
+            empresa_id: sessionUser.empresa_id,
+            role: sessionUser.role,
           });
           return;
         }
 
         const profile = (await res.json()) as LocalUser;
+
+        if (!active) return;
         setLocalUser(profile);
 
         if (!profile?.empresa_id && pathname !== "/onboarding") {
@@ -80,8 +89,14 @@ export function AppAuthProvider({ children }: { children: ReactNode }) {
         }
       } catch (error) {
         console.error("Erro na autenticação:", error);
+
         if (active) {
-          setLocalUser(null);
+          setLocalUser({
+            nome: sessionUser.name ?? undefined,
+            email: sessionUser.email ?? undefined,
+            empresa_id: sessionUser.empresa_id,
+            role: sessionUser.role,
+          });
         }
       }
     }
@@ -91,33 +106,28 @@ export function AppAuthProvider({ children }: { children: ReactNode }) {
     return () => {
       active = false;
     };
-  }, [session, status, pathname, router]);
+  }, [sessionUser, status, pathname, router]);
 
   async function handleSignOut() {
     setLocalUser(null);
     await signOut({ callbackUrl: "/login" });
   }
 
-  const value = useMemo(
+  const value = useMemo<AppAuthContextValue>(
     () => ({
-      user: session?.user
+      user: sessionUser
         ? {
-            email: session.user.email ?? undefined,
-            empresa_id:
-              "empresa_id" in session.user && typeof session.user.empresa_id === "string"
-                ? session.user.empresa_id
-                : undefined,
-            role:
-              "role" in session.user && typeof session.user.role === "string"
-                ? session.user.role
-                : undefined,
+            nome: sessionUser.name ?? undefined,
+            email: sessionUser.email ?? undefined,
+            empresa_id: sessionUser.empresa_id,
+            role: sessionUser.role,
           }
         : null,
       localUser,
       isLoading,
       signOut: handleSignOut,
     }),
-    [session, localUser, isLoading],
+    [sessionUser, localUser, isLoading],
   );
 
   return <AppAuthContext.Provider value={value}>{children}</AppAuthContext.Provider>;

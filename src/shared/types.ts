@@ -122,31 +122,19 @@ function parseISODate(d?: string | null): Date | null {
 
   const s = d.trim();
 
-  const dt = new Date(
-    s.length === 10
-      ? `${s}T00:00:00`
-      : s
-  );
+  const dt = new Date(s.length === 10 ? `${s}T00:00:00` : s);
 
-  return Number.isNaN(dt.getTime())
-    ? null
-    : dt;
+  return Number.isNaN(dt.getTime()) ? null : dt;
 }
 
 // ============================================================================
 // CALCULAR STATUS AUTOMÁTICO
 // ============================================================================
 
-export function calcularStatus(
-  l: Partial<Lancamento>
-): StatusLancamento {
-
+export function calcularStatus(l: Partial<Lancamento>): StatusLancamento {
   if (l.status === "pago") return "pago";
 
-  if (
-    l.vencimento_real ||
-    (typeof l.valor_real === "number" && l.valor_real > 0)
-  ) {
+  if (l.vencimento_real || (typeof l.valor_real === "number" && l.valor_real > 0)) {
     return "pago";
   }
 
@@ -154,9 +142,7 @@ export function calcularStatus(
   const hojeZerado = new Date(hoje.toDateString());
 
   const venc =
-    parseISODate(l.vencimento_previsto) ||
-    parseISODate(l.vencimento) ||
-    parseISODate(l.data);
+    parseISODate(l.vencimento_previsto) || parseISODate(l.vencimento) || parseISODate(l.data);
 
   if (venc && venc < hojeZerado) {
     return "atrasado";

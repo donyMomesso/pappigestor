@@ -168,7 +168,7 @@ export function useAppAuth() {
     return () => {
       if (unsub) unsub();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   return {

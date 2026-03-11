@@ -172,7 +172,7 @@ function DropdownMenu({
   hasFeature: (feature: string) => boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const pathname = usePathname();
+  const pathname = usePathname() ?? "";
   const ref = useRef<HTMLDivElement>(null);
 
   const visibleItems = group.items.filter((item) => {
@@ -250,7 +250,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
     isLoading,
   } = auth;
 
-  const pathname = usePathname();
+  const pathname = usePathname() ?? "";
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const [inboxCount, setInboxCount] = useState(0);

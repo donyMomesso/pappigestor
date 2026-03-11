@@ -148,7 +148,7 @@ function DropdownMenu({
   hasFeature: (feature: string) => boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const pathname = usePathname();
+  const pathname = usePathname() ?? "";
   const ref = useRef<HTMLDivElement>(null);
 
   const visibleItems = group.items.filter((item) => hasPermission(item.roles));
@@ -224,7 +224,7 @@ function DropdownMenu({
 
 export default function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
-  const pathname = usePathname();
+  const pathname = usePathname() ?? "";
   const { theme, toggleTheme } = useTheme();
   const { loading, localUser, hasPermission, hasFeature } = useAppAuth();
 

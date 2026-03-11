@@ -134,7 +134,7 @@ export function useDashboard() {
     return () => {
       mounted = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [financeiro, produtos, recebimentos, finErr, prodErr, recErr, tick]);
 
   const alertas = useMemo(() => {

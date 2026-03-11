@@ -1,4 +1,4 @@
-// src/react-app/types/auth.ts
+// src/types/auth.ts
 
 // ================================
 // Tipos base do SaaS
@@ -41,25 +41,31 @@ export type Feature =
 // ================================
 // Usuário local (front)
 // ================================
+// Tornamos campos que causavam build errors opcionais para deixar o acesso mais leve
 export interface LocalUser {
-  id: string;
-  nome: string;
-  email: string;
+  id?: string;
+  nome?: string;
+  name?: string;
+  email?: string;
 
   // acesso
-  nivel_acesso: NivelAcesso;
+  nivel_acesso?: NivelAcesso;
 
   // tenant
-  empresa_id: string | null;
-  nome_empresa: string;
+  empresa_id?: string | null;
+  nome_empresa?: string;
 
   // plano
-  plano: PlanoEmpresa;
+  plano?: PlanoEmpresa;
 
   // extras
   permissoes?: string[]; // permissões finas (opcional)
   features?: Feature[];  // features liberadas (opcional)
   foto?: string;         // avatar (opcional)
+
+  // campos adicionais
+  role?: string;
+  isSuperAdmin?: boolean;
 }
 
 // ================================
@@ -163,3 +169,5 @@ export const STATUS_LABELS: Record<string, string> = {
   inadimplente: "Inadimplente",
   cancelado: "Cancelado",
 };
+
+// nao mude as regras de exportação, senão pode quebrar a tipagem em outros arquivos

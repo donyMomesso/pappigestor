@@ -57,7 +57,7 @@ const titlesMap: Record<string, { title: string; subtitle: string }> = {
 };
 
 export default function TopHeader() {
-  const pathname = usePathname();
+  const pathname = usePathname() ?? "";
   const { localUser } = useAppAuth();
 
   const currentPage = useMemo(() => {

@@ -16,7 +16,7 @@ import {
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   const { localUser, signOut } = useAppAuth();
-  const pathname = usePathname();
+  const pathname = usePathname() ?? "";
   const currentPath = pathname ?? ""; // ✅ garante string sempre
   const LOGO_URL =
     "https://019c7b56-2054-7d0b-9c55-e7a603c40ba8.mochausercontent.com/1771799343659.png";

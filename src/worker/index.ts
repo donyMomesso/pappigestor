@@ -1,12 +1,11 @@
 // src/worker/index.ts
 import { Hono } from "hono";
+import type { MiddlewareHandler } from "hono";
 import { Buffer } from "node:buffer";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { cors } from "hono/cors";
-
+import cors from 'hono/cors';
 // ============================================================================
 // 1. TIPAGENS DO SISTEMA
-// Mantemos compatível com Cloudflare D1 usando 'any'.
 // ============================================================================
 
 interface Bindings {
@@ -15,42 +14,34 @@ interface Bindings {
 }
 
 type Variables = {
-  // ✅ no código a gente trata como EMPRESA (tenant)
-  // mas mantém fallback para quem ainda manda x-pizzaria-id
   empresaId: string;
-
-  // info do usuário logado (para segurança real)
-  userRole?: string; // master | admin | comum (ou o que estiver no banco)
+  userRole?: string;
   userEmail?: string;
-  userPermissions?: string; // JSON string: '["estoque","financeiro"]'
+  userPermissions?: string;
 };
 
-// Inicialização da Aplicação Hono
-const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
+type AppEnv = {
+  Bindings: Bindings;
+  Variables: Variables;
+};
+
+const app = new Hono<AppEnv>();
 
 // ============================================================================
 // 2. CONFIGURAÇÕES GLOBAIS E MIDDLEWARES
 // ============================================================================
 
-// Libera o CORS
-app.use("*", cors());
+app.use("*", cors() as any);
 
-// Middleware Multi-tenant (Isolamento por EMPRESA)
-// Regras:
-// - Rotas públicas passam
-// - Qualquer /api/* exige x-empresa-id (ou fallback x-pizzaria-id)
-// - E exige x-user-email
-// - E valida vínculo (email ↔ empresa) em perfis_usuarios
-app.use("/api/*", async (c, next) => {
-  // Rotas públicas
+const tenantMiddleware: MiddlewareHandler<AppEnv, any> = async (c, next) => {
   if (
     c.req.path.includes("/auth/login") ||
     c.req.path.includes("/empresas/minhas")
   ) {
-    return await next();
+    await next();
+    return;
   }
 
-  // ✅ padrão novo + fallback legado
   const empresaId =
     c.req.header("x-empresa-id")?.trim() ||
     c.req.header("x-pizzaria-id")?.trim();
@@ -59,27 +50,32 @@ app.use("/api/*", async (c, next) => {
 
   if (!empresaId) {
     return c.json(
-      { error: "Acesso negado: empresa_id ausente no cabeçalho (x-empresa-id)." },
+      {
+        error:
+          "Acesso negado: empresa_id ausente no cabeçalho (x-empresa-id).",
+      },
       401
     );
   }
 
   if (!userEmail) {
     return c.json(
-      { error: "Acesso negado: usuário não identificado (x-user-email)." },
+      {
+        error: "Acesso negado: usuário não identificado (x-user-email).",
+      },
       401
     );
   }
 
-  // ✅ Verifica se o usuário pertence à empresa (segurança real)
-  const link = await c.env.DB.prepare(
-    `
-    SELECT id, funcao, permissoes, status
-    FROM perfis_usuarios
-    WHERE empresa_id = ? AND LOWER(email) = LOWER(?) AND status = 'ativo'
-    LIMIT 1
-  `
-  )
+  const link = await c.env.DB
+    .prepare(
+      `
+      SELECT id, funcao, permissoes, status
+      FROM perfis_usuarios
+      WHERE empresa_id = ? AND LOWER(email) = LOWER(?) AND status = 'ativo'
+      LIMIT 1
+      `
+    )
     .bind(empresaId, userEmail)
     .first();
 
@@ -90,45 +86,52 @@ app.use("/api/*", async (c, next) => {
     );
   }
 
-  // Injeta no contexto
   c.set("empresaId", empresaId);
   c.set("userRole", (link as any).funcao || "comum");
   c.set("userEmail", userEmail);
   c.set("userPermissions", (link as any).permissoes || "[]");
 
   await next();
-});
+};
+
+app.use("/api/*", tenantMiddleware);
 
 // ============================================================================
 // 2.1 HELPERS DE PERMISSÃO / ROLE
 // ============================================================================
 
-function parsePermissions(raw: any): string[] {
+function parsePermissions(raw: unknown): string[] {
   try {
     if (!raw) return [];
     if (Array.isArray(raw)) return raw.map(String);
-    return JSON.parse(String(raw));
+
+    const parsed = JSON.parse(String(raw));
+    return Array.isArray(parsed) ? parsed.map(String) : [];
   } catch {
     return [];
   }
 }
 
-function requireRole(allowed: string[]) {
-  return async (c: any, next: any) => {
+function requireRole(allowed: string[]): MiddlewareHandler<AppEnv, any> {
+  return async (c, next) => {
     const role = String(c.get("userRole") || "comum").trim();
+
     if (!allowed.includes(role)) {
       return c.json({ error: "Sem permissão (role).", role }, 403);
     }
+
     await next();
   };
 }
 
-function requirePerm(permission: string) {
-  return async (c: any, next: any) => {
+function requirePerm(permission: string): MiddlewareHandler<AppEnv, any> {
+  return async (c, next) => {
     const perms = parsePermissions(c.get("userPermissions"));
+
     if (!perms.includes(permission)) {
       return c.json({ error: "Sem permissão (permission).", permission }, 403);
     }
+
     await next();
   };
 }
@@ -137,11 +140,6 @@ function requirePerm(permission: string) {
 // 3. MÓDULO DE AUTENTICAÇÃO E EMPRESAS
 // ============================================================================
 
-/**
- * Rota: POST /api/empresas/minhas
- * Objetivo: Listar todas as empresas vinculadas ao email do usuário logado.
- * Observação: Banco usa tabela "empresas" e coluna "empresa_id".
- */
 app.post("/api/empresas/minhas", async (c) => {
   try {
     const body = (await c.req.json().catch(() => ({}))) as any;
@@ -151,19 +149,20 @@ app.post("/api/empresas/minhas", async (c) => {
       return c.json({ error: "Email é obrigatório." }, 400);
     }
 
-    const { results } = await c.env.DB.prepare(
-      `
-      SELECT
-        p.id,
-        p.nome,
-        p.plano,
-        p.status
-      FROM perfis_usuarios u
-      JOIN empresas p ON u.empresa_id = p.id
-      WHERE LOWER(u.email) = LOWER(?) AND u.status = 'ativo'
-      ORDER BY p.nome ASC
-    `
-    )
+    const { results } = await c.env.DB
+      .prepare(
+        `
+        SELECT
+          p.id,
+          p.nome,
+          p.plano,
+          p.status
+        FROM perfis_usuarios u
+        JOIN empresas p ON u.empresa_id = p.id
+        WHERE LOWER(u.email) = LOWER(?) AND u.status = 'ativo'
+        ORDER BY p.nome ASC
+        `
+      )
       .bind(email)
       .all();
 
@@ -176,10 +175,6 @@ app.post("/api/empresas/minhas", async (c) => {
   }
 });
 
-/**
- * Rota: POST /api/auth/login
- * Objetivo: Validar o acesso de um usuário a uma empresa específica.
- */
 app.post("/api/auth/login", async (c) => {
   try {
     const body = (await c.req.json().catch(() => ({}))) as any;
@@ -187,19 +182,20 @@ app.post("/api/auth/login", async (c) => {
 
     if (!email) return c.json({ error: "Email é obrigatório." }, 400);
 
-    const user = await c.env.DB.prepare(
-      `
-      SELECT 
-        u.empresa_id, 
-        u.funcao, 
-        u.nome, 
-        p.status as p_status
-      FROM perfis_usuarios u
-      JOIN empresas p ON u.empresa_id = p.id
-      WHERE LOWER(u.email) = LOWER(?) AND u.status = 'ativo'
-      LIMIT 1
-    `
-    )
+    const user = await c.env.DB
+      .prepare(
+        `
+        SELECT 
+          u.empresa_id, 
+          u.funcao, 
+          u.nome, 
+          p.status as p_status
+        FROM perfis_usuarios u
+        JOIN empresas p ON u.empresa_id = p.id
+        WHERE LOWER(u.email) = LOWER(?) AND u.status = 'ativo'
+        LIMIT 1
+        `
+      )
       .bind(email)
       .first();
 
@@ -207,13 +203,12 @@ app.post("/api/auth/login", async (c) => {
       return c.json({ error: "Acesso negado ou conta inativa." }, 403);
     }
 
-    // ✅ resposta mantém compatibilidade, mas você pode consumir como "empresa_id" no front
     return c.json({
       empresa_id: (user as any).empresa_id,
       role: (user as any).funcao,
       nome: (user as any).nome,
     });
-  } catch (e: any) {
+  } catch {
     return c.json({ error: "Erro interno durante o login." }, 500);
   }
 });
@@ -222,34 +217,29 @@ app.post("/api/auth/login", async (c) => {
 // 4. MÓDULO DE ADMINISTRAÇÃO E EQUIPE (USUÁRIOS)
 // ============================================================================
 
-/**
- * Rota: GET /api/admin/usuarios
- * Objetivo: Listar a equipe da empresa respeitando a hierarquia.
- * Segurança: só master/admin (ajuste se quiser)
- */
 app.get("/api/admin/usuarios", requireRole(["master", "admin"]), async (c) => {
   const empresaId = c.get("empresaId");
 
   try {
-    const { results } = await c.env.DB.prepare(
-      `
-      SELECT 
-        id, 
-        nome, 
-        email, 
-        funcao, 
-        cargo
-      FROM perfis_usuarios
-      WHERE empresa_id = ?
-      ORDER BY
-        CASE WHEN funcao = 'master' THEN 0 ELSE 1 END,
-        nome ASC
-    `
-    )
+    const { results } = await c.env.DB
+      .prepare(
+        `
+        SELECT 
+          id, 
+          nome, 
+          email, 
+          funcao, 
+          cargo
+        FROM perfis_usuarios
+        WHERE empresa_id = ?
+        ORDER BY
+          CASE WHEN funcao = 'master' THEN 0 ELSE 1 END,
+          nome ASC
+        `
+      )
       .bind(empresaId)
       .all();
 
-    // limite exemplo (mantive igual o seu)
     const limite = 3;
     const usado = Array.isArray(results) ? results.length : 0;
 
@@ -259,100 +249,102 @@ app.get("/api/admin/usuarios", requireRole(["master", "admin"]), async (c) => {
     });
   } catch (e: any) {
     return c.json(
-      { error: "Erro ao listar membros da equipe.", details: e?.message ?? String(e) },
+      {
+        error: "Erro ao listar membros da equipe.",
+        details: e?.message ?? String(e),
+      },
       500
     );
   }
 });
 
-/**
- * Rota: POST /api/admin/usuarios
- * Objetivo: Adicionar membro / reativar, validando limites de plano.
- * Segurança: só master/admin
- */
-app.post("/api/admin/usuarios", requireRole(["master", "admin"]), async (c) => {
-  const empresaId = c.get("empresaId");
+app.post(
+  "/api/admin/usuarios",
+  requireRole(["master", "admin"]),
+  async (c) => {
+    const empresaId = c.get("empresaId");
 
-  try {
-    const body = (await c.req.json().catch(() => ({}))) as any;
-    const email = String(body?.email ?? "").trim().toLowerCase();
-    const cargo = String(body?.cargo ?? "Operador").trim();
+    try {
+      const body = (await c.req.json().catch(() => ({}))) as any;
+      const email = String(body?.email ?? "").trim().toLowerCase();
+      const cargo = String(body?.cargo ?? "Operador").trim();
 
-    if (!email) return c.json({ error: "Email é obrigatório para cadastro." }, 400);
+      if (!email) {
+        return c.json({ error: "Email é obrigatório para cadastro." }, 400);
+      }
 
-    // Validação do Limite de Usuários do Plano (mantido)
-    const limite = 3;
+      const limite = 3;
 
-    const countRow = await c.env.DB.prepare(
-      `
-      SELECT COUNT(*) as total 
-      FROM perfis_usuarios 
-      WHERE empresa_id = ? AND status = 'ativo'
-    `
-    )
-      .bind(empresaId)
-      .first();
+      const countRow = await c.env.DB
+        .prepare(
+          `
+          SELECT COUNT(*) as total 
+          FROM perfis_usuarios 
+          WHERE empresa_id = ? AND status = 'ativo'
+          `
+        )
+        .bind(empresaId)
+        .first();
 
-    const total = Number((countRow as any)?.total ?? 0);
-    if (total >= limite) {
-      return c.json(
-        {
-          error: `Limite do plano atingido (${total}/${limite}). Faça upgrade para adicionar mais usuários.`,
-        },
-        403
-      );
-    }
+      const total = Number((countRow as any)?.total ?? 0);
+      if (total >= limite) {
+        return c.json(
+          {
+            error: `Limite do plano atingido (${total}/${limite}). Faça upgrade para adicionar mais usuários.`,
+          },
+          403
+        );
+      }
 
-    // Verifica se o usuário já existe
-    const existing = await c.env.DB.prepare(
-      `
-      SELECT id 
-      FROM perfis_usuarios 
-      WHERE empresa_id = ? AND LOWER(email) = LOWER(?) LIMIT 1
-    `
-    )
-      .bind(empresaId, email)
-      .first();
+      const existing = await c.env.DB
+        .prepare(
+          `
+          SELECT id 
+          FROM perfis_usuarios 
+          WHERE empresa_id = ? AND LOWER(email) = LOWER(?) LIMIT 1
+          `
+        )
+        .bind(empresaId, email)
+        .first();
 
-    if (existing) {
-      // Reativa e atualiza cargo
-      await c.env.DB.prepare(
-        `
-        UPDATE perfis_usuarios 
-        SET cargo = ?, status = 'ativo' 
-        WHERE id = ?
-      `
-      )
-        .bind(cargo, (existing as any).id)
+      if (existing) {
+        await c.env.DB
+          .prepare(
+            `
+            UPDATE perfis_usuarios 
+            SET cargo = ?, status = 'ativo' 
+            WHERE id = ?
+            `
+          )
+          .bind(cargo, (existing as any).id)
+          .run();
+
+        return c.json({ success: true, updated: true });
+      }
+
+      await c.env.DB
+        .prepare(
+          `
+          INSERT INTO perfis_usuarios (empresa_id, nome, email, funcao, cargo, status)
+          VALUES (?, NULL, ?, 'comum', ?, 'ativo')
+          `
+        )
+        .bind(empresaId, email, cargo)
         .run();
 
-      return c.json({ success: true, updated: true });
+      return c.json({ success: true, created: true });
+    } catch (e: any) {
+      return c.json(
+        {
+          error: "Erro ao associar novo usuário.",
+          details: e?.message ?? String(e),
+        },
+        500
+      );
     }
-
-    // Criação de convite/usuário
-    await c.env.DB.prepare(
-      `
-      INSERT INTO perfis_usuarios (empresa_id, nome, email, funcao, cargo, status)
-      VALUES (?, NULL, ?, 'comum', ?, 'ativo')
-    `
-    )
-      .bind(empresaId, email, cargo)
-      .run();
-
-    return c.json({ success: true, created: true });
-  } catch (e: any) {
-    return c.json(
-      { error: "Erro ao associar novo usuário.", details: e?.message ?? String(e) },
-      500
-    );
   }
-});
+);
 
-/**
- * Rota: DELETE /api/admin/usuarios/:id
- * Objetivo: Remover usuário (Master não pode ser removido).
- * Segurança: só master
- */
 app.delete(
   "/api/admin/usuarios/:id",
   requireRole(["master"]),
@@ -363,32 +355,41 @@ app.delete(
     if (!id) return c.json({ error: "ID de usuário inválido." }, 400);
 
     try {
-      const row = await c.env.DB.prepare(
-        `
-        SELECT funcao 
-        FROM perfis_usuarios 
-        WHERE id = ? AND empresa_id = ? LIMIT 1
-      `
-      )
+      const row = await c.env.DB
+        .prepare(
+          `
+          SELECT funcao 
+          FROM perfis_usuarios 
+          WHERE id = ? AND empresa_id = ? LIMIT 1
+          `
+        )
         .bind(id, empresaId)
         .first();
 
-      if (!row)
-        return c.json({ error: "Usuário não encontrado nesta unidade." }, 404);
+      if (!row) {
+        return c.json(
+          { error: "Usuário não encontrado nesta unidade." },
+          404
+        );
+      }
 
       if ((row as any).funcao === "master") {
         return c.json(
-          { error: "Segurança: Não é permitido remover o usuário administrador (Master)." },
+          {
+            error:
+              "Segurança: Não é permitido remover o usuário administrador (Master).",
+          },
           403
         );
       }
 
-      await c.env.DB.prepare(
-        `
-        DELETE FROM perfis_usuarios 
-        WHERE id = ? AND empresa_id = ?
-      `
-      )
+      await c.env.DB
+        .prepare(
+          `
+          DELETE FROM perfis_usuarios 
+          WHERE id = ? AND empresa_id = ?
+          `
+        )
         .bind(id, empresaId)
         .run();
 
@@ -406,12 +407,9 @@ app.delete(
 );
 
 // ============================================================================
-// 5. MÓDULO DE IA E CAIXA DE ENTRADA (NOTAS FISCAIS)
+// 5. MÓDULO DE IA E CAIXA DE ENTRADA
 // ============================================================================
 
-/**
- * Rota: POST /api/ia/ler-nota
- */
 app.post("/api/ia/ler-nota", async (c) => {
   const empresaId = c.get("empresaId");
 
@@ -451,7 +449,7 @@ Formato:
     {"produto": "Nome exato do insumo", "qtd": 1, "preco_un": 10.00}
   ]
 }
-`.trim();
+    `.trim();
 
     const mimeType = file.type || "application/pdf";
 
@@ -468,19 +466,19 @@ Formato:
 
     const responseIA = JSON.parse(cleanJson);
 
-    // Grava na Caixa de Entrada
-    await c.env.DB.prepare(
-      `
-      INSERT INTO caixa_entrada (
-        empresa_id,
-        fornecedor_nome,
-        valor_total,
-        json_extraido,
-        status,
-        criado_em
-      ) VALUES (?, ?, ?, ?, 'pendente', CURRENT_TIMESTAMP)
-    `
-    )
+    await c.env.DB
+      .prepare(
+        `
+        INSERT INTO caixa_entrada (
+          empresa_id,
+          fornecedor_nome,
+          valor_total,
+          json_extraido,
+          status,
+          criado_em
+        ) VALUES (?, ?, ?, ?, 'pendente', CURRENT_TIMESTAMP)
+        `
+      )
       .bind(
         empresaId,
         responseIA.fornecedor,
@@ -503,14 +501,14 @@ Formato:
   }
 });
 
-/**
- * Rota: POST /api/ia/ler-link
- */
 app.post("/api/ia/ler-link", async (c) => {
   try {
     const body = (await c.req.json().catch(() => ({}))) as any;
     const url = String(body?.url ?? "").trim();
-    if (!url) return c.json({ error: "Nenhum link fornecido para análise." }, 400);
+
+    if (!url) {
+      return c.json({ error: "Nenhum link fornecido para análise." }, 400);
+    }
 
     const sefazResponse = await fetch(url);
     const htmlContent = await sefazResponse.text();
@@ -529,7 +527,7 @@ Extraia e retorne APENAS um JSON estrito (sem markdown):
 
 HTML:
 ${htmlContent.substring(0, 35000)}
-`.trim();
+    `.trim();
 
     const result = await model.generateContent(prompt);
     const cleanJson = result.response
@@ -539,19 +537,25 @@ ${htmlContent.substring(0, 35000)}
       .trim();
 
     return c.json({ success: true, data: JSON.parse(cleanJson) });
-  } catch (e: any) {
-    return c.json({ error: "Falha de comunicação com o portal da Sefaz." }, 500);
+  } catch {
+    return c.json(
+      { error: "Falha de comunicação com o portal da Sefaz." },
+      500
+    );
   }
 });
 
-/**
- * Rota: POST /api/ia/interpretar-lista
- */
 app.post("/api/ia/interpretar-lista", async (c) => {
   try {
     const body = (await c.req.json().catch(() => ({}))) as any;
     const texto = String(body?.texto ?? "").trim();
-    if (!texto) return c.json({ error: "O texto da lista não pode estar vazio." }, 400);
+
+    if (!texto) {
+      return c.json(
+        { error: "O texto da lista não pode estar vazio." },
+        400
+      );
+    }
 
     const genAI = new GoogleGenerativeAI(c.env.GOOGLE_AI_API_KEY);
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
@@ -562,7 +566,7 @@ Extraia itens com quantidade e unidade (un, kg, g, L, ml, cx, pct).
 Retorne APENAS JSON estrito:
 { "itens": [ {"produto":"...", "quantidade": 2, "unidade":"kg"} ] }
 Texto: "${texto}"
-`.trim();
+    `.trim();
 
     const result = await model.generateContent(prompt);
     const cleanJson = result.response
@@ -572,7 +576,7 @@ Texto: "${texto}"
       .trim();
 
     return c.json(JSON.parse(cleanJson));
-  } catch (e: any) {
+  } catch {
     return c.json(
       { error: "O modelo de IA não conseguiu interpretar o formato do texto." },
       500
@@ -580,19 +584,18 @@ Texto: "${texto}"
   }
 });
 
-/**
- * Rotas de Inbox
- */
 app.get("/api/ia/inbox-count", async (c) => {
   const empresaId = c.get("empresaId");
+
   try {
-    const row = await c.env.DB.prepare(
-      `
-      SELECT COUNT(*) as total 
-      FROM caixa_entrada 
-      WHERE empresa_id = ? AND status = 'pendente'
-    `
-    )
+    const row = await c.env.DB
+      .prepare(
+        `
+        SELECT COUNT(*) as total 
+        FROM caixa_entrada 
+        WHERE empresa_id = ? AND status = 'pendente'
+        `
+      )
       .bind(empresaId)
       .first();
 
@@ -604,26 +607,33 @@ app.get("/api/ia/inbox-count", async (c) => {
 
 app.get("/api/ia/inbox", async (c) => {
   const empresaId = c.get("empresaId");
+
   try {
-    const { results } = await c.env.DB.prepare(
-      `
-      SELECT * FROM caixa_entrada 
-      WHERE empresa_id = ? AND status = 'pendente' 
-      ORDER BY criado_em DESC
-    `
-    )
+    const { results } = await c.env.DB
+      .prepare(
+        `
+        SELECT * FROM caixa_entrada 
+        WHERE empresa_id = ? AND status = 'pendente' 
+        ORDER BY criado_em DESC
+        `
+      )
       .bind(empresaId)
       .all();
 
     const formatted = (results ?? []).map((row: any) => ({
       ...row,
       json_extraido:
-        typeof row.json_extraido === "string" ? JSON.parse(row.json_extraido) : row.json_extraido,
+        typeof row.json_extraido === "string"
+          ? JSON.parse(row.json_extraido)
+          : row.json_extraido,
     }));
 
     return c.json(formatted);
   } catch {
-    return c.json({ error: "Erro crítico ao listar documentos da caixa de entrada." }, 500);
+    return c.json(
+      { error: "Erro crítico ao listar documentos da caixa de entrada." },
+      500
+    );
   }
 });
 
@@ -635,29 +645,34 @@ app.post("/api/ia/inbox/approve", async (c) => {
     const id = body?.id;
     const json_extraido = body?.json_extraido;
 
-    await c.env.DB.prepare(
-      `
-      UPDATE caixa_entrada 
-      SET status = 'aprovado' 
-      WHERE id = ? AND empresa_id = ?
-    `
-    )
+    await c.env.DB
+      .prepare(
+        `
+        UPDATE caixa_entrada 
+        SET status = 'aprovado' 
+        WHERE id = ? AND empresa_id = ?
+        `
+      )
       .bind(id, empresaId)
       .run();
 
-    const itens = typeof json_extraido === "string" ? JSON.parse(json_extraido) : json_extraido;
+    const itens =
+      typeof json_extraido === "string"
+        ? JSON.parse(json_extraido)
+        : json_extraido;
 
     if (Array.isArray(itens)) {
       for (const item of itens) {
-        await c.env.DB.prepare(
-          `
-          INSERT INTO estoque (empresa_id, nome_produto, quantidade) 
-          VALUES (?, ?, ?)
-          ON CONFLICT(nome_produto) DO UPDATE 
-          SET quantidade = estoque.quantidade + excluded.quantidade, 
-              ultima_atualizacao = CURRENT_TIMESTAMP
-        `
-        )
+        await c.env.DB
+          .prepare(
+            `
+            INSERT INTO estoque (empresa_id, nome_produto, quantidade) 
+            VALUES (?, ?, ?)
+            ON CONFLICT(nome_produto) DO UPDATE 
+            SET quantidade = estoque.quantidade + excluded.quantidade, 
+                ultima_atualizacao = CURRENT_TIMESTAMP
+            `
+          )
           .bind(empresaId, item.produto, item.qtd || 1)
           .run()
           .catch(() => {
@@ -668,7 +683,13 @@ app.post("/api/ia/inbox/approve", async (c) => {
 
     return c.json({ success: true, message: "Nota Fiscal lançada no sistema!" });
   } catch {
-    return c.json({ error: "Ocorreu uma falha grave durante o processo de aprovação." }, 500);
+    return c.json(
+      {
+        error:
+          "Ocorreu uma falha grave durante o processo de aprovação.",
+      },
+      500
+    );
   }
 });
 
@@ -678,44 +699,51 @@ app.post("/api/ia/inbox/approve", async (c) => {
 
 app.get("/api/fornecedores", async (c) => {
   const empresaId = c.get("empresaId");
+
   try {
-    const { results } = await c.env.DB.prepare(
-      `
-      SELECT * FROM fornecedores 
-      WHERE empresa_id = ? 
-      ORDER BY nome_fantasia ASC
-    `
-    )
+    const { results } = await c.env.DB
+      .prepare(
+        `
+        SELECT * FROM fornecedores 
+        WHERE empresa_id = ? 
+        ORDER BY nome_fantasia ASC
+        `
+      )
       .bind(empresaId)
       .all();
 
     return c.json(results);
   } catch {
-    return c.json({ error: "Erro ao buscar a lista de fornecedores da base." }, 500);
+    return c.json(
+      { error: "Erro ao buscar a lista de fornecedores da base." },
+      500
+    );
   }
 });
 
 app.post("/api/fornecedores", async (c) => {
   const empresaId = c.get("empresaId");
+
   try {
     const data = await c.req.json();
 
-    await c.env.DB.prepare(
-      `
-      INSERT INTO fornecedores (
-        empresa_id, 
-        nome_fantasia, 
-        razao_social, 
-        cnpj, 
-        telefone_whatsapp, 
-        categoria_principal, 
-        mensagem_padrao_cotacao, 
-        prazo_pagamento_dias, 
-        email, 
-        nome_contato
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `
-    )
+    await c.env.DB
+      .prepare(
+        `
+        INSERT INTO fornecedores (
+          empresa_id, 
+          nome_fantasia, 
+          razao_social, 
+          cnpj, 
+          telefone_whatsapp, 
+          categoria_principal, 
+          mensagem_padrao_cotacao, 
+          prazo_pagamento_dias, 
+          email, 
+          nome_contato
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `
+      )
       .bind(
         empresaId,
         data.nome_fantasia,
@@ -730,7 +758,10 @@ app.post("/api/fornecedores", async (c) => {
       )
       .run();
 
-    return c.json({ success: true, message: "Fornecedor cadastrado com sucesso." });
+    return c.json({
+      success: true,
+      message: "Fornecedor cadastrado com sucesso.",
+    });
   } catch {
     return c.json({ error: "Erro SQL ao criar o fornecedor." }, 500);
   }
@@ -738,24 +769,26 @@ app.post("/api/fornecedores", async (c) => {
 
 app.patch("/api/fornecedores/:id", async (c) => {
   const empresaId = c.get("empresaId");
+
   try {
     const id = c.req.param("id");
     const data = await c.req.json();
 
-    await c.env.DB.prepare(
-      `
-      UPDATE fornecedores 
-      SET nome_fantasia = ?, 
-          razao_social = ?, 
-          telefone_whatsapp = ?, 
-          categoria_principal = ?, 
-          mensagem_padrao_cotacao = ?, 
-          prazo_pagamento_dias = ?, 
-          email = ?, 
-          nome_contato = ?
-      WHERE id = ? AND empresa_id = ?
-    `
-    )
+    await c.env.DB
+      .prepare(
+        `
+        UPDATE fornecedores 
+        SET nome_fantasia = ?, 
+            razao_social = ?, 
+            telefone_whatsapp = ?, 
+            categoria_principal = ?, 
+            mensagem_padrao_cotacao = ?, 
+            prazo_pagamento_dias = ?, 
+            email = ?, 
+            nome_contato = ?
+        WHERE id = ? AND empresa_id = ?
+        `
+      )
       .bind(
         data.nome_fantasia,
         data.razao_social || null,
@@ -772,25 +805,39 @@ app.patch("/api/fornecedores/:id", async (c) => {
 
     return c.json({ success: true });
   } catch {
-    return c.json({ error: "Erro interno ao tentar atualizar os dados do fornecedor." }, 500);
+    return c.json(
+      {
+        error:
+          "Erro interno ao tentar atualizar os dados do fornecedor.",
+      },
+      500
+    );
   }
 });
 
 app.delete("/api/fornecedores/:id", async (c) => {
   const empresaId = c.get("empresaId");
+
   try {
-    await c.env.DB.prepare(
-      `
-      DELETE FROM fornecedores 
-      WHERE id = ? AND empresa_id = ?
-    `
-    )
+    await c.env.DB
+      .prepare(
+        `
+        DELETE FROM fornecedores 
+        WHERE id = ? AND empresa_id = ?
+        `
+      )
       .bind(c.req.param("id"), empresaId)
       .run();
 
     return c.json({ success: true });
   } catch {
-    return c.json({ error: "Violação de chave estrangeira ou erro ao apagar fornecedor." }, 500);
+    return c.json(
+      {
+        error:
+          "Violação de chave estrangeira ou erro ao apagar fornecedor.",
+      },
+      500
+    );
   }
 });
 
@@ -800,19 +847,21 @@ app.delete("/api/fornecedores/:id", async (c) => {
 
 app.get("/api/lista-compras", async (c) => {
   const empresaId = c.get("empresaId");
+
   try {
-    const { results } = await c.env.DB.prepare(
-      `
-      SELECT 
-        l.*, 
-        p.nome_produto as produto_nome, 
-        p.unidade_medida 
-      FROM lista_compras l 
-      JOIN produtos p ON l.produto_id = p.id
-      WHERE l.empresa_id = ? 
-      ORDER BY l.data_solicitacao DESC
-    `
-    )
+    const { results } = await c.env.DB
+      .prepare(
+        `
+        SELECT 
+          l.*, 
+          p.nome_produto as produto_nome, 
+          p.unidade_medida 
+        FROM lista_compras l 
+        JOIN produtos p ON l.produto_id = p.id
+        WHERE l.empresa_id = ? 
+        ORDER BY l.data_solicitacao DESC
+        `
+      )
       .bind(empresaId)
       .all();
 
@@ -824,67 +873,80 @@ app.get("/api/lista-compras", async (c) => {
 
 app.post("/api/lista-compras", async (c) => {
   const empresaId = c.get("empresaId");
+
   try {
     const { produto_id, quantidade_solicitada } = await c.req.json();
 
-    await c.env.DB.prepare(
-      `
-      INSERT INTO lista_compras (empresa_id, produto_id, quantidade_solicitada) 
-      VALUES (?, ?, ?)
-    `
-    )
+    await c.env.DB
+      .prepare(
+        `
+        INSERT INTO lista_compras (empresa_id, produto_id, quantidade_solicitada) 
+        VALUES (?, ?, ?)
+        `
+      )
       .bind(empresaId, produto_id, quantidade_solicitada)
       .run();
 
     return c.json({ success: true });
   } catch {
-    return c.json({ error: "Não foi possível adicionar o item à sua lista." }, 500);
+    return c.json(
+      { error: "Não foi possível adicionar o item à sua lista." },
+      500
+    );
   }
 });
 
 app.patch("/api/lista-compras/:id", async (c) => {
   const empresaId = c.get("empresaId");
+
   try {
     const id = c.req.param("id");
     const updates = await c.req.json();
 
     if (updates.status_solicitacao) {
-      await c.env.DB.prepare(
-        `
-        UPDATE lista_compras SET status_solicitacao = ? 
-        WHERE id = ? AND empresa_id = ?
-      `
-      )
+      await c.env.DB
+        .prepare(
+          `
+          UPDATE lista_compras SET status_solicitacao = ? 
+          WHERE id = ? AND empresa_id = ?
+          `
+        )
         .bind(updates.status_solicitacao, id, empresaId)
         .run();
     }
 
     if (updates.quantidade_solicitada) {
-      await c.env.DB.prepare(
-        `
-        UPDATE lista_compras SET quantidade_solicitada = ? 
-        WHERE id = ? AND empresa_id = ?
-      `
-      )
+      await c.env.DB
+        .prepare(
+          `
+          UPDATE lista_compras SET quantidade_solicitada = ? 
+          WHERE id = ? AND empresa_id = ?
+          `
+        )
         .bind(updates.quantidade_solicitada, id, empresaId)
         .run();
     }
 
     return c.json({ success: true });
   } catch {
-    return c.json({ error: "Erro de banco de dados ao modificar lista." }, 500);
+    return c.json(
+      { error: "Erro de banco de dados ao modificar lista." },
+      500
+    );
   }
 });
 
 app.delete("/api/lista-compras/:id", async (c) => {
   const empresaId = c.get("empresaId");
+
   try {
-    await c.env.DB.prepare(
-      `
-      DELETE FROM lista_compras 
-      WHERE id = ? AND empresa_id = ?
-    `
-    )
+    await c.env.DB
+      .prepare(
+        `
+        DELETE FROM lista_compras 
+        WHERE id = ? AND empresa_id = ?
+        `
+      )
       .bind(c.req.param("id"), empresaId)
       .run();
 
@@ -900,6 +962,7 @@ app.delete("/api/lista-compras/:id", async (c) => {
 
 app.get("/api/openfoodfacts/search", async (c) => {
   const query = c.req.query("q");
+
   if (!query) return c.json({ products: [] });
 
   try {
@@ -908,6 +971,7 @@ app.get("/api/openfoodfacts/search", async (c) => {
         query
       )}&search_simple=1&action=process&json=1&page_size=5`
     );
+
     const data: any = await response.json();
 
     const products = (data.products || []).map((p: any) => ({
@@ -926,14 +990,16 @@ app.get("/api/openfoodfacts/search", async (c) => {
 
 app.get("/api/produtos", async (c) => {
   const empresaId = c.get("empresaId");
+
   try {
-    const { results } = await c.env.DB.prepare(
-      `
-      SELECT * FROM produtos 
-      WHERE empresa_id = ? 
-      ORDER BY nome_produto ASC
-    `
-    )
+    const { results } = await c.env.DB
+      .prepare(
+        `
+        SELECT * FROM produtos 
+        WHERE empresa_id = ? 
+        ORDER BY nome_produto ASC
+        `
+      )
       .bind(empresaId)
       .all();
 
@@ -942,18 +1008,24 @@ app.get("/api/produtos", async (c) => {
     return c.json([]);
   }
 });
-   app.post("/api/produtos", async (c) => {
+
+app.post("/api/produtos", async (c) => {
   const empresaId = c.get("empresaId");
+
   try {
     const data = await c.req.json();
     const nomeLimpo = String(data.nome_produto ?? "").trim();
 
-    if (!nomeLimpo) return c.json({ error: "nome_produto é obrigatório." }, 400);
+    if (!nomeLimpo) {
+      return c.json({ error: "nome_produto é obrigatório." }, 400);
+    }
 
-    // Anti-duplicidade
-    const existente = await c.env.DB.prepare(
-      `SELECT id FROM produtos WHERE empresa_id = ? AND LOWER(nome_produto) = LOWER(?) LIMIT 1`
-    ).bind(empresaId, nomeLimpo).first();
+    const existente = await c.env.DB
+      .prepare(
+        `SELECT id FROM produtos WHERE empresa_id = ? AND LOWER(nome_produto) = LOWER(?) LIMIT 1`
+      )
+      .bind(empresaId, nomeLimpo)
+      .first();
 
     if (existente) {
       return c.json({
@@ -963,47 +1035,51 @@ app.get("/api/produtos", async (c) => {
       });
     }
 
-    const result = await c.env.DB.prepare(`
-      INSERT INTO produtos (
-        empresa_id, nome_produto, categoria_produto, unidade_medida, 
-        fornecedor_preferencial_id, codigo_barras
-      ) VALUES (?, ?, ?, ?, ?, ?) RETURNING id
-    `).bind(
+    const result = await c.env.DB
+      .prepare(`
+        INSERT INTO produtos (
+          empresa_id, nome_produto, categoria_produto, unidade_medida, 
+          fornecedor_preferencial_id, codigo_barras
+        ) VALUES (?, ?, ?, ?, ?, ?) RETURNING id
+      `)
+      .bind(
         empresaId,
         nomeLimpo,
         data.categoria_produto || "Geral",
         data.unidade_medida || "un",
         data.fornecedor_preferencial_id || null,
         data.codigo_barras || null
-      ).first();
+      )
+      .first();
 
     return c.json({ id: (result as any)?.id, success: true });
   } catch (e: any) {
-    // 🔥 A MÁGICA ESTÁ AQUI: Agora ele vai gritar o erro exato do SQL!
-    return c.json({ error: `Falha no banco: ${e.message}` }, 500); 
+    return c.json({ error: `Falha no banco: ${e.message}` }, 500);
   }
 });
 
 // ============================================================================
-// 9. MÓDULO DE ESTOQUE (INVENTÁRIO)
+// 9. MÓDULO DE ESTOQUE
 // ============================================================================
 
 app.get("/api/estoque", async (c) => {
   const empresaId = c.get("empresaId");
+
   try {
-    const { results } = await c.env.DB.prepare(
-      `
-      SELECT 
-        e.*, 
-        p.nome_produto as produto_nome, 
-        p.unidade_medida, 
-        p.categoria_produto 
-      FROM estoque e 
-      JOIN produtos p ON e.produto_id = p.id
-      WHERE e.empresa_id = ? 
-      ORDER BY p.nome_produto ASC
-    `
-    )
+    const { results } = await c.env.DB
+      .prepare(
+        `
+        SELECT 
+          e.*, 
+          p.nome_produto as produto_nome, 
+          p.unidade_medida, 
+          p.categoria_produto 
+        FROM estoque e 
+        JOIN produtos p ON e.produto_id = p.id
+        WHERE e.empresa_id = ? 
+        ORDER BY p.nome_produto ASC
+        `
+      )
       .bind(empresaId)
       .all();
 
@@ -1014,55 +1090,47 @@ app.get("/api/estoque", async (c) => {
 });
 
 app.post("/api/estoque", async (c) => {
-  const pId = c.get("empresaId");
+  const empresaId = c.get("empresaId");
+
   try {
     const data = await c.req.json();
-    
-    const jaNoEstoque = await c.env.DB.prepare(`SELECT id FROM estoque WHERE empresa_id = ? AND produto_id = ?`).bind(pId, data.produto_id).first();
-    if (jaNoEstoque) return c.json({ error: "Este produto já está listado no seu inventário de stock." }, 400);
 
-    await c.env.DB.prepare(`
-      INSERT INTO estoque (empresa_id, produto_id, quantidade_atual, estoque_minimo, custo_unitario) 
-      VALUES (?, ?, ?, ?, ?)
-    `).bind(
-      pId, 
-      data.produto_id, 
-      data.quantidade_atual || 0, 
-      data.estoque_minimo || 0,
-      data.custo_unitario || 0
-    ).run();
-    
+    const jaNoEstoque = await c.env.DB
+      .prepare(
+        `SELECT id FROM estoque WHERE empresa_id = ? AND produto_id = ?`
+      )
+      .bind(empresaId, data.produto_id)
+      .first();
+
+    if (jaNoEstoque) {
+      return c.json(
+        { error: "Este produto já está listado no seu inventário de stock." },
+        400
+      );
+    }
+
+    await c.env.DB
+      .prepare(
+        `
+        INSERT INTO estoque (empresa_id, produto_id, quantidade_atual, estoque_minimo, custo_unitario) 
+        VALUES (?, ?, ?, ?, ?)
+        `
+      )
+      .bind(
+        empresaId,
+        data.produto_id,
+        data.quantidade_atual || 0,
+        data.estoque_minimo || 0,
+        data.custo_unitario || 0
+      )
+      .run();
+
     return c.json({ success: true });
-  } catch (e: any) { 
-    return c.json({ error: `Erro no POST Estoque: ${e.message}` }, 500); 
+  } catch (e: any) {
+    return c.json({ error: `Erro no POST Estoque: ${e.message}` }, 500);
   }
 });
 
-app.patch("/api/estoque/:id", async (c) => {
-  const pId = c.get("empresaId");
-  const id = Number(c.req.param("id")); // Garantimos que o ID é número
-  try {
-    const data = await c.req.json();
-    
-    await c.env.DB.prepare(`
-      UPDATE estoque 
-      SET quantidade_atual = ?, estoque_minimo = ?, custo_unitario = ? 
-      WHERE id = ? AND empresa_id = ?
-    `).bind(
-      data.quantidade_atual, 
-      data.estoque_minimo, 
-      data.custo_unitario, 
-      id, 
-      pId
-    ).run();
-    
-    return c.json({ success: true });
-  } catch (e: any) { 
-    return c.json({ error: `Erro no PATCH Estoque: ${e.message}` }, 500); 
-  }
-});
-
-// ✅ IMPORTANTE: você tinha DOIS PATCH iguais. Mantive APENAS este (com custo_unitario).
 app.patch("/api/estoque/:id", async (c) => {
   const empresaId = c.get("empresaId");
   const id = c.req.param("id");
@@ -1070,13 +1138,14 @@ app.patch("/api/estoque/:id", async (c) => {
   try {
     const data = await c.req.json();
 
-    await c.env.DB.prepare(
-      `
-      UPDATE estoque 
-      SET quantidade_atual = ?, estoque_minimo = ?, custo_unitario = ? 
-      WHERE id = ? AND empresa_id = ?
-    `
-    )
+    await c.env.DB
+      .prepare(
+        `
+        UPDATE estoque 
+        SET quantidade_atual = ?, estoque_minimo = ?, custo_unitario = ? 
+        WHERE id = ? AND empresa_id = ?
+        `
+      )
       .bind(
         data.quantidade_atual,
         data.estoque_minimo,
@@ -1087,28 +1156,36 @@ app.patch("/api/estoque/:id", async (c) => {
       .run();
 
     return c.json({ success: true });
-  } catch {
-    return c.json({ error: "Erro ao auditar o estoque." }, 500);
+  } catch (e: any) {
+    return c.json(
+      { error: `Erro no PATCH Estoque: ${e?.message ?? String(e)}` },
+      500
+    );
   }
 });
 
 app.delete("/api/estoque/:id", async (c) => {
   const empresaId = c.get("empresaId");
+
   try {
     const id = c.req.param("id");
 
-    await c.env.DB.prepare(
-      `
-      DELETE FROM estoque 
-      WHERE id = ? AND empresa_id = ?
-    `
-    )
+    await c.env.DB
+      .prepare(
+        `
+        DELETE FROM estoque 
+        WHERE id = ? AND empresa_id = ?
+        `
+      )
       .bind(id, empresaId)
       .run();
 
     return c.json({ success: true });
   } catch {
-    return c.json({ error: "Falha do sistema ao tentar excluir o registro." }, 500);
+    return c.json(
+      { error: "Falha do sistema ao tentar excluir o registro." },
+      500
+    );
   }
 });
 
@@ -1118,14 +1195,16 @@ app.delete("/api/estoque/:id", async (c) => {
 
 app.get("/api/fichas-tecnicas", async (c) => {
   const empresaId = c.get("empresaId");
+
   try {
-    const { results } = await c.env.DB.prepare(
-      `
-      SELECT * FROM fichas_tecnicas 
-      WHERE empresa_id = ? 
-      ORDER BY criado_em DESC
-    `
-    )
+    const { results } = await c.env.DB
+      .prepare(
+        `
+        SELECT * FROM fichas_tecnicas 
+        WHERE empresa_id = ? 
+        ORDER BY criado_em DESC
+        `
+      )
       .bind(empresaId)
       .all();
 
@@ -1141,29 +1220,32 @@ app.post("/api/fichas-tecnicas", async (c) => {
   try {
     const data = await c.req.json();
 
-    // Plano da empresa
-    const empresa: any = await c.env.DB.prepare(
-      `
-      SELECT plano 
-      FROM empresas 
-      WHERE id = ?
-      LIMIT 1
-    `
-    )
+    const empresa: any = await c.env.DB
+      .prepare(
+        `
+        SELECT plano 
+        FROM empresas 
+        WHERE id = ?
+        LIMIT 1
+        `
+      )
       .bind(empresaId)
       .first();
 
     const plano = String(empresa?.plano || "grátis");
 
-    // trava plano grátis/teste (mantido)
-    if (plano.toLowerCase().includes("grátis") || plano.toLowerCase().includes("teste")) {
-      const count: any = await c.env.DB.prepare(
-        `
-        SELECT COUNT(*) as total 
-        FROM fichas_tecnicas 
-        WHERE empresa_id = ?
-      `
-      )
+    if (
+      plano.toLowerCase().includes("grátis") ||
+      plano.toLowerCase().includes("teste")
+    ) {
+      const count: any = await c.env.DB
+        .prepare(
+          `
+          SELECT COUNT(*) as total 
+          FROM fichas_tecnicas 
+          WHERE empresa_id = ?
+          `
+        )
         .bind(empresaId)
         .first();
 
@@ -1179,20 +1261,21 @@ app.post("/api/fichas-tecnicas", async (c) => {
       }
     }
 
-    const Ficha: any = await c.env.DB.prepare(
-      `
-      INSERT INTO fichas_tecnicas (
-        empresa_id, 
-        nome_produto, 
-        markup, 
-        impostos, 
-        comissao, 
-        preco_sugerido, 
-        margem_liquida, 
-        custo_total
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id
-    `
-    )
+    const ficha: any = await c.env.DB
+      .prepare(
+        `
+        INSERT INTO fichas_tecnicas (
+          empresa_id, 
+          nome_produto, 
+          markup, 
+          impostos, 
+          comissao, 
+          preco_sugerido, 
+          margem_liquida, 
+          custo_total
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id
+        `
+      )
       .bind(
         empresaId,
         data.nome_produto,
@@ -1205,21 +1288,27 @@ app.post("/api/fichas-tecnicas", async (c) => {
       )
       .first();
 
-    const fichaId = Ficha?.id;
+    const fichaId = ficha?.id;
 
     if (fichaId && data.insumos && Array.isArray(data.insumos)) {
       for (const insumo of data.insumos) {
-        await c.env.DB.prepare(
-          `
-          INSERT INTO ficha_tecnica_insumos (
-            ficha_id, 
-            produto_id, 
-            quantidade, 
-            custo_unitario
-          ) VALUES (?, ?, ?, ?)
-        `
-        )
-          .bind(fichaId, insumo.produto_id, insumo.quantidade, insumo.custo_unitario)
+        await c.env.DB
+          .prepare(
+            `
+            INSERT INTO ficha_tecnica_insumos (
+              ficha_id, 
+              produto_id, 
+              quantidade, 
+              custo_unitario
+            ) VALUES (?, ?, ?, ?)
+            `
+          )
+          .bind(
+            fichaId,
+            insumo.produto_id,
+            insumo.quantidade,
+            insumo.custo_unitario
+          )
           .run();
       }
     }
@@ -1245,12 +1334,13 @@ app.delete("/api/fichas-tecnicas/:id", async (c) => {
   const id = c.req.param("id");
 
   try {
-    await c.env.DB.prepare(
-      `
-      DELETE FROM fichas_tecnicas 
-      WHERE id = ? AND empresa_id = ?
-    `
-    )
+    await c.env.DB
+      .prepare(
+        `
+        DELETE FROM fichas_tecnicas 
+        WHERE id = ? AND empresa_id = ?
+        `
+      )
       .bind(id, empresaId)
       .run();
 
@@ -1266,48 +1356,82 @@ app.delete("/api/fichas-tecnicas/:id", async (c) => {
 
 app.get("/api/lancamentos", async (c) => {
   const empresaId = c.get("empresaId");
+
   try {
-    const { results } = await c.env.DB.prepare(
-      `SELECT * FROM lancamentos WHERE empresa_id = ? ORDER BY vencimento_previsto ASC`
-    ).bind(empresaId).all();
+    const { results } = await c.env.DB
+      .prepare(
+        `SELECT * FROM lancamentos WHERE empresa_id = ? ORDER BY vencimento_previsto ASC`
+      )
+      .bind(empresaId)
+      .all();
+
     return c.json(results);
   } catch (e: any) {
-    return c.json({ error: `Erro ao buscar lançamentos: ${e.message}` }, 500);
+    return c.json(
+      { error: `Erro ao buscar lançamentos: ${e.message}` },
+      500
+    );
   }
 });
 
 app.post("/api/lancamentos", async (c) => {
   const empresaId = c.get("empresaId");
+
   try {
     const data = await c.req.json();
-    
-    await c.env.DB.prepare(`
-      INSERT INTO lancamentos (
-        empresa_id, tipo, categoria, descricao, valor_previsto, 
-        valor_real, vencimento_previsto, vencimento_real, status, forma_pagamento, observacoes
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).bind(
-      empresaId, data.tipo, data.categoria, data.descricao, data.valor_previsto,
-      data.valor_real || null, data.vencimento_previsto, data.vencimento_real || null, 
-      data.status || 'pendente', data.forma_pagamento || null, data.observacoes || null
-    ).run();
+
+    await c.env.DB
+      .prepare(`
+        INSERT INTO lancamentos (
+          empresa_id, tipo, categoria, descricao, valor_previsto, 
+          valor_real, vencimento_previsto, vencimento_real, status, forma_pagamento, observacoes
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `)
+      .bind(
+        empresaId,
+        data.tipo,
+        data.categoria,
+        data.descricao,
+        data.valor_previsto,
+        data.valor_real || null,
+        data.vencimento_previsto,
+        data.vencimento_real || null,
+        data.status || "pendente",
+        data.forma_pagamento || null,
+        data.observacoes || null
+      )
+      .run();
 
     return c.json({ success: true });
   } catch (e: any) {
-    return c.json({ error: `Erro ao criar lançamento: ${e.message}` }, 500);
+    return c.json(
+      { error: `Erro ao criar lançamento: ${e.message}` },
+      500
+    );
   }
 });
 
 app.patch("/api/lancamentos/:id/pagar", async (c) => {
   const empresaId = c.get("empresaId");
   const id = c.req.param("id");
+
   try {
     const data = await c.req.json();
-    await c.env.DB.prepare(`
-      UPDATE lancamentos 
-      SET valor_real = ?, vencimento_real = ?, status = 'pago', forma_pagamento = ?, atualizado_em = CURRENT_TIMESTAMP
-      WHERE id = ? AND empresa_id = ?
-    `).bind(data.valor_real, data.vencimento_real, data.forma_pagamento, id, empresaId).run();
+
+    await c.env.DB
+      .prepare(`
+        UPDATE lancamentos 
+        SET valor_real = ?, vencimento_real = ?, status = 'pago', forma_pagamento = ?, atualizado_em = CURRENT_TIMESTAMP
+        WHERE id = ? AND empresa_id = ?
+      `)
+      .bind(
+        data.valor_real,
+        data.vencimento_real,
+        data.forma_pagamento,
+        id,
+        empresaId
+      )
+      .run();
 
     return c.json({ success: true });
   } catch (e: any) {
@@ -1315,5 +1439,4 @@ app.patch("/api/lancamentos/:id/pagar", async (c) => {
   }
 });
 
-// Exportação
 export default app;

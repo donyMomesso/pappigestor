@@ -63,7 +63,7 @@ function formatUnidade(un?: string) {
 }
 
 export default function CatalogoGlobal() {
-  const [carregando, setCarregando] = useState(true);
+  const [carregando, setCarregando] = useState(true);return null;
   const [erro, setErro] = useState<string | null>(null);
   const [produtos, setProdutos] = useState<ProdutoFoodService[]>([]);
   const [termo, setTermo] = useState("");

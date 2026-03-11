@@ -20,10 +20,12 @@ export type PrevisaoRupturaItem = {
 
 function toNumber(v: unknown): number {
   if (typeof v === "number") return Number.isFinite(v) ? v : 0;
+
   if (typeof v === "string") {
     const n = Number(v.replace(",", "."));
     return Number.isFinite(n) ? n : 0;
   }
+
   return 0;
 }
 
@@ -34,7 +36,7 @@ function arredondarSugestao(valor: number): number {
 }
 
 export function usePrevisaoEstoque() {
-  const { produtos, loading, refresh } = useEstoque();
+  const { produtos, loading, error } = useEstoque();
 
   const previsoes = useMemo<PrevisaoRupturaItem[]>(() => {
     const pesoCriticidade: Record<CriticidadeEstoque, number> = {
@@ -53,9 +55,7 @@ export function usePrevisaoEstoque() {
         const estoqueMinimo = toNumber(p.estoque_minimo) || 0;
 
         const nome = String(p.produto_nome ?? p.nome ?? "Item sem nome");
-
         const unidade = String(p.unidade_medida ?? p.unidade ?? "un");
-
         const categoria = String(p.categoria_produto ?? p.categoria ?? "geral");
 
         const consumoMedio =
@@ -94,7 +94,10 @@ export function usePrevisaoEstoque() {
           criticidade,
         };
       })
-      .filter((item: PrevisaoRupturaItem) => item.estoqueAtual > 0 || item.estoqueMinimo > 0)
+      .filter(
+        (item: PrevisaoRupturaItem) =>
+          item.estoqueAtual > 0 || item.estoqueMinimo > 0
+      )
       .sort((a: PrevisaoRupturaItem, b: PrevisaoRupturaItem) => {
         return (
           pesoCriticidade[a.criticidade] - pesoCriticidade[b.criticidade] ||
@@ -110,9 +113,10 @@ export function usePrevisaoEstoque() {
   }, [previsoes]);
 
   return {
-    loading,
-    refresh,
     previsoes,
     alertas,
+    produtos,
+    loading,
+    error,
   };
 }

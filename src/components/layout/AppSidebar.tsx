@@ -89,7 +89,7 @@ const navItems: NavItem[] = [
 ];
 
 export default function AppSidebar() {
-  const pathname = usePathname();
+  const pathname = usePathname() ?? "";
 
   return (
     <aside className="hidden md:flex md:w-72 md:flex-col border-r border-zinc-200 bg-white dark:bg-zinc-950 dark:border-zinc-800">

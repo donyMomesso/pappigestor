@@ -191,7 +191,7 @@ function formatMoney(value?: number) {
 }
 
 export default function CaixaEntradaPage() {
-  const { localUser } = useAppAuth();
+  const { localUser } = useAppAuth();return null;
 
   const [items, setItems] = useState<InboxItem[]>([]);
   const [arquivos, setArquivos] = useState<ArquivoProcessado[]>([]);

@@ -1,5 +1,5 @@
 // src/app/api/auth/[...nextauth]/route.ts
-import NextAuth, { NextAuthOptions } from "next-auth";
+import NextAuth, { type NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 
 export const authOptions: NextAuthOptions = {
@@ -12,51 +12,73 @@ export const authOptions: NextAuthOptions = {
   pages: {
     signIn: "/login",
   },
-  secret: process.env.NEXTAUTH_SECRET,
-  debug: true, // ativa logs para depuração
+  secret: process.env.NEXTAUTH_SECRET ?? "dev-secret",
+  debug: true,
   callbacks: {
-    // jwt callback resiliente: não quebra o fluxo se /api/auth/login falhar
-    async jwt({ token, account, profile }) {
-      if (account && profile?.email) {
-        try {
-          const url = `${process.env.NEXTAUTH_URL}/api/auth/login`;
-          console.log("[NextAuth][jwt] calling:", url, "email:", profile.email);
+    async jwt({ token, user, account, profile }) {
+      try {
+        // roda no login inicial
+        if (account) {
+          const email =
+            user?.email?.trim().toLowerCase() ||
+            profile?.email?.trim().toLowerCase() ||
+            String(token.email ?? "").trim().toLowerCase();
 
-          const headers: Record<string, string> = { "Content-Type": "application/json" };
-          if (token.empresa_id) headers["x-empresa-id"] = String(token.empresa_id);
+          if (!email) {
+            console.warn("[NextAuth][jwt] email ausente no login");
+            return token;
+          }
 
-          const res = await fetch(url, {
+          // IMPORTANTE:
+          // NÃO use /api/auth/login porque isso conflita com [...nextauth]
+          const baseUrl =
+            process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+
+          const res = await fetch(`${baseUrl}/api/app-auth/login`, {
             method: "POST",
-            headers,
-            body: JSON.stringify({ email: profile.email }),
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ email }),
           });
 
-          console.log("[NextAuth][jwt] /api/auth/login status:", res.status);
-
           if (res.ok) {
-            const data = await res.json();
-            console.log("[NextAuth][jwt] /api/auth/login body:", data);
-            // só atribui se vier
-            if (data?.empresa_id) token.empresa_id = data.empresa_id;
-            if (data?.role) token.role = data.role;
+            const data = await res.json().catch(() => ({}));
+
+            if (data?.empresa_id) {
+              (token as any).empresa_id = String(data.empresa_id);
+            }
+
+            if (data?.role) {
+              (token as any).role = String(data.role);
+            }
+
+            if (data?.nome) {
+              token.name = String(data.nome);
+            }
           } else {
-            const text = await res.text();
-            console.warn("[NextAuth][jwt] /api/auth/login non-ok:", res.status, text);
+            const text = await res.text().catch(() => "");
+            console.warn(
+              "[NextAuth][jwt] /api/app-auth/login non-ok:",
+              res.status,
+              text
+            );
           }
-        } catch (err) {
-          console.error("[NextAuth][jwt] fetch error:", err);
         }
+      } catch (err) {
+        console.error("[NextAuth][jwt] fetch error:", err);
       }
+
       return token;
     },
 
-    // session callback: copia campos do token para a session
     async session({ session, token }) {
       if (session.user) {
-        // tipagem permissiva para evitar erros se token não tiver campos
-        (session.user as any).empresa_id = (token as any).empresa_id;
-        (session.user as any).role = (token as any).role;
+        (session.user as any).empresa_id = (token as any).empresa_id ?? null;
+        (session.user as any).empresaId = (token as any).empresa_id ?? null;
+        (session.user as any).role = (token as any).role ?? null;
       }
+
       return session;
     },
   },

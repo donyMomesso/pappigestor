@@ -42,7 +42,7 @@ type DB = {
 };
 
 declare global {
-  // eslint-disable-next-line no-var
+   
   var __PAPPI_DB__: Record<string, DB> | undefined;
 }
 

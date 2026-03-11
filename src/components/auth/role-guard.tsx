@@ -1,7 +1,7 @@
 "use client";
 
 import { useAppAuth } from "@/contexts/AppAuthContext";
-import { NivelAcesso } from "@/types/auth"; // Verifique se este caminho existe exatamente assim
+import type { NivelAcesso } from "@/types/auth";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
@@ -11,16 +11,29 @@ interface RoleGuardProps {
 }
 
 export function RoleGuard({ children, allowedRoles }: RoleGuardProps) {
-  const { localUser, hasRole, isLoading } = useAppAuth();
+  const { localUser, isLoading } = useAppAuth();
   const router = useRouter();
 
+  const userRole = localUser?.role;
+
+  const hasAccess =
+    !!localUser &&
+    !!userRole &&
+    allowedRoles.includes(userRole as NivelAcesso);
+
   useEffect(() => {
-    if (!isLoading && localUser && !hasRole(allowedRoles)) {
+    if (isLoading) return;
+
+    if (localUser && !hasAccess) {
       router.replace("/app");
     }
-  }, [isLoading, localUser, hasRole, allowedRoles, router]);
+  }, [isLoading, localUser, hasAccess, router]);
 
-  if (isLoading || !localUser || !hasRole(allowedRoles)) return null;
+  if (isLoading) return null;
+
+  if (localUser && !hasAccess) {
+    return null;
+  }
 
   return <>{children}</>;
 }

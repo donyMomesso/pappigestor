@@ -6,6 +6,6 @@ import { usePathname } from "next/navigation";
  * Se for null, devolve string vazia.
  */
 export function useSafePathname(): string {
-  const pathname = usePathname();
+  const pathname = usePathname() ?? "";
   return pathname ?? "";
 }

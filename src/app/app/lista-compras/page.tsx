@@ -387,7 +387,7 @@ export default function ListaComprasPage() {
     fetchAllData(controller.signal);
 
     return () => controller.abort();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   // ==========================================

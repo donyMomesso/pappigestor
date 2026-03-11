@@ -37,7 +37,7 @@ export default function EquipePage() {
 
   useEffect(() => {
     fetchEquipe();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   async function fetchEquipe() {

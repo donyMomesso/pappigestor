@@ -52,7 +52,7 @@ export default function AssessorIAPage() {
       formData.append('file', file);
       const res = await fetch('/api/ia/ler-nota', { method: 'POST', body: formData });
       const data = await res.json() as NotaResponse;
-      let resp = data.error ? `❌ ${data.error}` : `📋 Nota de R$ ${data.total} processada.`;
+      const resp = data.error ? `❌ ${data.error}` : `📋 Nota de R$ ${data.total} processada.`;
       setMessages(prev => [...prev, { id: Date.now().toString(), role: 'assistant', content: resp, timestamp: new Date() }]);
     } finally { setUploadingImage(false); }
   };

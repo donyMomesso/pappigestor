@@ -1,17 +1,17 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/react-app/components/ui/button";
+import { Input } from "@/react-app/components/ui/input";
+import { Card, CardContent } from "@/react-app/components/ui/card";
+import { Label } from "@/react-app/components/ui/label";
+import { Textarea } from "@/react-app/components/ui/textarea";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from "@/components/ui/dialog";
+} from "@/react-app/components/ui/dialog";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
+} from "@/react-app/components/ui/select";
 import {
   Store, Loader2, Plus, Trash2, Edit2, Search, ArrowLeft, MessageCircle, Building2, Phone, Fingerprint
 } from "lucide-react";

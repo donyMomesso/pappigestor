@@ -1,8 +1,0 @@
-const profile = await res.json();
-setLocalUser({
-  ...profile,
-  empresa_id: profile.empresa_id,
-  role: profile.role,
-  permissions: profile.permissions,
-});
-localStorage.setItem("empresa_id", profile.empresa_id);

@@ -1,452 +1,802 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
+import { useMemo, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
+import { useAppAuth } from "@/contexts/AppAuthContext";
+import { useDashboard } from "@/react-app/hooks/useDashboard";
+import { useABC, type ABCCategoria } from "@/hooks/useABC";
+import { Card, CardContent } from "@/react-app/components/ui/card";
+import { Button } from "@/react-app/components/ui/button";
 import {
-  ArrowLeft,
-  TrendingUp,
   TrendingDown,
-  DollarSign,
-  FileText,
-  Clock,
-  Check,
-  LayoutDashboard,
+  TrendingUp,
+  BarChart3,
+  Target,
+  AlertTriangle,
+  ArrowRight,
+  Loader2,
+  RefreshCcw,
+  Sparkles,
+  Wallet,
+  Package,
+  Truck,
+  ShieldAlert,
+  CircleDollarSign,
+  ClipboardCheck,
+  Brain,
+  CheckCircle2,
+  Clock3,
 } from "lucide-react";
-import {
-  PieChart,
-  Pie,
-  Cell,
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  Legend,
-} from "recharts";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
-const LOGO_URL =
-  "https://019c7b56-2054-7d0b-9c55-e7a603c40ba8.mochausercontent.com/1771799343659.png";
-
-interface DashboardData {
-  totais: {
-    total_lancamentos: number;
-    total_pagos: number;
-    total_a_pagar: number;
-    total_aguardando: number;
-    valor_previsto_total: number;
-    valor_pago_total: number;
-  };
-  porCategoria: Array<{
-    categoria: string;
-    quantidade: number;
-    valor_previsto: number;
-    valor_pago: number;
-  }>;
+function moneyBRL(v: number) {
+  return (v ?? 0).toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
 }
 
-const COLORS = ["#f97316", "#ef4444", "#eab308", "#22c55e", "#3b82f6"];
+type DashboardMode = "normal" | "estoque" | "financeiro" | "recebimento";
 
 export default function DashboardPage() {
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const { localUser } = useAppAuth();
+  const dashboard = useDashboard();
+  const { data: abcData, loading: abcLoading } = useABC();
 
-  useEffect(() => {
-    void fetchDashboard();
-  }, []);
+  const loading = dashboard?.loading ?? false;
+  const error = dashboard?.error ?? null;
+  const refresh = dashboard?.refresh ?? (() => {});
+  const rawKpis = dashboard?.kpis;
 
-  async function fetchDashboard() {
-    try {
-      const res = await fetch("/api/dashboard", {
-        cache: "no-store",
-      });
+  const firstName = useMemo(
+    () => localUser?.nome?.split(" ")[0] || "gestor",
+    [localUser?.nome],
+  );
 
-      if (!res.ok) {
-        throw new Error("Erro ao carregar dashboard");
-      }
+  const kpis = {
+    receitaTotal: rawKpis?.receitaTotal ?? 0,
+    despesaTotal: rawKpis?.despesaTotal ?? 0,
+    lucro: rawKpis?.lucro ?? 0,
+    margem: rawKpis?.margem ?? 0,
+    itensCriticos: rawKpis?.itensCriticos ?? 0,
+    recebimentosPendentes:
+      (rawKpis as typeof rawKpis & { recebimentosPendentes?: number })
+        ?.recebimentosPendentes ?? 0,
+  };
 
-      const dashboardData = (await res.json()) as DashboardData;
-      setData(dashboardData);
-    } catch (error) {
-      console.error("Erro ao carregar dashboard:", error);
-      setData(null);
-    } finally {
-      setLoading(false);
+  const alertas = dashboard?.alertas ?? [];
+
+  const dashboardMode: DashboardMode = useMemo(() => {
+    if (kpis.itensCriticos > 0) return "estoque";
+    if (kpis.lucro < 0) return "financeiro";
+    if (kpis.recebimentosPendentes > 0) return "recebimento";
+    return "normal";
+  }, [kpis.itensCriticos, kpis.lucro, kpis.recebimentosPendentes]);
+
+  const heroCopy = useMemo(() => {
+    switch (dashboardMode) {
+      case "estoque":
+        return {
+          title: `Bom dia, ${firstName} 👋`,
+          subtitle:
+            "Seu estoque já mostrou o que merece prioridade agora. Se agir nisso primeiro, você protege produção, compra e ritmo da operação.",
+          cta: "Gerar lista inteligente",
+          action: () => router.push("/app/lista-compras"),
+          tag: "prioridade do dia: reposição",
+        };
+      case "financeiro":
+        return {
+          title: `Bom dia, ${firstName} 👋`,
+          subtitle:
+            "Seu financeiro está pedindo atenção. Resolver isso agora ajuda a proteger o caixa e sustentar melhor as próximas decisões.",
+          cta: "Revisar financeiro",
+          action: () => router.push("/app/financeiro"),
+          tag: "prioridade do dia: proteger caixa",
+        };
+      case "recebimento":
+        return {
+          title: `Bom dia, ${firstName} 👋`,
+          subtitle:
+            "Há recebimentos aguardando conferência. Colocar isso em ordem agora mantém compras, estoque e financeiro alinhados.",
+          cta: "Conferir recebimentos",
+          action: () => router.push("/app/recebimento"),
+          tag: "prioridade do dia: concluir conferências",
+        };
+      default:
+        return {
+          title: `Bom dia, ${firstName} 👋`,
+          subtitle:
+            "Sua operação mostra bons sinais hoje. Este é um ótimo momento para revisar oportunidades e deixar o sistema te ajudar a decidir melhor.",
+          cta: "Ver recomendações da IA",
+          action: () => router.push("/app/assessor-ia"),
+          tag: "prioridade do dia: aproveitar oportunidades",
+        };
     }
-  }
+  }, [dashboardMode, firstName, router]);
 
-  function formatCurrency(value: number | null | undefined) {
-    if (value === null || value === undefined) return "R$ 0,00";
+  const fluxoLabel = useMemo(() => {
+    if (kpis.lucro < 0) {
+      return {
+        text: "Fluxo: Negativo",
+        color: "bg-red-500",
+        tone: "text-red-600",
+      };
+    }
 
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(value);
-  }
+    if (kpis.itensCriticos > 0 || kpis.recebimentosPendentes > 0) {
+      return {
+        text: "Fluxo: Atenção",
+        color: "bg-yellow-500",
+        tone: "text-yellow-600",
+      };
+    }
 
-  const pieData = useMemo(() => {
-    return (
-      data?.porCategoria.map((cat) => ({
-        name: cat.categoria,
-        value: cat.valor_previsto || 0,
-      })) || []
-    );
-  }, [data]);
+    return {
+      text: "Fluxo: Saudável",
+      color: "bg-green-500",
+      tone: "text-green-600",
+    };
+  }, [kpis.lucro, kpis.itensCriticos, kpis.recebimentosPendentes]);
 
-  const barData = useMemo(() => {
-    return (
-      data?.porCategoria.map((cat) => ({
-        categoria: cat.categoria.substring(0, 8),
-        previsto: cat.valor_previsto || 0,
-        pago: cat.valor_pago || 0,
-      })) || []
-    );
-  }, [data]);
+  const progressoOperacao = useMemo(() => {
+    const estoqueScore =
+      kpis.itensCriticos === 0 ? 92 : Math.max(35, 92 - kpis.itensCriticos * 18);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-yellow-50 to-orange-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 flex items-center justify-center">
-        <div className="w-10 h-10 animate-spin rounded-full border-4 border-amber-500 border-t-transparent" />
-      </div>
-    );
-  }
+    const financeiroScore =
+      kpis.lucro >= 0
+        ? 82
+        : Math.max(30, 82 - Math.min(40, Math.abs(kpis.lucro) / 100));
+
+    const recebimentoScore =
+      kpis.recebimentosPendentes === 0
+        ? 90
+        : Math.max(45, 90 - kpis.recebimentosPendentes * 20);
+
+    return {
+      estoque: estoqueScore,
+      financeiro: financeiroScore,
+      recebimentos: recebimentoScore,
+    };
+  }, [kpis.itensCriticos, kpis.lucro, kpis.recebimentosPendentes]);
+
+  const attentionItems = useMemo(() => {
+    const items: Array<{
+      icon: ReactNode;
+      title: string;
+      description: string;
+      button: string;
+      action: () => void;
+      tone: "warning" | "danger" | "neutral";
+    }> = [];
+
+    if (kpis.itensCriticos > 0) {
+      items.push({
+        icon: <ShieldAlert className="w-5 h-5" />,
+        title: "Estoque pedindo atenção",
+        description: `${kpis.itensCriticos} itens estão abaixo do nível ideal e já podem impactar sua operação.`,
+        button: "Ver lista de compras",
+        action: () => router.push("/app/lista-compras"),
+        tone: "warning",
+      });
+    }
+
+    if (kpis.lucro < 0) {
+      items.push({
+        icon: <CircleDollarSign className="w-5 h-5" />,
+        title: "Financeiro sob pressão",
+        description: `O lucro atual está em ${moneyBRL(
+          kpis.lucro,
+        )}. Vale revisar despesas e vencimentos agora.`,
+        button: "Abrir financeiro",
+        action: () => router.push("/app/financeiro"),
+        tone: "danger",
+      });
+    }
+
+    if (kpis.recebimentosPendentes > 0) {
+      items.push({
+        icon: <ClipboardCheck className="w-5 h-5" />,
+        title: "Recebimentos aguardando conferência",
+        description: `${kpis.recebimentosPendentes} movimentações ainda precisam ser conferidas para manter tudo consistente.`,
+        button: "Conferir recebimentos",
+        action: () => router.push("/app/recebimento"),
+        tone: "warning",
+      });
+    }
+
+    if (items.length === 0) {
+      items.push({
+        icon: <Sparkles className="w-5 h-5" />,
+        title: "Operação em bom ritmo",
+        description:
+          "Hoje o cenário está mais estável. É um bom momento para aproveitar oportunidades e revisar recomendações da IA.",
+        button: "Ver recomendações",
+        action: () => router.push("/app/assessor-ia"),
+        tone: "neutral",
+      });
+    }
+
+    return items.slice(0, 3);
+  }, [kpis.itensCriticos, kpis.lucro, kpis.recebimentosPendentes, router]);
+
+  const quickActions = useMemo(
+    () => [
+      {
+        label: "Lançar compra",
+        icon: <Package className="w-4 h-4" />,
+        action: () => router.push("/app/compras"),
+      },
+      {
+        label: "Ver estoque",
+        icon: <ShieldAlert className="w-4 h-4" />,
+        action: () => router.push("/app/estoque"),
+      },
+      {
+        label: "Abrir financeiro",
+        icon: <Wallet className="w-4 h-4" />,
+        action: () => router.push("/app/financeiro"),
+      },
+      {
+        label: "Assessor IA",
+        icon: <Brain className="w-4 h-4" />,
+        action: () => router.push("/app/assessor-ia"),
+      },
+    ],
+    [router],
+  );
+
+  const iaHeadline = useMemo(() => {
+    if (kpis.itensCriticos > 0) {
+      return {
+        title: "A IA viu risco de reposição",
+        text: `Existem ${kpis.itensCriticos} itens críticos no estoque. Gerar uma lista agora ajuda a evitar falta e compra no susto.`,
+      };
+    }
+
+    if (kpis.lucro < 0) {
+      return {
+        title: "A IA viu pressão no lucro",
+        text: `Seu lucro está em ${moneyBRL(
+          kpis.lucro,
+        )}. Pode ser um bom momento para revisar despesas e categorias com maior peso.`,
+      };
+    }
+
+    if (kpis.recebimentosPendentes > 0) {
+      return {
+        title: "A IA viu pendências operacionais",
+        text: `Há ${kpis.recebimentosPendentes} recebimentos aguardando conferência. Resolver isso melhora a consistência da operação.`,
+      };
+    }
+
+    return {
+      title: "A IA viu espaço para melhorar",
+      text: "Hoje o cenário está mais estável. Esse é um bom momento para revisar oportunidades e agir antes do problema aparecer.",
+    };
+  }, [kpis.itensCriticos, kpis.lucro, kpis.recebimentosPendentes]);
+
+  const maxABC =
+    abcData && abcData.length > 0
+      ? Math.max(...abcData.map((item: ABCCategoria) => item.valor), 1)
+      : 1;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-yellow-50 to-orange-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
-      <header className="sticky top-0 z-10 border-b border-amber-100 bg-white/80 backdrop-blur-sm dark:border-gray-700 dark:bg-gray-900/80">
-        <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-4">
-          <Link
-            href="/app"
-            className="rounded-lg p-2 transition-colors hover:bg-amber-100 dark:hover:bg-gray-800"
-          >
-            <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-gray-300" />
-          </Link>
+    <div className="space-y-10 animate-in fade-in duration-700">
+      <Card className="border-0 rounded-[40px] overflow-hidden bg-gradient-to-br from-gray-950 via-zinc-900 to-orange-950 text-white shadow-2xl">
+        <CardContent className="p-8 md:p-10">
+          <div className="flex flex-col gap-8">
+            <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-8">
+              <div className="max-w-3xl">
+                <div className="inline-flex items-center gap-2 rounded-full border border-orange-500/20 bg-orange-500/10 px-4 py-2 mb-5">
+                  <Sparkles className="w-4 h-4 text-orange-400" />
+                  <span className="text-[10px] font-black uppercase tracking-[0.25em] text-orange-300 italic">
+                    painel inteligente ativo
+                  </span>
+                </div>
 
-          <div className="flex items-center gap-2">
-            <img
-              src={LOGO_URL}
-              alt="Pappi Gestor"
-              className="w-10 h-10 object-contain"
+                <h1 className="text-3xl md:text-5xl font-black italic uppercase tracking-tighter leading-none">
+                  {heroCopy.title}
+                </h1>
+
+                <p className="mt-5 text-sm md:text-base text-zinc-300 max-w-2xl leading-relaxed">
+                  {heroCopy.subtitle}
+                </p>
+
+                <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2">
+                  <Clock3 className="w-4 h-4 text-orange-300" />
+                  <span className="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-200 italic">
+                    {heroCopy.tag}
+                  </span>
+                </div>
+
+                <div className="mt-6 flex flex-wrap items-center gap-3">
+                  <Button
+                    onClick={heroCopy.action}
+                    className="bg-orange-600 hover:bg-orange-500 rounded-2xl h-14 px-7 text-xs md:text-sm font-black italic uppercase tracking-wider shadow-xl shadow-orange-950/40"
+                  >
+                    {heroCopy.cta}
+                    <ArrowRight className="ml-2 w-4 h-4" />
+                  </Button>
+
+                  <Button
+                    onClick={refresh}
+                    variant="outline"
+                    className="rounded-2xl h-14 px-5 gap-2 border-white/15 bg-white/5 text-white hover:bg-white/10 hover:text-white"
+                  >
+                    {loading ? (
+                      <Loader2 className="animate-spin" size={16} />
+                    ) : (
+                      <RefreshCcw size={16} />
+                    )}
+                    <span className="text-[10px] font-black uppercase tracking-widest italic">
+                      Atualizar painel
+                    </span>
+                  </Button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 min-w-full xl:min-w-[430px]">
+                <MiniPulseCard
+                  icon={<Package className="w-4 h-4" />}
+                  label="Estoque"
+                  value={`${kpis.itensCriticos} críticos`}
+                  helper="itens pedindo ação"
+                />
+                <MiniPulseCard
+                  icon={<Wallet className="w-4 h-4" />}
+                  label="Lucro"
+                  value={moneyBRL(kpis.lucro)}
+                  helper="resultado atual"
+                />
+                <MiniPulseCard
+                  icon={<Truck className="w-4 h-4" />}
+                  label="Recebimentos"
+                  value={`${kpis.recebimentosPendentes} pendentes`}
+                  helper="aguardando conferência"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-[1.35fr_0.65fr] gap-4">
+              <div className="rounded-[30px] border border-white/10 bg-white/5 backdrop-blur-sm p-5">
+                <div className="flex items-start gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-500/15 border border-orange-500/20">
+                    <Brain className="w-6 h-6 text-orange-300" />
+                  </div>
+
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.24em] text-orange-300 italic mb-2">
+                      sugestão da ia
+                    </p>
+                    <h3 className="text-lg font-black italic uppercase tracking-tight text-white">
+                      {iaHeadline.title}
+                    </h3>
+                    <p className="text-sm text-zinc-300 leading-relaxed mt-2 max-w-2xl">
+                      {iaHeadline.text}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-[30px] border border-white/10 bg-white/5 backdrop-blur-sm p-5">
+                <p className="text-[10px] font-black uppercase tracking-[0.24em] text-zinc-300 italic mb-4">
+                  ações rápidas
+                </p>
+
+                <div className="grid grid-cols-2 gap-3">
+                  {quickActions.map((item) => (
+                    <button
+                      key={item.label}
+                      type="button"
+                      onClick={item.action}
+                      className="rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 transition-all px-4 py-4 text-left"
+                    >
+                      <div className="flex items-center gap-2 text-orange-300 mb-2">
+                        {item.icon}
+                        <span className="text-[10px] font-black uppercase tracking-[0.18em] italic">
+                          atalho
+                        </span>
+                      </div>
+                      <p className="text-sm font-black italic uppercase tracking-tight text-white">
+                        {item.label}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-2xl md:text-3xl font-black italic uppercase tracking-tighter text-gray-900 leading-none">
+            Hoje merece sua atenção
+          </h2>
+          <p className="text-sm text-gray-500 mt-2">
+            O sistema separou o que pode gerar mais impacto agora para você agir com foco.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          {attentionItems.map((item, index) => (
+            <AttentionCard
+              key={index}
+              icon={item.icon}
+              title={item.title}
+              description={item.description}
+              button={item.button}
+              onClick={item.action}
+              tone={item.tone}
             />
+          ))}
+        </div>
+      </div>
+
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div>
+          <h2 className="text-3xl font-black italic uppercase tracking-tighter text-gray-900 leading-none">
+            Painel Estratégico
+          </h2>
+          <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] mt-3 italic">
+            métricas de performance da {localUser?.nome_empresa || "sua empresa"}
+          </p>
+        </div>
+
+        <div className="flex gap-2 items-center">
+          <div className="bg-white border border-gray-100 rounded-2xl px-6 py-3 shadow-sm flex items-center gap-3">
+            <div className={`w-2 h-2 rounded-full ${fluxoLabel.color}`} />
+            <span className="text-[10px] font-black uppercase italic text-gray-500">
+              {fluxoLabel.text}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {error && (
+        <div className="rounded-2xl border border-red-100 bg-red-50 p-4 text-red-700">
+          <p className="text-sm font-bold">Erro ao carregar dashboard: {error}</p>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard
+          title="Receita Total"
+          value={moneyBRL(kpis.receitaTotal)}
+          trend={loading ? "Carregando..." : "Últimos lançamentos"}
+          isPositive={true}
+          loading={loading}
+        />
+        <StatCard
+          title="Despesa Total"
+          value={moneyBRL(kpis.despesaTotal)}
+          trend={loading ? "Carregando..." : "Últimos lançamentos"}
+          isPositive={false}
+          loading={loading}
+        />
+        <StatCard
+          title="Lucro"
+          value={moneyBRL(kpis.lucro)}
+          trend={loading ? "..." : `Margem ${kpis.margem}%`}
+          isPositive={kpis.lucro >= 0}
+          loading={loading}
+        />
+        <StatCard
+          title="Estoque Crítico"
+          value={String(kpis.itensCriticos)}
+          trend={
+            loading
+              ? "..."
+              : kpis.itensCriticos > 0
+                ? "Atenção imediata"
+                : "Operação estável"
+          }
+          isPositive={kpis.itensCriticos === 0 ? true : null}
+          loading={loading}
+        />
+      </div>
+
+      <Card className="border-gray-100 rounded-[35px] bg-white shadow-sm p-8">
+        <CardContent className="p-0">
+          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-6">
             <div>
-              <h1 className="font-bold text-gray-800 dark:text-white">
-                Pappi Gestor
-              </h1>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Dashboard Financeiro
+              <h3 className="text-xl font-black italic uppercase tracking-tighter text-gray-900">
+                Progresso da Operação
+              </h3>
+              <p className="text-sm text-gray-500 mt-1">
+                Um retrato rápido do quanto sua rotina está organizada hoje.
               </p>
             </div>
-          </div>
-        </div>
-      </header>
 
-      <main className="mx-auto max-w-6xl px-4 py-8">
-        <div className="mb-8 flex items-start justify-between gap-4">
-          <div>
-            <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-orange-100 px-3 py-1 text-sm font-medium text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
-              <LayoutDashboard className="w-4 h-4" />
-              Painel Operacional
-            </div>
-            <h2 className="text-3xl font-bold text-gray-800 dark:text-white">
-              Visão geral do financeiro
-            </h2>
-            <p className="mt-2 text-sm text-orange-700 dark:text-orange-300">
-              Pappi Gestor — Inteligência em tempo real.
+            <p className={`text-xs font-black uppercase italic ${fluxoLabel.tone}`}>
+              {dashboardMode === "estoque" &&
+                "Prioridade de hoje: proteger reposição e abastecimento"}
+              {dashboardMode === "financeiro" &&
+                "Prioridade de hoje: proteger o caixa"}
+              {dashboardMode === "recebimento" &&
+                "Prioridade de hoje: concluir conferências"}
+              {dashboardMode === "normal" &&
+                "Prioridade de hoje: aproveitar oportunidades"}
             </p>
           </div>
-        </div>
 
-        <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4">
-          <Card className="border-0 shadow-lg bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-200 dark:bg-gray-600">
-                  <FileText className="w-5 h-5 text-gray-600 dark:text-gray-200" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-gray-800 dark:text-white">
-                    {data?.totais.total_aguardando || 0}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Aguardando
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <ProgressMetric
+              label="Estoque revisado"
+              value={progressoOperacao.estoque}
+              barClass="bg-green-500"
+            />
+            <ProgressMetric
+              label="Financeiro organizado"
+              value={progressoOperacao.financeiro}
+              barClass="bg-purple-500"
+            />
+            <ProgressMetric
+              label="Recebimentos conferidos"
+              value={progressoOperacao.recebimentos}
+              barClass="bg-orange-500"
+            />
+          </div>
+        </CardContent>
+      </Card>
 
-          <Card className="border-0 shadow-lg bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-200 dark:bg-blue-800">
-                  <Clock className="w-5 h-5 text-blue-600 dark:text-blue-200" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-blue-800 dark:text-blue-100">
-                    {data?.totais.total_a_pagar || 0}
-                  </p>
-                  <p className="text-xs text-blue-600 dark:text-blue-300">
-                    A Pagar
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <Card className="lg:col-span-2 border-gray-100 rounded-[45px] bg-white shadow-xl overflow-hidden p-10">
+          <div className="flex items-center justify-between mb-8">
+            <h3 className="text-xl font-black italic uppercase tracking-tighter text-gray-800 flex items-center gap-2">
+              <BarChart3 className="text-orange-500" /> Curva ABC de Gastos
+            </h3>
+            <span className="text-[9px] font-black uppercase bg-gray-50 px-3 py-1 rounded-full text-gray-400 italic">
+              Últimos 30 dias
+            </span>
+          </div>
 
-          <Card className="border-0 shadow-lg bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-200 dark:bg-green-800">
-                  <Check className="w-5 h-5 text-green-600 dark:text-green-200" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-green-800 dark:text-green-100">
-                    {data?.totais.total_pagos || 0}
-                  </p>
-                  <p className="text-xs text-green-600 dark:text-green-300">
-                    Pagos
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-0 shadow-lg bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-950 dark:to-amber-900">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-200 dark:bg-amber-800">
-                  <DollarSign className="w-5 h-5 text-amber-600 dark:text-amber-200" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-amber-800 dark:text-amber-100">
-                    {data?.totais.total_lancamentos || 0}
-                  </p>
-                  <p className="text-xs text-amber-600 dark:text-amber-300">
-                    Total
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="mb-8 grid gap-4 md:grid-cols-2">
-          <Card className="border-0 shadow-lg">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="mb-1 text-sm text-gray-500 dark:text-gray-400">
-                    Valor Previsto Total
-                  </p>
-                  <p className="text-3xl font-bold text-gray-800 dark:text-white">
-                    {formatCurrency(data?.totais.valor_previsto_total || 0)}
-                  </p>
-                </div>
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-orange-100 dark:bg-orange-900/50">
-                  <TrendingUp className="w-7 h-7 text-orange-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-0 shadow-lg">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="mb-1 text-sm text-gray-500 dark:text-gray-400">
-                    Valor Pago Total
-                  </p>
-                  <p className="text-3xl font-bold text-green-600 dark:text-green-400">
-                    {formatCurrency(data?.totais.valor_pago_total || 0)}
-                  </p>
-                </div>
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-green-100 dark:bg-green-900/50">
-                  <TrendingDown className="w-7 h-7 text-green-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-2">
-          <Card className="border-0 shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-lg text-gray-800 dark:text-white">
-                Gastos por Categoria
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {pieData.length > 0 ? (
-                <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={pieData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={90}
-                        paddingAngle={2}
-                        dataKey="value"
-                        labelLine={false}
-                      >
-                        {pieData.map((_, index) => (
-                          <Cell
-                            key={`cell-${index}`}
-                            fill={COLORS[index % COLORS.length]}
-                          />
-                        ))}
-                      </Pie>
-                      <Tooltip
-                        formatter={(value) => formatCurrency(value as number)}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              ) : (
-                <div className="flex h-64 items-center justify-center text-gray-400">
-                  Sem dados para exibir
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="border-0 shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-lg text-gray-800 dark:text-white">
-                Previsto vs Pago
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {barData.length > 0 ? (
-                <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={barData} layout="vertical">
-                      <XAxis
-                        type="number"
-                        tickFormatter={(v: number) =>
-                          `R$${(v / 1000).toFixed(0)}k`
-                        }
-                      />
-                      <YAxis
-                        type="category"
-                        dataKey="categoria"
-                        width={70}
-                      />
-                      <Tooltip
-                        formatter={(value) => formatCurrency(value as number)}
-                      />
-                      <Legend />
-                      <Bar
-                        dataKey="previsto"
-                        fill="#f97316"
-                        name="Previsto"
-                        radius={[0, 4, 4, 0]}
-                      />
-                      <Bar
-                        dataKey="pago"
-                        fill="#22c55e"
-                        name="Pago"
-                        radius={[0, 4, 4, 0]}
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              ) : (
-                <div className="flex h-64 items-center justify-center text-gray-400">
-                  Sem dados para exibir
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        <Card className="mt-6 border-0 shadow-lg">
-          <CardHeader>
-            <CardTitle className="text-lg text-gray-800 dark:text-white">
-              Resumo por Categoria
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto rounded-xl">
-              <table className="w-full min-w-[720px]">
-                <thead>
-                  <tr className="border-b">
-                    <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-gray-300">
-                      Categoria
-                    </th>
-                    <th className="px-4 py-3 text-center font-medium text-gray-600 dark:text-gray-300">
-                      Qtd
-                    </th>
-                    <th className="px-4 py-3 text-right font-medium text-gray-600 dark:text-gray-300">
-                      Previsto
-                    </th>
-                    <th className="px-4 py-3 text-right font-medium text-gray-600 dark:text-gray-300">
-                      Pago
-                    </th>
-                    <th className="px-4 py-3 text-right font-medium text-gray-600 dark:text-gray-300">
-                      Diferença
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data?.porCategoria?.map((cat, i) => (
-                    <tr
-                      key={cat.categoria}
-                      className="border-b last:border-0 hover:bg-gray-50 dark:hover:bg-gray-800/50"
-                    >
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2 text-gray-800 dark:text-gray-100">
-                          <div
-                            className="h-3 w-3 rounded-full"
-                            style={{
-                              backgroundColor: COLORS[i % COLORS.length],
-                            }}
-                          />
-                          {cat.categoria}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-center text-gray-700 dark:text-gray-200">
-                        {cat.quantidade}
-                      </td>
-                      <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-200">
-                        {formatCurrency(cat.valor_previsto)}
-                      </td>
-                      <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-200">
-                        {formatCurrency(cat.valor_pago)}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <span
-                          className={
-                            cat.valor_previsto - cat.valor_pago >= 0
-                              ? "text-green-600"
-                              : "text-red-600"
-                          }
-                        >
-                          {formatCurrency(cat.valor_previsto - cat.valor_pago)}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-
-                  {!data?.porCategoria?.length && (
-                    <tr>
-                      <td
-                        colSpan={5}
-                        className="px-4 py-8 text-center text-gray-400"
-                      >
-                        Nenhum dado por categoria encontrado.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+          {abcLoading ? (
+            <div className="h-64 flex items-center justify-center">
+              <Loader2 className="animate-spin text-orange-500" size={28} />
             </div>
-          </CardContent>
+          ) : (abcData ?? []).length === 0 ? (
+            <div className="h-64 flex items-center justify-center text-center">
+              <div>
+                <p className="text-sm font-bold text-gray-500">
+                  Ainda não há dados suficientes para montar a Curva ABC.
+                </p>
+                <p className="text-xs text-gray-400 mt-2">
+                  Cadastre produtos com categoria, custo e estoque para ativar esta visão.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="h-64 flex items-end gap-4 px-4">
+              {(abcData ?? []).slice(0, 6).map((item: ABCCategoria, i: number) => {
+                const height = (item.valor / maxABC) * 100;
+
+                return (
+                  <div
+                    key={i}
+                    className="flex-1 bg-gradient-to-t from-orange-500 to-pink-500 rounded-t-2xl relative group transition-all hover:opacity-90"
+                    style={{ height: `${Math.max(10, height)}%` }}
+                    title={`${item.categoria}: ${moneyBRL(item.valor)}`}
+                  >
+                    <span className="absolute -top-8 left-1/2 -translate-x-1/2 text-[10px] font-black opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                      {item.categoria}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {(abcData ?? []).slice(0, 6).map((item: ABCCategoria, i: number) => (
+              <div
+                key={i}
+                className="rounded-2xl bg-gray-50 border border-gray-100 px-4 py-3 flex items-center justify-between"
+              >
+                <span className="text-xs font-black uppercase italic text-gray-600">
+                  {item.categoria}
+                </span>
+                <span className="text-xs font-bold text-gray-500">
+                  {moneyBRL(item.valor)}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <p className="mt-6 text-[10px] font-bold uppercase tracking-widest text-gray-400 italic">
+            Esta visão mostra onde o capital do estoque está mais concentrado por categoria.
+          </p>
         </Card>
-      </main>
+
+        <Card className="border-gray-100 rounded-[45px] bg-gray-900 text-white shadow-xl p-10 relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-8 opacity-10">
+            <Target size={120} />
+          </div>
+
+          <h3 className="text-xl font-black italic uppercase tracking-tighter mb-3 flex items-center gap-2 relative z-10">
+            <AlertTriangle className="text-yellow-400" size={20} /> Alertas IA
+          </h3>
+
+          <p className="text-xs text-zinc-400 mb-8 relative z-10">
+            O sistema cruzou sinais da operação e separou o que mais merece sua atenção.
+          </p>
+
+          <div className="space-y-6 relative z-10">
+            {loading ? (
+              <div className="flex items-center gap-2 text-xs font-bold italic opacity-80">
+                <Loader2 className="animate-spin" size={16} />
+                Carregando insights...
+              </div>
+            ) : alertas.length === 0 ? (
+              <AlertItem text="Nenhum alerta crítico agora. Tudo sob controle ✅" />
+            ) : (
+              alertas.slice(0, 4).map((a, idx) => <AlertItem key={idx} text={a.texto} />)
+            )}
+          </div>
+
+          <Button
+            onClick={() => router.push("/app/assessor-ia")}
+            className="w-full mt-12 bg-white/10 hover:bg-white/20 border border-white/20 rounded-2xl h-14 font-black italic uppercase text-[10px] tracking-widest transition-all"
+          >
+            Ver todos os insights <ArrowRight size={14} className="ml-2" />
+          </Button>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function AttentionCard({
+  icon,
+  title,
+  description,
+  button,
+  onClick,
+  tone,
+}: {
+  icon: ReactNode;
+  title: string;
+  description: string;
+  button: string;
+  onClick: () => void;
+  tone: "warning" | "danger" | "neutral";
+}) {
+  const toneClasses =
+    tone === "danger"
+      ? "border-red-100 bg-red-50"
+      : tone === "warning"
+        ? "border-yellow-100 bg-yellow-50"
+        : "border-green-100 bg-green-50";
+
+  return (
+    <Card className={`rounded-[30px] shadow-sm border ${toneClasses}`}>
+      <CardContent className="p-6">
+        <div className="flex items-center gap-3 mb-4 text-gray-800">
+          <div className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center shadow-sm">
+            {icon}
+          </div>
+          <h3 className="text-base font-black italic uppercase tracking-tight">
+            {title}
+          </h3>
+        </div>
+
+        <p className="text-sm text-gray-600 leading-relaxed">{description}</p>
+
+        <Button
+          onClick={onClick}
+          variant="outline"
+          className="mt-5 rounded-2xl text-[10px] font-black uppercase italic tracking-widest"
+        >
+          {button}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+function MiniPulseCard({
+  icon,
+  label,
+  value,
+  helper,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: string;
+  helper: string;
+}) {
+  return (
+    <div className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-sm p-4">
+      <div className="flex items-center gap-2 text-orange-300 mb-2">
+        {icon}
+        <span className="text-[10px] font-black uppercase tracking-[0.2em] italic">
+          {label}
+        </span>
+      </div>
+      <p className="text-lg font-black italic uppercase tracking-tight text-white">
+        {value}
+      </p>
+      <p className="text-[10px] text-zinc-400 mt-2 uppercase tracking-[0.16em] font-bold italic">
+        {helper}
+      </p>
+    </div>
+  );
+}
+
+function ProgressMetric({
+  label,
+  value,
+  barClass,
+}: {
+  label: string;
+  value: number;
+  barClass: string;
+}) {
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-sm font-bold text-gray-700">{label}</p>
+        <span className="text-xs font-black uppercase italic text-gray-500">
+          {value}%
+        </span>
+      </div>
+      <div className="w-full bg-gray-100 h-3 rounded-full overflow-hidden">
+        <div className={`h-3 rounded-full ${barClass}`} style={{ width: `${value}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function StatCard({
+  title,
+  value,
+  trend,
+  isPositive,
+  loading,
+}: {
+  title: string;
+  value: string;
+  trend: string;
+  isPositive: boolean | null;
+  loading?: boolean;
+}) {
+  return (
+    <Card className="border-gray-100 rounded-[35px] bg-white shadow-sm hover:shadow-lg transition-all p-8">
+      <CardContent className="p-0">
+        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2 italic">
+          {title}
+        </p>
+
+        <h4 className="text-3xl font-black italic uppercase tracking-tighter text-gray-900">
+          {loading ? "—" : value}
+        </h4>
+
+        <div
+          className={`mt-4 flex items-center gap-1 text-[10px] font-black uppercase italic ${
+            isPositive === null
+              ? "text-gray-400"
+              : isPositive
+                ? "text-green-600"
+                : "text-red-500"
+          }`}
+        >
+          {isPositive !== null &&
+            (isPositive ? <TrendingUp size={14} /> : <TrendingDown size={14} />)}
+          {trend}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function AlertItem({ text }: { text: string }) {
+  return (
+    <div className="flex items-start gap-4 group cursor-pointer">
+      <div className="w-1.5 h-1.5 rounded-full bg-orange-500 mt-1.5 group-hover:scale-150 transition-transform" />
+      <p className="text-xs font-bold italic opacity-80 group-hover:opacity-100 transition-opacity leading-relaxed">
+        {text}
+      </p>
     </div>
   );
 }

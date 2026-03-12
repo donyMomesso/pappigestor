@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
+import { Button } from "@/react-app/components/ui/button";
+import { Input } from "@/react-app/components/ui/input";
+import { Card, CardContent } from "@/react-app/components/ui/card";
+import { Label } from "@/react-app/components/ui/label";
 import {
   ArrowLeft,
   Calculator,
@@ -55,8 +55,8 @@ export default function PrecificacaoPage() {
   const [isSaving, setIsSaving] = useState(false);
 
   const getHeaders = useCallback(() => {
-    const pId = localStorage.getItem("pId") || localStorage.getItem("empresaId") || "";
-    return { "Content-Type": "application/json", "x-empresa-id": pId };
+    const pId = localStorage.getItem("pId") || localStorage.getItem("pizzariaId") || "";
+    return { "Content-Type": "application/json", "x-pizzaria-id": pId };
   }, []);
 
   useEffect(() => {

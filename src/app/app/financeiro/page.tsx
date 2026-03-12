@@ -1,19 +1,18 @@
 "use client";
-export const dynamic = "force-dynamic";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { useAppAuth } from "@/contexts/AppAuthContext";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
+import { useAppAuth } from "@/react-app/contexts/AppAuthContext";
+import { Button } from "@/react-app/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/react-app/components/ui/card";
+import { Input } from "@/react-app/components/ui/input";
+import { Label } from "@/react-app/components/ui/label";
+import { Badge } from "@/react-app/components/ui/badge";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@/react-app/components/ui/dialog";
 import {
   Calculator,
   FileText,
@@ -37,15 +36,15 @@ import {
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/react-app/components/ui/tabs";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
+} from "@/react-app/components/ui/select";
+import { Textarea } from "@/react-app/components/ui/textarea";
 
 type LocalUserMinimo = {
   empresa_id?: string;
@@ -177,16 +176,13 @@ export default function FinanceiroPage() {
   const [empresa, setEmpresa] = useState<Empresa | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [filter, setFilter] = useState<StatusFilter>("todos");
-  const [selectedLancamento, setSelectedLancamento] =
-    useState<Lancamento | null>(null);
+  const [selectedLancamento, setSelectedLancamento] = useState<Lancamento | null>(null);
   const [saving, setSaving] = useState<boolean>(false);
 
   const [payDialogOpen, setPayDialogOpen] = useState<boolean>(false);
-  const [payingLancamento, setPayingLancamento] =
-    useState<Lancamento | null>(null);
+  const [payingLancamento, setPayingLancamento] = useState<Lancamento | null>(null);
   const [comprovanteUrl, setComprovanteUrl] = useState<string | null>(null);
-  const [uploadingComprovante, setUploadingComprovante] =
-    useState<boolean>(false);
+  const [uploadingComprovante, setUploadingComprovante] = useState<boolean>(false);
 
   const [boletosDDA, setBoletosDDA] = useState<BoletoDDA[]>([]);
   const [loadingDDA, setLoadingDDA] = useState<boolean>(false);
@@ -220,7 +216,7 @@ export default function FinanceiroPage() {
     const empresaIdStorage =
       localStorage.getItem("empresa_id") ||
       localStorage.getItem("pId") ||
-      localStorage.getItem("empresaId") ||
+      localStorage.getItem("pizzariaId") ||
       "";
 
     const userEmailStorage =
@@ -290,9 +286,6 @@ export default function FinanceiroPage() {
       }
     } catch (error) {
       console.error("Erro ao carregar dados financeiros:", error);
-      setLancamentos([]);
-      setFornecedores([]);
-      setEmpresa(null);
     } finally {
       setLoading(false);
     }
@@ -342,11 +335,9 @@ export default function FinanceiroPage() {
           valor_previsto: valor,
           is_boleto_recebido: true,
           valor_real: valor,
-          vencimento_real:
-            manualForm.data_pagamento || new Date().toISOString().split("T")[0],
+          vencimento_real: manualForm.data_pagamento || new Date().toISOString().split("T")[0],
           data_pagamento: manualForm.is_pago
-            ? manualForm.data_pagamento ||
-              new Date().toISOString().split("T")[0]
+            ? manualForm.data_pagamento || new Date().toISOString().split("T")[0]
             : null,
           observacao: manualForm.descricao,
           is_manual: true,
@@ -379,7 +370,7 @@ export default function FinanceiroPage() {
 
   async function handlePagarDDA(boleto: BoletoDDA): Promise<void> {
     const confirmado = window.confirm(
-      `Confirmar pagamento de ${formatCurrency(boleto.valor)} para ${boleto.fornecedor_nome}?`,
+      `Confirmar pagamento de ${formatCurrency(boleto.valor)} para ${boleto.fornecedor_nome}?`
     );
     if (!confirmado) return;
 
@@ -408,7 +399,7 @@ export default function FinanceiroPage() {
 
   function getFornecedorWhatsApp(fornecedorNome: string): string {
     const fornecedor = fornecedores.find(
-      (f) => f.nome_fantasia.toLowerCase() === fornecedorNome.toLowerCase(),
+      (f) => f.nome_fantasia.toLowerCase() === fornecedorNome.toLowerCase()
     );
     return fornecedor?.telefone_whatsapp?.replace(/\D/g, "") || "";
   }
@@ -416,9 +407,7 @@ export default function FinanceiroPage() {
   function handleDarBaixa(lancamento: Lancamento): void {
     setSelectedLancamento(lancamento);
     setFormData({
-      valor_real:
-        lancamento.valor_real?.toString() ||
-        lancamento.valor_previsto.toString(),
+      valor_real: lancamento.valor_real?.toString() || lancamento.valor_previsto.toString(),
       vencimento_real: lancamento.vencimento_real || "",
     });
   }
@@ -524,7 +513,6 @@ export default function FinanceiroPage() {
 
   function formatCurrency(value: number | null): string {
     if (value === null) return "-";
-
     return new Intl.NumberFormat("pt-BR", {
       style: "currency",
       currency: "BRL",
@@ -539,41 +527,33 @@ export default function FinanceiroPage() {
   function generateWhatsAppDivergencia(lancamento: Lancamento): string {
     const phone = getFornecedorWhatsApp(lancamento.fornecedor);
     const msg = `Olá ${lancamento.fornecedor}, identificamos uma divergência. O pedido foi fechado em ${formatCurrency(
-      lancamento.valor_previsto,
+      lancamento.valor_previsto
     )}, mas o boleto chegou no valor de ${formatCurrency(
-      lancamento.valor_real,
+      lancamento.valor_real
     )}. Podemos corrigir?`;
-
     return `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
   }
 
   function generateWhatsAppComprovante(lancamento: Lancamento): string {
     const phone = getFornecedorWhatsApp(lancamento.fornecedor);
     const msg = `Olá ${lancamento.fornecedor}, segue o comprovante de pagamento referente ao pedido de ${formatDate(
-      lancamento.data_pedido,
-    )}. Valor: ${formatCurrency(
-      lancamento.valor_real || lancamento.valor_previsto,
-    )}. Obrigado!`;
-
+      lancamento.data_pedido
+    )}. Valor: ${formatCurrency(lancamento.valor_real || lancamento.valor_previsto)}. Obrigado!`;
     return `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
   }
 
   function generateWhatsAppAprovacao(lancamento: Lancamento): string {
     const phone = empresa?.whatsapp_admin?.replace(/\D/g, "") || "";
     const msg = `Aprovação pendente: Boleto de ${lancamento.fornecedor}, valor ${formatCurrency(
-      lancamento.valor_real || lancamento.valor_previsto,
+      lancamento.valor_real || lancamento.valor_previsto
     )}, vencimento ${formatDate(
-      lancamento.vencimento_real,
+      lancamento.vencimento_real
     )}. Responda SIM para liberar o pagamento no sistema.`;
-
     return `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
   }
 
   function hasDivergencia(lancamento: Lancamento): boolean {
-    if (lancamento.valor_real === null || lancamento.valor_previsto === null) {
-      return false;
-    }
-
+    if (lancamento.valor_real === null || lancamento.valor_previsto === null) return false;
     const diff = Math.abs(lancamento.valor_real - lancamento.valor_previsto);
     const tolerance = lancamento.valor_previsto * 0.01;
     return diff > tolerance;
@@ -618,13 +598,10 @@ export default function FinanceiroPage() {
   const lancamentosFiltradosPorData = useMemo(() => {
     return lancamentos.filter((l) => {
       if (!dataInicio && !dataFim) return true;
-
       const dataRef = l.vencimento_real || l.data_pedido;
       if (!dataRef) return true;
-
       if (dataInicio && dataRef < dataInicio) return false;
       if (dataFim && dataRef > dataFim) return false;
-
       return true;
     });
   }, [lancamentos, dataInicio, dataFim]);
@@ -639,17 +616,11 @@ export default function FinanceiroPage() {
   const totais = useMemo(() => {
     return {
       aguardando: lancamentosFiltradosPorData.filter(
-        (l) => calcularStatus(l) === "Aguardando Boleto",
+        (l) => calcularStatus(l) === "Aguardando Boleto"
       ).length,
-      aPagar: lancamentosFiltradosPorData.filter(
-        (l) => calcularStatus(l) === "A Pagar",
-      ).length,
-      atrasado: lancamentosFiltradosPorData.filter(
-        (l) => calcularStatus(l) === "Atrasado",
-      ).length,
-      pago: lancamentosFiltradosPorData.filter(
-        (l) => calcularStatus(l) === "Pago",
-      ).length,
+      aPagar: lancamentosFiltradosPorData.filter((l) => calcularStatus(l) === "A Pagar").length,
+      atrasado: lancamentosFiltradosPorData.filter((l) => calcularStatus(l) === "Atrasado").length,
+      pago: lancamentosFiltradosPorData.filter((l) => calcularStatus(l) === "Pago").length,
     };
   }, [lancamentosFiltradosPorData]);
 
@@ -657,7 +628,7 @@ export default function FinanceiroPage() {
     return {
       geral: lancamentosFiltradosPorData.reduce(
         (acc, l) => acc + (l.valor_real || l.valor_previsto),
-        0,
+        0
       ),
       aguardando: lancamentosFiltradosPorData
         .filter((l) => calcularStatus(l) === "Aguardando Boleto")
@@ -676,11 +647,9 @@ export default function FinanceiroPage() {
 
   const divergenciaModal = useMemo(() => {
     if (!selectedLancamento || !formData.valor_real) return false;
-
     const valorDigitado = Number.parseFloat(formData.valor_real || "0");
     const diferenca = Math.abs(valorDigitado - selectedLancamento.valor_previsto);
     const tolerancia = selectedLancamento.valor_previsto * 0.01;
-
     return diferenca > tolerancia;
   }, [selectedLancamento, formData.valor_real]);
 
@@ -710,16 +679,8 @@ export default function FinanceiroPage() {
 
     doc.setFontSize(10);
     doc.text(`Total Geral: ${formatCurrency(totaisValores.geral)}`, 14, 62);
-    doc.text(
-      `A Pagar: ${formatCurrency(totaisValores.aPagar)} (${totais.aPagar})`,
-      14,
-      68,
-    );
-    doc.text(
-      `Atrasados: ${formatCurrency(totaisValores.atrasado)} (${totais.atrasado})`,
-      14,
-      74,
-    );
+    doc.text(`A Pagar: ${formatCurrency(totaisValores.aPagar)} (${totais.aPagar})`, 14, 68);
+    doc.text(`Atrasados: ${formatCurrency(totaisValores.atrasado)} (${totais.atrasado})`, 14, 74);
     doc.text(`Pagos: ${formatCurrency(totaisValores.pago)} (${totais.pago})`, 14, 80);
 
     const tableData = filteredLancamentos.map((l) => [
@@ -735,30 +696,11 @@ export default function FinanceiroPage() {
 
     autoTable(doc, {
       startY: 90,
-      head: [[
-        "Data",
-        "Fornecedor",
-        "Categoria",
-        "Previsto",
-        "Real",
-        "Vencimento",
-        "Status",
-        "Pago em",
-      ]],
+      head: [["Data", "Fornecedor", "Categoria", "Previsto", "Real", "Vencimento", "Status", "Pago em"]],
       body: tableData,
       styles: { fontSize: 8, cellPadding: 2 },
       headStyles: { fillColor: [234, 88, 12], textColor: 255 },
       alternateRowStyles: { fillColor: [255, 247, 237] },
-      columnStyles: {
-        0: { cellWidth: 20 },
-        1: { cellWidth: 35 },
-        2: { cellWidth: 25 },
-        3: { cellWidth: 22 },
-        4: { cellWidth: 22 },
-        5: { cellWidth: 20 },
-        6: { cellWidth: 22 },
-        7: { cellWidth: 20 },
-      },
     });
 
     doc.save(`financeiro_${dataAtual.replace(/\//g, "-")}.pdf`);
@@ -781,37 +723,6 @@ export default function FinanceiroPage() {
     const ws = XLSX.utils.json_to_sheet(dados);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Financeiro");
-
-    const resumo = [
-      {
-        Métrica: "Total Geral",
-        Valor: totaisValores.geral,
-        Quantidade: lancamentosFiltradosPorData.length,
-      },
-      {
-        Métrica: "Aguardando Boleto",
-        Valor: totaisValores.aguardando,
-        Quantidade: totais.aguardando,
-      },
-      {
-        Métrica: "A Pagar",
-        Valor: totaisValores.aPagar,
-        Quantidade: totais.aPagar,
-      },
-      {
-        Métrica: "Atrasado",
-        Valor: totaisValores.atrasado,
-        Quantidade: totais.atrasado,
-      },
-      {
-        Métrica: "Pago",
-        Valor: totaisValores.pago,
-        Quantidade: totais.pago,
-      },
-    ];
-
-    const wsResumo = XLSX.utils.json_to_sheet(resumo);
-    XLSX.utils.book_append_sheet(wb, wsResumo, "Resumo");
 
     XLSX.writeFile(wb, `financeiro_${dataAtual.replace(/\//g, "-")}.xlsx`);
   }
@@ -843,9 +754,7 @@ export default function FinanceiroPage() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
-          Controle Financeiro
-        </h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Controle Financeiro</h1>
         <p className="text-sm sm:text-base text-gray-600">
           Gerencie boletos, pagamentos e divergências
         </p>
@@ -927,8 +836,7 @@ export default function FinanceiroPage() {
                 <div className="space-y-3">
                   {boletosDDA.map((boleto) => {
                     const vencido =
-                      boleto.status_pagamento !== "pago" &&
-                      isDatePast(boleto.vencimento);
+                      boleto.status_pagamento !== "pago" && isDatePast(boleto.vencimento);
 
                     return (
                       <div
@@ -943,9 +851,7 @@ export default function FinanceiroPage() {
                       >
                         <div className="flex items-center justify-between">
                           <div>
-                            <h4 className="font-semibold text-gray-800">
-                              {boleto.fornecedor_nome}
-                            </h4>
+                            <h4 className="font-semibold text-gray-800">{boleto.fornecedor_nome}</h4>
                             <p className="text-sm text-gray-500">
                               Vencimento: {formatDate(boleto.vencimento)}
                             </p>
@@ -962,9 +868,7 @@ export default function FinanceiroPage() {
                             {boleto.status_pagamento === "pago" ? (
                               <Badge className="bg-green-100 text-green-700 border-green-200">
                                 <Check className="w-3 h-3 mr-1" />
-                                Pago{" "}
-                                {boleto.data_pagamento &&
-                                  `em ${formatDate(boleto.data_pagamento)}`}
+                                Pago {boleto.data_pagamento && `em ${formatDate(boleto.data_pagamento)}`}
                               </Badge>
                             ) : vencido ? (
                               <Badge className="bg-red-100 text-red-700 border-red-200">
@@ -1011,9 +915,7 @@ export default function FinanceiroPage() {
                   <Label>Fornecedor / Descrição *</Label>
                   <Input
                     value={manualForm.fornecedor}
-                    onChange={(e) =>
-                      setManualForm({ ...manualForm, fornecedor: e.target.value })
-                    }
+                    onChange={(e) => setManualForm({ ...manualForm, fornecedor: e.target.value })}
                     placeholder="Ex: Mercado Livre, Conta de Luz, PIX João..."
                   />
                 </div>
@@ -1022,9 +924,7 @@ export default function FinanceiroPage() {
                   <Label>Categoria *</Label>
                   <Select
                     value={manualForm.categoria}
-                    onValueChange={(value) =>
-                      setManualForm({ ...manualForm, categoria: value })
-                    }
+                    onValueChange={(value) => setManualForm({ ...manualForm, categoria: value })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione a categoria" />
@@ -1046,9 +946,7 @@ export default function FinanceiroPage() {
                     step="0.01"
                     min="0"
                     value={manualForm.valor}
-                    onChange={(e) =>
-                      setManualForm({ ...manualForm, valor: e.target.value })
-                    }
+                    onChange={(e) => setManualForm({ ...manualForm, valor: e.target.value })}
                     placeholder="0,00"
                   />
                 </div>
@@ -1057,9 +955,7 @@ export default function FinanceiroPage() {
                   <Label>Observação</Label>
                   <Textarea
                     value={manualForm.descricao}
-                    onChange={(e) =>
-                      setManualForm({ ...manualForm, descricao: e.target.value })
-                    }
+                    onChange={(e) => setManualForm({ ...manualForm, descricao: e.target.value })}
                     placeholder="Detalhes do pagamento..."
                     rows={2}
                   />
@@ -1070,9 +966,7 @@ export default function FinanceiroPage() {
                     type="checkbox"
                     id="is_pago"
                     checked={manualForm.is_pago}
-                    onChange={(e) =>
-                      setManualForm({ ...manualForm, is_pago: e.target.checked })
-                    }
+                    onChange={(e) => setManualForm({ ...manualForm, is_pago: e.target.checked })}
                     className="w-4 h-4 text-green-600 rounded"
                   />
                   <Label htmlFor="is_pago" className="cursor-pointer">
@@ -1144,9 +1038,7 @@ export default function FinanceiroPage() {
                       step="0.01"
                       min="0"
                       value={formData.valor_real}
-                      onChange={(e) =>
-                        setFormData({ ...formData, valor_real: e.target.value })
-                      }
+                      onChange={(e) => setFormData({ ...formData, valor_real: e.target.value })}
                       className="border-gray-200 focus:border-orange-500 focus:ring-orange-500"
                     />
                   </div>
@@ -1174,8 +1066,8 @@ export default function FinanceiroPage() {
                         {formatCurrency(
                           Math.abs(
                             Number.parseFloat(formData.valor_real || "0") -
-                              selectedLancamento.valor_previsto,
-                          ),
+                              selectedLancamento.valor_previsto
+                          )
                         )}
                       </p>
                     </div>
@@ -1218,7 +1110,7 @@ export default function FinanceiroPage() {
                     <p className="text-gray-500">
                       Valor:{" "}
                       {formatCurrency(
-                        payingLancamento.valor_real || payingLancamento.valor_previsto,
+                        payingLancamento.valor_real || payingLancamento.valor_previsto
                       )}
                     </p>
                     <p className="text-gray-500">
@@ -1321,7 +1213,7 @@ export default function FinanceiroPage() {
                         saving ||
                         (needsApproval(payingLancamento) &&
                           !["admin_empresa", "super_admin"].includes(
-                            localUser?.nivel_acesso || "",
+                            localUser?.nivel_acesso || ""
                           ))
                       }
                       className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
@@ -1428,9 +1320,6 @@ export default function FinanceiroPage() {
                 <p className="text-lg font-bold text-gray-800">
                   {formatCurrency(totaisValores.geral)}
                 </p>
-                <p className="text-xs text-gray-400">
-                  {lancamentosFiltradosPorData.length} lançamentos
-                </p>
               </CardContent>
             </Card>
 
@@ -1440,7 +1329,6 @@ export default function FinanceiroPage() {
                 <p className="text-lg font-bold text-red-700">
                   {formatCurrency(totaisValores.atrasado)}
                 </p>
-                <p className="text-xs text-red-400">{totais.atrasado} lançamentos</p>
               </CardContent>
             </Card>
 
@@ -1450,7 +1338,6 @@ export default function FinanceiroPage() {
                 <p className="text-lg font-bold text-blue-700">
                   {formatCurrency(totaisValores.aPagar)}
                 </p>
-                <p className="text-xs text-blue-400">{totais.aPagar} lançamentos</p>
               </CardContent>
             </Card>
 
@@ -1460,7 +1347,6 @@ export default function FinanceiroPage() {
                 <p className="text-lg font-bold text-green-700">
                   {formatCurrency(totaisValores.pago)}
                 </p>
-                <p className="text-xs text-green-400">{totais.pago} lançamentos</p>
               </CardContent>
             </Card>
           </div>
@@ -1599,11 +1485,7 @@ export default function FinanceiroPage() {
                               </span>
 
                               {lancamento.valor_real !== null && (
-                                <span
-                                  className={
-                                    divergencia ? "text-yellow-600" : "text-gray-600"
-                                  }
-                                >
+                                <span className={divergencia ? "text-yellow-600" : "text-gray-600"}>
                                   Real:{" "}
                                   <span className="font-medium">
                                     {formatCurrency(lancamento.valor_real)}

@@ -1,29 +1,32 @@
 import type { Metadata } from "next";
-import { ReactNode } from "react";
 import "./globals.css";
+
 import Providers from "./providers";
 
 export const metadata: Metadata = {
-  title: "Pappi Gestor",
-  description: "ERP inteligente para food service",
+  title: {
+    default: "Pappi Gestor",
+    template: "%s | Pappi Gestor",
+  },
+  description:
+    "Gestão inteligente com IA para compras, estoque, financeiro e operação de food service.",
+  applicationName: "Pappi Gestor",
+  manifest: "/manifest.json",
+  icons: {
+    icon: "/icon.png",
+    apple: "/icon.png",
+  },
 };
 
-interface RootLayoutProps {
-  children: ReactNode;
-}
-
-export default function RootLayout({ children }: RootLayoutProps) {
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
     <html lang="pt-BR" suppressHydrationWarning>
-      <body
-        className="min-h-screen bg-background text-foreground font-sans antialiased"
-        suppressHydrationWarning
-      >
-        <Providers>
-          <main className="container-pappi custom-scrollbar">
-            {children}
-          </main>
-        </Providers>
+      <body className="min-h-dvh bg-white text-gray-950 antialiased">
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

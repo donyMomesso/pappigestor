@@ -1,66 +1,30 @@
-// src/lib/auth.ts
-import type { NextAuthOptions } from "next-auth";
-import GoogleProvider from "next-auth/providers/google";
+"use client";
 
-export const authOptions: NextAuthOptions = {
-  providers: [
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID ?? "",
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
-    }),
-  ],
-  pages: {
-    signIn: "/login",
-  },
-  secret: process.env.NEXTAUTH_SECRET,
-  callbacks: {
-    async jwt({ token, account, profile }) {
-      const email =
-        typeof profile === "object" &&
-        profile !== null &&
-        "email" in profile &&
-        typeof profile.email === "string"
-          ? profile.email
-          : token.email;
+import { getSupabaseClient } from "@/lib/supabaseClient";
 
-      if (account && email && process.env.NEXTAUTH_URL) {
-        try {
-          const res = await fetch(`${process.env.NEXTAUTH_URL}/api/auth/login`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email }),
-          });
+export async function requireUser() {
+  const supabase = getSupabaseClient();
+  if (!supabase) return null;
 
-          if (res.ok) {
-            const data = (await res.json()) as {
-              empresa_id?: string;
-              role?: string;
-            };
+  const { data, error } = await supabase.auth.getUser();
+  if (error || !data?.user) return null;
+  return data.user;
+}
 
-            token.empresa_id = data.empresa_id;
-            token.role = data.role ?? "operador";
-          } else {
-            token.role = "operador";
-          }
-        } catch (error) {
-          console.error("Erro ao buscar dados extras do usuário:", error);
-          token.role = "operador";
-        }
-      }
+export async function getMyCompanyId() {
+  const supabase = getSupabaseClient();
+  if (!supabase) return null;
 
-      return token;
-    },
+  const user = await requireUser();
+  if (!user) return null;
 
-    async session({ session, token }) {
-      if (session.user) {
-        (session.user as { empresa_id?: string }).empresa_id =
-          typeof token.empresa_id === "string" ? token.empresa_id : undefined;
+  const { data, error } = await supabase
+    .from("company_users")
+    .select("company_id, role")
+    .eq("user_id", user.id)
+    .limit(1)
+    .maybeSingle();
 
-        (session.user as { role?: string }).role =
-          typeof token.role === "string" ? token.role : undefined;
-      }
-
-      return session;
-    },
-  },
-};
+  if (error) return null;
+  return (data?.company_id as string) ?? null;
+}

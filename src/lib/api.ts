@@ -1,80 +1,71 @@
 // src/lib/api.ts
-import { getSession } from "next-auth/react";
-
 type ApiMethod = "GET" | "POST" | "PATCH" | "DELETE";
+
+function getEmpresaId(): string {
+  // padrão novo
+  const empresaId = localStorage.getItem("empresa_id")?.trim();
+  if (empresaId) return empresaId;
+
+  // fallback antigo (se ainda existir)
+  const legacy = localStorage.getItem("pId")?.trim();
+  return legacy || "";
+}
+
+function getUserEmail(): string {
+  // se você já grava em algum lugar, tenta usar
+  const email =
+    localStorage.getItem("user_email")?.trim().toLowerCase() ||
+    localStorage.getItem("email")?.trim().toLowerCase() ||
+    "";
+
+  return email;
+}
+
+// ✅ API BASE: em produção usa /api (mesmo domínio).
+// Se você usa Worker local em localhost:8787, troque por "http://localhost:8787"
+const API_BASE = "";
 
 type ApiOptions = {
   method?: ApiMethod;
-  body?: unknown;
+  body?: any;
   headers?: Record<string, string>;
+  // se true, não exige empresa/email (ex: /api/empresas/minhas)
   publicRoute?: boolean;
 };
 
-type AppSessionUser = {
-  email?: string | null;
-  empresaId?: string | null;
-  empresa_id?: string | null;
-  role?: string | null;
-  name?: string | null;
-};
-
-async function getAuthData() {
-  const session = await getSession();
-  const user = (session?.user ?? {}) as AppSessionUser;
-
-  const empresaId = user.empresaId || user.empresa_id || "";
-  const userEmail = user.email?.trim().toLowerCase() || "";
-
-  return {
-    session,
-    empresaId,
-    userEmail,
-  };
-}
-
-const API_BASE = "";
-
-export async function api<T = unknown>(
-  path: string,
-  opts: ApiOptions = {}
-): Promise<T> {
+export async function api<T = any>(path: string, opts: ApiOptions = {}): Promise<T> {
   const method = opts.method || "GET";
   const headers: Record<string, string> = {
     ...(opts.headers || {}),
   };
 
   if (!opts.publicRoute) {
-    const { session, empresaId, userEmail } = await getAuthData();
-
-    if (!session) {
-      throw new Error("Sessão não encontrada. Faça login novamente.");
-    }
+    const empresaId = getEmpresaId();
+    const userEmail = getUserEmail();
 
     if (!empresaId) {
-      throw new Error("empresaId não encontrado na sessão do NextAuth.");
+      throw new Error("empresa_id não encontrado no navegador (localStorage.empresa_id).");
     }
-
     if (!userEmail) {
-      throw new Error("email não encontrado na sessão do NextAuth.");
+      throw new Error("user_email não encontrado no navegador (localStorage.user_email).");
     }
 
     headers["x-empresa-id"] = empresaId;
+
+    // ✅ Worker espera isso
     headers["x-user-email"] = userEmail;
+
+    // fallback temporário (se algum endpoint ainda lê isso)
+    headers["x-pizzaria-id"] = empresaId;
   }
 
-  let body: BodyInit | undefined;
+  let body: string | undefined = undefined;
 
   if (opts.body !== undefined) {
-    if (opts.body instanceof FormData) {
-      body = opts.body;
-    } else if (typeof opts.body === "string") {
-      headers["Content-Type"] = headers["Content-Type"] || "text/plain";
-      body = opts.body;
-    } else {
-      headers["Content-Type"] =
-        headers["Content-Type"] || "application/json";
-      body = JSON.stringify(opts.body);
-    }
+    headers["Content-Type"] = headers["Content-Type"] || "application/json";
+    body = headers["Content-Type"].includes("application/json")
+      ? JSON.stringify(opts.body)
+      : String(opts.body);
   }
 
   const res = await fetch(`${API_BASE}${path}`, {
@@ -84,35 +75,19 @@ export async function api<T = unknown>(
   });
 
   if (!res.ok) {
-    let message = `API ${method} ${path} -> ${res.status}`;
-
-    try {
-      const contentType = res.headers.get("content-type") || "";
-
-      if (contentType.includes("application/json")) {
-        const json = await res.json();
-        message = json?.error || json?.message || message;
-      } else {
-        const text = await res.text();
-        if (text) message = text;
-      }
-    } catch {}
-
-    throw new Error(message);
+    const text = await res.text().catch(() => "");
+    throw new Error(`API ${method} ${path} -> ${res.status}: ${text || "erro"}`);
   }
 
+  // tenta json, senão retorna texto
   const contentType = res.headers.get("content-type") || "";
-
   if (contentType.includes("application/json")) {
-    return (await res.json()) as T;
+    return (await res.json().catch(() => ({}))) as T;
   }
-
-  return (await res.text()) as T;
+  return (await res.text().catch(() => "")) as T;
 }
 
-export async function apiPublic<T = unknown>(
-  path: string,
-  opts: Omit<ApiOptions, "publicRoute"> = {}
-): Promise<T> {
+// Helper específico para a rota pública de empresas
+export async function apiPublic<T = any>(path: string, opts: Omit<ApiOptions, "publicRoute"> = {}) {
   return api<T>(path, { ...opts, publicRoute: true });
 }

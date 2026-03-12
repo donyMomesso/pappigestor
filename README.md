@@ -1,120 +1,36 @@
-# 📊 PappiGestor
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-Um sistema de gestão desenvolvido em **Next.js 16**, com **Tailwind CSS 4**, **Supabase** e diversos componentes da **Radix UI**.  
-O objetivo é oferecer uma plataforma moderna, responsiva e escalável para gerenciamento de dados e processos internos.
+## Getting Started
 
----
+First, run the development server:
 
-## 🚀 Tecnologias
-
-- Next.js 16 com suporte a Turbopack
-- React 19
-- Tailwind CSS 4 + tailwindcss-animate
-- Supabase para autenticação e banco de dados
-- Radix UI para componentes acessíveis
-- Lucide Icons para ícones
-- Recharts para gráficos
-- XLSX e jsPDF para exportação de dados
-
----
-
-## 📦 Instalação
-
-Clone o repositório:
-
-git clone https://github.com/donyMomesso/pappigestor.git
-cd pappigestor
-
-Instale as dependências:
-
-npm install
-
----
-
-## ▶️ Rodando o projeto
-
-Ambiente de desenvolvimento:
-
+```bash
 npm run dev
-
-Build de produção:
-
-npm run build
-npm run start
-
----
-
-## ⚙️ Configuração
-
-Crie um arquivo `.env.local` com suas variáveis de ambiente:
-
-NEXT_PUBLIC_SUPABASE_URL=...
-NEXT_PUBLIC_SUPABASE_ANON_KEY=...
-
----
-
-## 📂 Estrutura de pastas
-
-src/
- ├─ app/           # Páginas e layouts
- ├─ components/    # Componentes reutilizáveis
- ├─ contexts/      # Contextos globais
- ├─ hooks/         # Hooks customizados
- ├─ lib/           # Funções utilitárias
- ├─ data/          # Dados estáticos
- └─ styles/        # Arquivos CSS globais
-
----
-
-## 🛠 Scripts disponíveis
-
-- npm run dev → inicia o servidor de desenvolvimento
-- npm run build → gera o build de produção
-- npm run start → roda o servidor em produção
-- npm run lint → executa o linter
-
----
-
-## 📌 Status
-
-Projeto em desenvolvimento.  
-Funcionalidades principais: autenticação, dashboards, exportação de relatórios e integração com Supabase.
-
----
-
-## 📝 Começando
-
-Este é um projeto Next.js inicializado com create-next-app.
-
-Primeiro, execute o servidor de desenvolvimento:
-
-npm run dev
-# ou
+# or
 yarn dev
-# ou
+# or
 pnpm dev
-# ou
+# or
 bun dev
+```
 
-Abra http://localhost:3000 no navegador para ver o resultado.
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-Você pode começar a editar a página modificando o arquivo app/page.tsx.  
-A página é atualizada automaticamente conforme você edita o arquivo.
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-Este projeto utiliza next/font para otimização e o carregamento automático da Geist, uma nova família de fontes criada pela Vercel.
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
----
+## Learn More
 
-## 📚 Saber mais
+To learn more about Next.js, take a look at the following resources:
 
-- Documentação do Next.js — saiba mais sobre os recursos e a API do Next.js.  
-- Aprenda Next.js — um tutorial interativo de Next.js.  
-- Repositório do Next.js no GitHub — contribuições e feedback são bem-vindos!
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
----
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-## ☁️ Implantação no Vercel
+## Deploy on Vercel
 
-A maneira mais fácil de implantar seu aplicativo Next.js é usar a plataforma Vercel, dos criadores do Next.js.  
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
-Confira a documentação de implantação do Next.js para obter mais detalhes.
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.

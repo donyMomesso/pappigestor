@@ -1,20 +1,13 @@
 import type { Config } from "tailwindcss";
-import tailwindcssAnimate from "tailwindcss-animate";
 
-const config: Config = {
+export default {
   darkMode: "class",
   content: [
-    "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
-    "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
-    "./src/hooks/**/*.{js,ts,jsx,tsx,mdx}",
-    "./src/lib/**/*.{js,ts,jsx,tsx,mdx}",
-    "./src/contexts/**/*.{js,ts,jsx,tsx,mdx}",
-    "./src/types/**/*.{js,ts,jsx,tsx,mdx}",
-    "./src/shared/**/*.{js,ts,jsx,tsx,mdx}",
-    "./src/worker/**/*.{js,ts,jsx,tsx,mdx}",
-    "./src/data/**/*.{js,ts,jsx,tsx,mdx}",
-    "./src/shims/**/*.{js,ts,jsx,tsx,mdx}",
-    "./src/proxy.ts",
+    "./src/app/**/*.{ts,tsx}",
+    "./src/components/**/*.{ts,tsx}",
+    "./src/hooks/**/*.{ts,tsx}",
+    "./src/lib/**/*.{ts,tsx}",
+    "./src/react-app/**/*.{ts,tsx}",
   ],
   theme: {
     extend: {
@@ -22,9 +15,8 @@ const config: Config = {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
-        xl: "calc(var(--radius) + 0.25rem)",
-        "2xl": "calc(var(--radius) + 0.5rem)",
-        "4xl": "2rem",
+        // Adicionando o arredondamento 4xl que você usa nos cards modernos
+        "4xl": "2rem", 
       },
       colors: {
         border: "hsl(var(--border))",
@@ -60,21 +52,19 @@ const config: Config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // Adicionando as cores de Sidebar que o Mocha usa
         sidebar: {
-          DEFAULT: "hsl(var(--sidebar))",
+          DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
-          primary: {
-            DEFAULT: "hsl(var(--sidebar-primary))",
-            foreground: "hsl(var(--sidebar-primary-foreground))",
-          },
-          accent: {
-            DEFAULT: "hsl(var(--sidebar-accent))",
-            foreground: "hsl(var(--sidebar-accent-foreground))",
-          },
+          primary: "hsl(var(--sidebar-primary))",
+          "primary-foreground": "hsl(var(--sidebar-primary-foreground))",
+          accent: "hsl(var(--sidebar-accent))",
+          "accent-foreground": "hsl(var(--sidebar-accent-foreground))",
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
       },
+      // Adicionando animações para os menus e modais ficarem fluídos
       keyframes: {
         "accordion-down": {
           from: { height: "0" },
@@ -91,8 +81,5 @@ const config: Config = {
       },
     },
   },
-  plugins: [tailwindcssAnimate],
-};
-
-export default config;
-
+  plugins: [require("tailwindcss-animate")],
+} satisfies Config;

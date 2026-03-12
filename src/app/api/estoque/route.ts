@@ -31,6 +31,7 @@ type ProdutoRow = {
   categoria: string | null;
   unidade: string | null;
   empresa_id: string | null;
+  pizzaria_id: string | null;
 };
 
 type EstoqueResponseItem = {
@@ -99,7 +100,7 @@ function getSupabaseFromRequest(req: NextRequest) {
 function parseEmpresaId(req: NextRequest): string | null {
   const empresaId =
     req.headers.get("x-empresa-id") ||
-    req.headers.get("x-empresa-id") ||
+    req.headers.get("x-pizzaria-id") ||
     req.nextUrl.searchParams.get("empresa_id");
 
   return empresaId && empresaId.trim() ? empresaId.trim() : null;
@@ -161,7 +162,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(
         {
           error:
-            "Empresa não informada. Envie x-empresa-id, ?empresa_id=... ou acesse autenticado com vínculo de empresa.",
+            "Empresa não informada. Envie x-empresa-id, x-pizzaria-id, ?empresa_id=... ou acesse autenticado com vínculo de empresa.",
         },
         { status: 400 }
       );
@@ -207,7 +208,7 @@ export async function GET(req: NextRequest) {
 
     const { data: produtosRows, error: produtosError } = await supabase
       .from("produtos")
-      .select("id, nome, categoria, unidade, empresa_id")
+      .select("id, nome, categoria, unidade, empresa_id, pizzaria_id")
       .in("id", produtoIds);
 
     if (produtosError) {

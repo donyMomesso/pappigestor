@@ -42,7 +42,7 @@ type DB = {
 };
 
 declare global {
-   
+  // eslint-disable-next-line no-var
   var __PAPPI_DB__: Record<string, DB> | undefined;
 }
 
@@ -51,17 +51,17 @@ function uuid() {
 }
 
 export function getPizzariaId(headers: Headers) {
-  const pId = headers.get("x-empresa-id") || "";
-  if (!pId) throw new Error("Missing x-empresa-id");
+  const pId = headers.get("x-pizzaria-id") || "";
+  if (!pId) throw new Error("Missing x-pizzaria-id");
   return pId;
 }
 
-export function getDb(empresaId: string): DB {
+export function getDb(pizzariaId: string): DB {
   if (!globalThis.__PAPPI_DB__) globalThis.__PAPPI_DB__ = {};
-  if (!globalThis.__PAPPI_DB__![empresaId]) {
-    globalThis.__PAPPI_DB__![empresaId] = seed();
+  if (!globalThis.__PAPPI_DB__![pizzariaId]) {
+    globalThis.__PAPPI_DB__![pizzariaId] = seed();
   }
-  return globalThis.__PAPPI_DB__![empresaId];
+  return globalThis.__PAPPI_DB__![pizzariaId];
 }
 
 export function createProduto(db: DB, data: Omit<Produto, "id" | "ultimo_preco_pago"> & { ultimo_preco_pago?: number | null }) {

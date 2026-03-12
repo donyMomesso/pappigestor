@@ -1,58 +1,58 @@
 "use client";
 
-import React, { useState } from "react";
-import { useRouter } from "next/navigation";
-import { getSupabaseClient } from "@/lib/supabaseClient";
-import { Check, Building2, Rocket, Loader2 } from "lucide-react";
+import { registrarEmpresa } from "@/app/actions/onboarding";
+import { Rocket, ShieldCheck, ChevronRight } from "lucide-react";
+import { useState } from "react";
 
 export default function OnboardingPage() {
-  const [step, setStep] = useState(1);
-  const [empresa, setEmpresa] = useState("");
-  const [plano, setPlano] = useState("starter");
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
-  const supabase = getSupabaseClient();
 
-  const handleFinalize = async () => {
-    if (!supabase || !empresa) return;
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     setLoading(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      const { data: emp } = await supabase.from("empresas").insert([{ nome: empresa, plano }]).select().single();
-      if (emp) {
-        await supabase.from("user_profiles").update({ empresa_id: emp.id, plano, role: 'master' }).eq("id", user?.id);
-        router.push("/app");
-      }
-    } catch (e) { console.error(e); }
-    setLoading(false);
-  };
+    const formData = new FormData(e.currentTarget);
+    const res = await registrarEmpresa(formData);
+    
+    if (res.success) {
+      window.location.href = "/app/dashboard";
+    } else {
+      alert(res.error);
+      setLoading(false);
+    }
+  }
 
   return (
     <div className="min-h-screen bg-white flex items-center justify-center p-6">
-      <div className="max-w-xl w-full text-center">
-        {step === 1 ? (
-          <div className="space-y-8">
-            <div className="w-20 h-20 bg-orange-50 text-orange-500 rounded-[32px] flex items-center justify-center mx-auto mb-8"><Building2 size={40}/></div>
-            <h1 className="text-4xl font-black italic uppercase tracking-tighter">Nome da sua <span className="text-orange-500">Empresa</span></h1>
-            <input value={empresa} onChange={(e) => setEmpresa(e.target.value)} placeholder="Ex: Pizzaria do Pappi" className="w-full p-6 rounded-3xl border-2 border-gray-100 focus:border-orange-500 outline-none text-center text-xl font-bold italic" />
-            <button onClick={() => setStep(2)} disabled={!empresa} className="w-full bg-zinc-900 text-white p-6 rounded-3xl font-black italic uppercase tracking-widest disabled:opacity-50">Próximo Passo</button>
+      <div className="max-w-xl w-full">
+        <div className="mb-12">
+          <span className="bg-orange-100 text-orange-600 text-[10px] font-black px-3 py-1 rounded-full uppercase italic">Passo Único</span>
+          <h1 className="text-5xl font-black italic uppercase text-gray-800 tracking-tighter mt-4">Configurar sua Operação</h1>
+          <p className="text-gray-400 font-medium text-lg italic">Vamos criar sua empresa universal agora.</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="bg-gray-50 p-8 rounded-4xl border border-gray-100">
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-4">Nome da Empresa / Pizzeria</label>
+            <input 
+              name="nome_empresa"
+              required
+              placeholder="Ex: Pappi Gestor"
+              className="w-full bg-white border-2 border-gray-100 p-5 rounded-2xl text-xl font-bold italic outline-none focus:border-orange-500 transition-all"
+            />
           </div>
-        ) : (
-          <div className="space-y-8">
-            <h1 className="text-4xl font-black italic uppercase tracking-tighter">Escolha seu <span className="text-orange-500">Plano</span></h1>
-            <div className="grid grid-cols-1 gap-4">
-              {['starter', 'profissional', 'gestao_completa'].map((p) => (
-                <div key={p} onClick={() => setPlano(p)} className={`p-6 rounded-3xl border-2 cursor-pointer transition-all flex justify-between items-center ${plano === p ? 'border-orange-500 bg-orange-50' : 'border-gray-100'}`}>
-                  <span className="font-black italic uppercase tracking-widest">{p.replace('_', ' ')}</span>
-                  {plano === p && <Check className="text-orange-500" />}
-                </div>
-              ))}
-            </div>
-            <button onClick={handleFinalize} className="w-full bg-orange-500 text-white p-6 rounded-3xl font-black italic uppercase tracking-widest flex items-center justify-center gap-2">
-              {loading ? <Loader2 className="animate-spin" /> : "Finalizar Configuração"}
-            </button>
-          </div>
-        )}
+
+          <button 
+            disabled={loading}
+            className="w-full bg-gray-900 text-white p-6 rounded-3xl font-black italic uppercase text-sm tracking-widest flex items-center justify-center gap-3 hover:bg-orange-600 transition-all shadow-2xl disabled:opacity-50"
+          >
+            {loading ? "Criando Ecossistema..." : "Liberar Acesso Total"}
+            <Rocket size={20} />
+          </button>
+        </form>
+
+        <div className="mt-12 flex items-center gap-4 text-gray-400">
+          <ShieldCheck size={24} />
+          <p className="text-[10px] font-bold uppercase tracking-widest">Seus dados estão protegidos por criptografia de nível bancário.</p>
+        </div>
       </div>
     </div>
   );

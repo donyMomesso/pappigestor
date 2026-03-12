@@ -3,7 +3,7 @@
 export const dynamic = "force-dynamic";
 
 import { useState, useEffect, type ReactNode } from "react";
-import { useAppAuth } from "@/contexts/AppAuthContext";
+import { useAppAuth } from "@/react-app/contexts/AppAuthContext";
 import {
   Sparkles,
   CreditCard,
@@ -23,7 +23,7 @@ import {
   Cpu,
   BadgeCheck,
 } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { Input } from "@/react-app/components/ui/input";
 
 type EmpresaConfigResponse = {
   razao_social?: string;
@@ -64,6 +64,7 @@ export default function ConfiguracoesPage() {
     try {
       const res = await fetch("/api/empresa-config", {
         headers: {
+          "x-pizzaria-id": String(pId),
           "x-empresa-id": String(pId),
         },
         cache: "no-store",
@@ -154,6 +155,7 @@ export default function ConfiguracoesPage() {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
+          "x-pizzaria-id": String(pId),
           "x-empresa-id": String(pId),
         },
         body: JSON.stringify({
@@ -345,7 +347,7 @@ export default function ConfiguracoesPage() {
                           })
                         }
                         className="h-14 rounded-2xl bg-white border-gray-200 font-bold"
-                        placeholder="Minha empresa"
+                        placeholder="Minha pizzaria"
                       />
                     </div>
                   </div>

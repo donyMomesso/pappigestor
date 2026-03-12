@@ -1,260 +1,443 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
+import React, { ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { useAppAuth } from "@/contexts/AppAuthContext";
 import {
-  ArrowRight,
+  Home,
+  ShoppingCart,
+  DollarSign,
+  Package,
+  LogOut,
   Sparkles,
-  CheckCircle2,
-  BrainCircuit,
-  ShieldCheck,
-  Target,
-  Users,
-  BarChart3,
-  XCircle,
+  Inbox,
+  Menu,
+  X,
+  Settings,
+  Calculator,
+  Brain,
+  ChevronDown,
 } from "lucide-react";
 
-// --- COMPONENTES DE APOIO ---
-function FeatureItem({
-  text,
-  active = false,
-  cross = false,
-}: { text: string; active?: boolean; cross?: boolean }) {
-  return (
-    <li
-      className={`flex items-center gap-3 text-xs font-bold uppercase tracking-tight 
-      ${cross ? "text-zinc-600" : active ? "text-zinc-100" : "text-zinc-400"}`}
-    >
-      {cross ? (
-        <XCircle size={16} className="text-red-900/60" />
-      ) : (
-        <CheckCircle2
-          size={16}
-          className={active ? "text-orange-500" : "text-zinc-600"}
-        />
-      )}
-      <span className={cross ? "line-through opacity-40" : ""}>{text}</span>
-    </li>
-  );
+type InboxCountResponse = { count: number };
+
+type NavItemProps = {
+  href: string;
+  active: boolean;
+  icon: ReactNode;
+  label: string;
+  badge?: number;
+  onClick?: () => void;
+};
+
+interface ProtectedLayoutProps {
+  children: ReactNode;
 }
 
-function CardDisc({
-  icon,
-  title,
-  profile,
-  desc,
-}: { icon: React.ReactNode; title: string; profile: string; desc: string }) {
-  return (
-    <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl hover:border-orange-500/50 transition-all group relative overflow-hidden shadow">
-      <div className="absolute top-0 right-0 bg-zinc-800 px-3 py-1 rounded-bl-md text-[9px] font-black uppercase tracking-[0.12em] text-zinc-400 italic">
-        Perfil {profile}
-      </div>
-      <div className="text-orange-500 mb-4 group-hover:scale-110 transition-transform duration-300">
-        {icon}
-      </div>
-      <h3 className="text-lg font-black uppercase italic mb-2 text-white tracking-tight">
-        {title}
-      </h3>
-      <p className="text-zinc-400 text-sm font-medium leading-relaxed">{desc}</p>
-    </div>
-  );
-}
-
-// --- PÁGINA PRINCIPAL (MEIO A MEIO) ---
-export default function LandingPage() {
-  const { data: session, status } = useSession();
+export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
   const router = useRouter();
+  const pathname = usePathname();
+
+  const [inboxCount, setInboxCount] = useState<number>(0);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  const LOGO_URL =
+    "https://019c7b56-2054-7d0b-9c55-e7a603c40ba8.mochausercontent.com/1771799343659.png";
+
+  let auth: any = null;
+  try {
+    auth = useAppAuth();
+  } catch {
+    auth = null;
+  }
+
+  const localUser = auth?.localUser ?? null;
+  const signOut: undefined | (() => void | Promise<void>) = auth?.signOut;
+
+  const empresaNome = useMemo(() => {
+    return (
+      localUser?.empresa_nome ||
+      localUser?.nome_empresa ||
+      localUser?.empresaNome ||
+      "Pappi Gestor"
+    );
+  }, [localUser]);
+
+  const nomeUser = useMemo(() => localUser?.nome || "Gestor", [localUser]);
+
+  const initialLetter = useMemo(() => {
+    const n = (localUser?.nome || "").trim();
+    return n ? n.charAt(0).toUpperCase() : "P";
+  }, [localUser]);
 
   useEffect(() => {
-    if (status === "authenticated") {
-      router.push("/app");
+    if (!auth) return;
+    if (!localUser && pathname?.startsWith("/app")) {
+      router.replace("/login");
     }
-  }, [status, router]);
+  }, [auth, localUser, pathname, router]);
 
-  const irParaCadastro = () => router.push("/cadastro");
-  const irParaLogin = () => router.push("/app");
+  useEffect(() => {
+    const onDown = (e: MouseEvent) => {
+      if (!menuOpen) return;
+      if (!menuRef.current) return;
+      if (!menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    };
 
-  return (
-    <div className="min-h-screen bg-[#050505] text-white selection:bg-orange-500">
-      {/* NAV */}
-      <nav className="fixed top-0 w-full z-50 p-6 flex justify-between items-center bg-black/80 backdrop-blur-md border-b border-zinc-800">
-        <div
-          className="flex items-center gap-2 cursor-pointer"
-          onClick={() => window.scrollTo(0, 0)}
-        >
-          <BrainCircuit size={26} className="text-orange-500" />
-          <span className="text-2xl font-black uppercase italic tracking-tighter text-white">
-            Pappi<span className="text-orange-500">Gestor</span>
-          </span>
-        </div>
-        <div className="flex items-center gap-4 sm:gap-6">
-          <button
-            onClick={irParaLogin}
-            className="text-xs font-bold uppercase tracking-widest text-zinc-400 hover:text-white transition-colors"
-          >
-            Entrar
-          </button>
-          <button
-            onClick={irParaCadastro}
-            className="bg-orange-600 hover:bg-orange-500 px-5 py-2 rounded-2xl text-xs font-black uppercase italic transition-all shadow-lg shadow-orange-900/50"
-          >
-            Criar Conta
-          </button>
-        </div>
-      </nav>
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setMenuOpen(false);
+        setMobileOpen(false);
+      }
+    };
 
-      {/* CONTAINER MEIO A MEIO */}
-      <main className="pt-24">
-        <div className="min-h-[calc(100vh-96px)] grid grid-cols-1 lg:grid-cols-2">
-          {/* LEFT: HERO (metade esquerda) */}
-          <section className="flex items-center justify-center px-6 py-12 lg:py-24">
-            <div className="max-w-xl text-center lg:text-left">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-500 mb-6">
-                <Sparkles size={14} />
-                <span className="text-[10px] font-black uppercase tracking-[0.3em] italic text-orange-400">
-                  Inteligência Artificial Ativa
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
+
+  useEffect(() => {
+    let alive = true;
+    let consecutiveFails = 0;
+
+    const fetchInboxCount = async () => {
+      try {
+        const res = await fetch("/api/ia/inbox-count", { cache: "no-store" });
+
+        if (!res.ok) {
+          consecutiveFails++;
+          if (consecutiveFails >= 3) return;
+          return;
+        }
+
+        const data = (await res.json()) as InboxCountResponse;
+
+        if (!alive) return;
+
+        setInboxCount(Number(data?.count || 0));
+        consecutiveFails = 0;
+      } catch {
+        consecutiveFails++;
+      }
+    };
+
+    fetchInboxCount();
+    const interval = setInterval(fetchInboxCount, 60000);
+
+    return () => {
+      alive = false;
+      clearInterval(interval);
+    };
+  }, [pathname]);
+
+  const isActive = (href: string) => {
+    if (href === "/app") return pathname === "/app";
+    return pathname?.startsWith(href);
+  };
+
+  const doSignOut = async () => {
+    try {
+      await signOut?.();
+    } finally {
+      router.replace("/");
+    }
+  };
+
+  if (!auth) {
+    return (
+      <div className="min-h-screen bg-[#f8fafc]">
+        <header className="sticky top-0 z-50 border-b border-gray-100 bg-white/85 backdrop-blur-2xl">
+          <div className="max-w-[1600px] mx-auto px-6 md:px-8 h-20 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="p-2.5 bg-gradient-to-br from-orange-500 to-pink-500 rounded-[20px] shadow-lg shadow-orange-200/50">
+                <img
+                  src={LOGO_URL}
+                  alt="Logo"
+                  className="h-6 w-6 brightness-0 invert"
+                />
+              </div>
+
+              <div className="flex flex-col">
+                <span className="text-xl font-black italic uppercase tracking-tighter bg-gradient-to-r from-orange-600 to-pink-600 bg-clip-text text-transparent leading-none">
+                  Pappi Gestor
+                </span>
+                <span className="text-[9px] font-black uppercase tracking-[0.34em] text-gray-400 italic mt-1">
+                  central inteligente
                 </span>
               </div>
+            </div>
 
-              <h1 className="text-4xl md:text-6xl font-black uppercase italic tracking-tighter leading-tight mb-6 text-white">
-                TRANSFORME DADOS EM <br />
-                <span className="text-orange-500">INTELIGÊNCIA REAL.</span>
-              </h1>
+            <div className="inline-flex items-center gap-2 rounded-full bg-orange-50 px-4 py-2">
+              <Sparkles className="w-4 h-4 text-orange-500" />
+              <span className="text-[10px] uppercase font-black tracking-[0.22em] italic text-orange-600">
+                carregando
+              </span>
+            </div>
+          </div>
+        </header>
 
-              <p className="text-zinc-400 font-medium text-lg max-w-lg mb-8">
-                O Pappi Gestor usa IA para ler notas, organizar seu estoque e automatizar suas compras de forma 100% automática.
-              </p>
+        <main className="max-w-[1600px] mx-auto px-6 py-6 md:px-8 md:py-8 animate-in fade-in duration-500">
+          {children}
+        </main>
+      </div>
+    );
+  }
 
-              <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
-                <button
-                  onClick={irParaCadastro}
-                  className="inline-flex items-center justify-center gap-3 bg-white text-black px-6 py-4 rounded-2xl font-black uppercase italic hover:bg-zinc-200 transition-all shadow-lg text-base"
-                >
-                  Destravar Meu Lucro <ArrowRight size={18} />
-                </button>
+  return (
+    <div className="min-h-screen bg-[#f8fafc]">
+      <header className="sticky top-0 z-50 border-b border-gray-100 bg-white/85 backdrop-blur-2xl">
+        <div className="max-w-[1600px] mx-auto px-6 md:px-8 h-20 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4 md:gap-6 min-w-0">
+            <Link
+              href="/app"
+              className="shrink-0 p-2.5 bg-gradient-to-br from-orange-500 to-pink-500 rounded-[20px] shadow-lg shadow-orange-200/50 transition-transform hover:scale-105 active:scale-95"
+              onClick={() => setMobileOpen(false)}
+            >
+              <img
+                src={LOGO_URL}
+                alt="Logo"
+                className="h-6 w-6 brightness-0 invert"
+              />
+            </Link>
 
-                <button
-                  onClick={irParaLogin}
-                  className="inline-flex items-center justify-center gap-2 border border-zinc-700 px-6 py-4 rounded-2xl font-black uppercase italic text-zinc-300 hover:text-white transition-all text-base"
-                >
-                  Entrar no Painel
-                </button>
+            <div className="min-w-0 hidden sm:flex flex-col">
+              <span className="text-xl font-black italic uppercase tracking-tighter bg-gradient-to-r from-orange-600 to-pink-600 bg-clip-text text-transparent leading-none truncate">
+                {empresaNome}
+              </span>
+              <span className="text-[9px] font-black uppercase tracking-[0.34em] text-gray-400 italic mt-1">
+                central de inteligência
+              </span>
+            </div>
+          </div>
+
+          <nav className="hidden xl:flex items-center gap-1 bg-gray-100/70 p-1.5 rounded-[28px] border border-gray-100 shadow-inner">
+            <NavItem
+              href="/app"
+              active={isActive("/app")}
+              icon={<Home size={18} />}
+              label="Dashboard"
+            />
+            <NavItem
+              href="/app/caixa-entrada"
+              active={isActive("/app/caixa-entrada")}
+              icon={<Inbox size={18} />}
+              label="Inbox"
+              badge={inboxCount}
+            />
+            <NavItem
+              href="/app/compras"
+              active={isActive("/app/compras")}
+              icon={<ShoppingCart size={18} />}
+              label="Compras"
+            />
+            <NavItem
+              href="/app/financeiro"
+              active={isActive("/app/financeiro")}
+              icon={<DollarSign size={18} />}
+              label="Financeiro"
+            />
+            <NavItem
+              href="/app/estoque"
+              active={isActive("/app/estoque")}
+              icon={<Package size={18} />}
+              label="Estoque"
+            />
+            <NavItem
+              href="/app/precificacao"
+              active={isActive("/app/precificacao")}
+              icon={<Calculator size={18} />}
+              label="Eng. Preços"
+            />
+          </nav>
+
+          <div className="flex items-center gap-3">
+            <button
+              className="xl:hidden w-11 h-11 rounded-[18px] bg-white border border-gray-100 shadow-sm flex items-center justify-center text-gray-700"
+              onClick={() => setMobileOpen((v) => !v)}
+              aria-label="Abrir menu"
+            >
+              {mobileOpen ? <X size={18} /> : <Menu size={18} />}
+            </button>
+
+            <div className="hidden md:flex items-center gap-3 px-4 py-2 rounded-[22px] border border-gray-100 bg-white shadow-sm">
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-orange-500 to-pink-500 text-white flex items-center justify-center font-black italic">
+                {initialLetter}
+              </div>
+
+              <div className="text-left">
+                <p className="text-xs font-black italic uppercase tracking-tight text-gray-900 leading-none">
+                  {nomeUser}
+                </p>
+                <p className="text-[10px] uppercase font-black text-orange-600 italic mt-1 tracking-[0.18em] leading-none">
+                  ambiente ativo
+                </p>
               </div>
             </div>
-          </section>
 
-          {/* RIGHT: FEATURES + PREÇOS (metade direita) */}
-          <aside className="bg-gradient-to-b from-[#070707] to-[#0b0b0b] px-6 py-12 lg:py-24 overflow-auto">
-            <div className="max-w-xl mx-auto space-y-10">
-              {/* DISC CARDS */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <CardDisc
-                  profile="Dominância"
-                  icon={<Target size={28} />}
-                  title="Lucro Real"
-                  desc="Tome o controle. Tenha o CMV atualizado por IA em tempo real para decidir rápido."
-                />
-                <CardDisc
-                  profile="Influência"
-                  icon={<Users size={28} />}
-                  title="Time Ágil"
-                  desc="Cotações automáticas no WhatsApp que facilitam a vida da sua equipe e fornecedores."
-                />
-                <CardDisc
-                  profile="Estabilidade"
-                  icon={<ShieldCheck size={28} />}
-                  title="Segurança"
-                  desc="Nunca mais tenha surpresas. O sistema avisa antes do estoque acabar, mantendo a paz na operação."
-                />
-                <CardDisc
-                  profile="Conformidade"
-                  icon={<BarChart3 size={28} />}
-                  title="Precisão"
-                  desc="Leitura cirúrgica de XML e notas fiscais. Organização absoluta sem erro humano."
-                />
-              </div>
+            <div className="relative" ref={menuRef}>
+              <button
+                onClick={() => setMenuOpen((v) => !v)}
+                className="w-12 h-12 rounded-[18px] bg-gray-900 shadow-xl flex items-center justify-center text-white hover:scale-105 transition-all border-4 border-white ring-1 ring-gray-100"
+                aria-label="Menu do usuário"
+              >
+                <ChevronDown size={18} />
+              </button>
 
-              {/* PLANOS (compacto) */}
-              <div className="space-y-6">
-                <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl">
-                  <div className="flex items-baseline justify-between">
-                    <div>
-                      <h4 className="text-sm text-zinc-400 font-bold uppercase">Pappi Start</h4>
-                      <p className="text-2xl font-black text-white mt-2">GRÁTIS</p>
-                    </div>
-                    <div>
-                      <button
-                        onClick={irParaCadastro}
-                        className="px-4 py-2 rounded-lg border border-zinc-700 text-xs font-black uppercase text-white"
-                      >
-                        Começar
-                      </button>
-                    </div>
+              {menuOpen && (
+                <div className="absolute right-0 mt-3 w-72 bg-white rounded-[28px] shadow-2xl border border-gray-100 p-3 z-50">
+                  <div className="px-4 py-3 border-b border-gray-50 mb-2">
+                    <p className="text-[9px] font-black uppercase text-gray-400 italic tracking-[0.2em]">
+                      sua conta
+                    </p>
+                    <p className="text-sm font-black italic uppercase tracking-tight text-gray-900 mt-2">
+                      {nomeUser}
+                    </p>
+                    <p className="text-[10px] text-gray-500 font-bold mt-1 truncate">
+                      {empresaNome}
+                    </p>
                   </div>
-                  <ul className="mt-4 space-y-2 text-zinc-400 text-xs">
-                    <FeatureItem text="Gestão de Estoque Manual" active />
-                    <FeatureItem text="Cadastro de Insumos" active />
-                    <FeatureItem text="Sem Inteligência" cross />
-                  </ul>
-                </div>
 
-                <div className="bg-orange-600 p-[2px] rounded-2xl shadow-lg">
-                  <div className="bg-zinc-950 rounded-xl p-6">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-lg font-black italic text-orange-500">Pappi Pro IA</h4>
-                      <div className="text-right">
-                        <div className="text-2xl font-black text-white">R$ 99</div>
-                        <div className="text-xs text-zinc-400">/mês</div>
-                      </div>
-                    </div>
-                    <ul className="mt-4 space-y-2 text-zinc-300 text-sm">
-                      <FeatureItem text="Assessor IA de Compras" active />
-                      <FeatureItem text="Scanner HD de Notas" active />
-                      <FeatureItem text="Inteligência no WhatsApp" active />
-                    </ul>
-                    <div className="mt-4">
-                      <button
-                        onClick={irParaCadastro}
-                        className="w-full py-3 bg-orange-600 text-white rounded-xl font-black uppercase"
-                      >
-                        Assinar Agora
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                  <Link
+                    href="/app/assessor-ia"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setMobileOpen(false);
+                    }}
+                    className="flex items-center gap-3 px-4 py-3 text-xs font-bold italic uppercase text-gray-600 hover:bg-gray-50 rounded-xl transition-all"
+                  >
+                    <Brain size={16} /> Assessor IA
+                  </Link>
 
-                <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl">
-                  <div className="flex items-baseline justify-between">
-                    <div>
-                      <h4 className="text-sm text-zinc-400 font-bold uppercase">Pappi Gestor</h4>
-                      <p className="text-2xl font-black text-white mt-2">R$ 49</p>
-                    </div>
-                    <div>
-                      <button
-                        onClick={irParaCadastro}
-                        className="px-4 py-2 rounded-lg border border-zinc-700 text-xs font-black uppercase text-white"
-                      >
-                        Escolher
-                      </button>
-                    </div>
-                  </div>
-                  <ul className="mt-4 space-y-2 text-zinc-400 text-xs">
-                    <FeatureItem text="Financeiro DDA" active />
-                    <FeatureItem text="Estoque em Tempo Real" active />
-                    <FeatureItem text="Sem Inteligência" cross />
-                  </ul>
-                </div>
-              </div>
+                  <Link
+                    href="/app/configuracoes"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setMobileOpen(false);
+                    }}
+                    className="flex items-center gap-3 px-4 py-3 text-xs font-bold italic uppercase text-gray-600 hover:bg-gray-50 rounded-xl transition-all"
+                  >
+                    <Settings size={16} /> Configurações
+                  </Link>
 
-              {/* RODAPÉ CURTO */}
-              <div className="text-center text-xs text-zinc-500">
-                Pappi Gestor • Campinas, SP • 2026
-              </div>
+                  <button
+                    onClick={doSignOut}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-xs font-black italic uppercase text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                  >
+                    <LogOut size={16} /> Sair do sistema
+                  </button>
+                </div>
+              )}
             </div>
-          </aside>
+          </div>
         </div>
+
+        {mobileOpen && (
+          <div className="xl:hidden border-t border-gray-100 bg-white/90 backdrop-blur-2xl">
+            <div className="max-w-[1600px] mx-auto px-6 py-4 flex flex-col gap-2">
+              <NavItem
+                href="/app"
+                active={isActive("/app")}
+                icon={<Home size={18} />}
+                label="Dashboard"
+                onClick={() => setMobileOpen(false)}
+              />
+              <NavItem
+                href="/app/caixa-entrada"
+                active={isActive("/app/caixa-entrada")}
+                icon={<Inbox size={18} />}
+                label="Inbox"
+                badge={inboxCount}
+                onClick={() => setMobileOpen(false)}
+              />
+              <NavItem
+                href="/app/compras"
+                active={isActive("/app/compras")}
+                icon={<ShoppingCart size={18} />}
+                label="Compras"
+                onClick={() => setMobileOpen(false)}
+              />
+              <NavItem
+                href="/app/financeiro"
+                active={isActive("/app/financeiro")}
+                icon={<DollarSign size={18} />}
+                label="Financeiro"
+                onClick={() => setMobileOpen(false)}
+              />
+              <NavItem
+                href="/app/estoque"
+                active={isActive("/app/estoque")}
+                icon={<Package size={18} />}
+                label="Estoque"
+                onClick={() => setMobileOpen(false)}
+              />
+              <NavItem
+                href="/app/precificacao"
+                active={isActive("/app/precificacao")}
+                icon={<Calculator size={18} />}
+                label="Eng. Preços"
+                onClick={() => setMobileOpen(false)}
+              />
+            </div>
+          </div>
+        )}
+      </header>
+
+      <main className="max-w-[1600px] mx-auto px-6 py-6 md:px-8 md:py-8 animate-in fade-in duration-500">
+        {children}
       </main>
+
+      <Link
+        href="/app/assessor-ia"
+        className="fixed bottom-8 right-8 md:bottom-10 md:right-10 group z-50"
+      >
+        <div className="absolute inset-0 bg-orange-500 blur-3xl opacity-20 group-hover:opacity-40 transition-all" />
+        <button className="relative w-16 h-16 bg-gradient-to-br from-orange-600 to-pink-600 rounded-[22px] shadow-2xl flex items-center justify-center text-white border-2 border-white/20 hover:rotate-6 transition-transform hover:scale-110 active:scale-90">
+          <Sparkles size={28} className="animate-pulse" />
+          <span className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full" />
+        </button>
+      </Link>
     </div>
+  );
+}
+
+function NavItem({
+  href,
+  active,
+  icon,
+  label,
+  badge = 0,
+  onClick,
+}: NavItemProps) {
+  return (
+    <Link
+      href={href}
+      onClick={onClick}
+      className={`relative flex items-center gap-3 px-5 py-3 rounded-[22px] transition-all duration-300 ${
+        active
+          ? "bg-white text-orange-600 font-black italic shadow-md shadow-orange-100/50 border border-orange-50"
+          : "text-gray-400 hover:text-gray-700 hover:bg-white/60"
+      }`}
+    >
+      <span className={active ? "text-orange-600" : "text-gray-400"}>
+        {icon}
+      </span>
+
+      <span className="text-[10px] uppercase tracking-[0.2em] font-black leading-none">
+        {label}
+      </span>
+
+      {badge > 0 && (
+        <span className="absolute -top-1 -right-1 flex h-5 min-w-5 px-1 items-center justify-center rounded-full bg-red-500 text-[9px] font-black text-white ring-4 ring-gray-50 shadow-lg">
+          {badge > 99 ? "99+" : badge}
+        </span>
+      )}
+    </Link>
   );
 }

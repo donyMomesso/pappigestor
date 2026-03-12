@@ -4,8 +4,8 @@ export const dynamic = "force-dynamic";
 
 import { useEffect, useState } from "react";
 import { useAppAuth } from "@/contexts/AppAuthContext";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/react-app/components/ui/button";
+import { Card, CardContent } from "@/react-app/components/ui/card";
 import { Building2, Plus, ShieldCheck, MapPin, ArrowLeft, Hash } from "lucide-react";
 import Link from "next/link";
 

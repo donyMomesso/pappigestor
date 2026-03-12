@@ -14,7 +14,7 @@ function getApiBaseUrl() {
 function parseEmpresaId(req: NextRequest): string | null {
   const empresaId =
     req.headers.get("x-empresa-id") ||
-    req.headers.get("x-empresa-id") ||
+    req.headers.get("x-pizzaria-id") ||
     req.nextUrl.searchParams.get("empresa_id");
 
   return empresaId?.trim() ? empresaId.trim() : null;
@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           error:
-            "Empresa não informada. Envie x-empresa-id, x-empresa-id ou ?empresa_id=...",
+            "Empresa não informada. Envie x-empresa-id, x-pizzaria-id ou ?empresa_id=...",
         },
         { status: 400 }
       );

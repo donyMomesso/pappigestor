@@ -61,7 +61,7 @@ Regras:
     return errorResponse("Falha ao ler nota (imagem)", 500, { message: e?.message });
   }
   const prompt = `
-      Analise esta nota fiscal/cupom de compra de um restaurante/food service.
+      Analise esta nota fiscal/cupom de compra de uma pizzaria.
       Extraia os dados e retorne APENAS um JSON estrito (sem markdown):
       {
         "fornecedor": "Nome do Fornecedor",

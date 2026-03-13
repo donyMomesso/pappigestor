@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import LegacyPage from "@/react-app/pages/Fornecedores";
 

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -27,7 +27,6 @@ import {
   ShieldCheck,
   Trophy,
   CheckCircle2,
-  Zap,
   Crown,
   ChevronRight,
   Truck,
@@ -40,6 +39,9 @@ import {
   QrCode,
   ListTodo,
   FileSearch,
+  Target,
+  Lightbulb,
+  Zap,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { Feature, NivelAcesso } from "@/react-app/types/auth";
@@ -104,6 +106,15 @@ interface QuickModule {
   roles: NivelAcesso[];
   feature?: Feature;
   color: string;
+}
+
+interface SmartAction {
+  title: string;
+  description: string;
+  href: string;
+  icon: LucideIcon;
+  tone: string;
+  cta: string;
 }
 
 const spotlightCards: SpotlightCard[] = [
@@ -288,7 +299,7 @@ function getDefaultShortcutsByRole(role?: NivelAcesso): string[] {
   }
 }
 
-export default function AppHomePage() {
+export default function Page() {
   const { localUser, hasRole, hasFeature } = useAppAuth();
 
   const [stats, setStats] = useState({
@@ -539,6 +550,113 @@ export default function AppHomePage() {
     };
   }, [validade, precos]);
 
+  const smartNow = useMemo<SmartAction[]>(() => {
+    const actions: SmartAction[] = [];
+
+    if (boletos?.vencidos) {
+      actions.push({
+        title: "Resolver boletos vencidos",
+        description: `${boletos.vencidos} vencido(s) aguardando ação imediata.`,
+        href: "/app/financeiro",
+        icon: AlertTriangle,
+        tone: "bg-red-50 text-red-600",
+        cta: "Ir para financeiro",
+      });
+    } else if (boletos?.vencendoHoje) {
+      actions.push({
+        title: "Priorizar pagamentos de hoje",
+        description: `${boletos.vencendoHoje} boleto(s) vencem hoje.`,
+        href: "/app/financeiro",
+        icon: Clock3,
+        tone: "bg-orange-50 text-orange-600",
+        cta: "Abrir pagamentos",
+      });
+    }
+
+    if (validade?.vencidos) {
+      actions.push({
+        title: "Revisar validade do estoque",
+        description: `${validade.vencidos} item(ns) vencido(s).`,
+        href: "/app/estoque",
+        icon: Package,
+        tone: "bg-amber-50 text-amber-600",
+        cta: "Ver estoque",
+      });
+    } else if (validade?.vencendo7Dias) {
+      actions.push({
+        title: "Girar produtos próximos ao vencimento",
+        description: `${validade.vencendo7Dias} item(ns) vencem em até 7 dias.`,
+        href: "/app/estoque",
+        icon: ClipboardCheck,
+        tone: "bg-amber-50 text-amber-600",
+        cta: "Organizar giro",
+      });
+    }
+
+    if (!actions.length) {
+      actions.push({
+        title: "Sua operação está estável",
+        description: "Sem alertas críticos neste momento.",
+        href: "/app/dashboard",
+        icon: ShieldCheck,
+        tone: "bg-emerald-50 text-emerald-600",
+        cta: "Ver dashboard",
+      });
+    }
+
+    return actions.slice(0, 2);
+  }, [boletos, validade]);
+
+  const opportunities = useMemo<SmartAction[]>(() => {
+    const list: SmartAction[] = [];
+
+    if (precos?.abaixo_media) {
+      list.push({
+        title: "Há chance de economia",
+        description: `${precos.abaixo_media} item(ns) abaixo da média de preço.`,
+        href: "/app/ranking-fornecedores",
+        icon: Trophy,
+        tone: "bg-emerald-50 text-emerald-600",
+        cta: "Ver ranking",
+      });
+    }
+
+    if (hasRole(["financeiro", "admin", "dono"]) && hasFeature("dda")) {
+      list.push({
+        title: "DDA pode acelerar sua rotina",
+        description: "Centralize títulos e acompanhe melhor o fluxo de cobrança.",
+        href: "/app/boletos-dda",
+        icon: CreditCard,
+        tone: "bg-violet-50 text-violet-600",
+        cta: "Abrir DDA",
+      });
+    }
+
+    if (hasRole(["comprador", "financeiro", "admin", "dono"]) && hasFeature("assessor_ia")) {
+      list.push({
+        title: "Use a IA para decidir melhor",
+        description: "Ganhe velocidade para analisar e agir com mais segurança.",
+        href: "/app/assessor-ia",
+        icon: Brain,
+        tone: "bg-fuchsia-50 text-fuchsia-600",
+        cta: "Abrir IA",
+      });
+    }
+
+    if (hasRole(["financeiro", "admin", "dono"])) {
+      list.push({
+        title: "Proteja sua margem",
+        description: "Revise preços e margem com mais inteligência.",
+        href: "/app/precificacao",
+        icon: BarChart3,
+        tone: "bg-orange-50 text-orange-600",
+        cta: "Ir para precificação",
+      });
+    }
+
+    return list.slice(0, 2);
+  }, [precos, hasRole, hasFeature]);
+
   return (
     <div className="space-y-4">
       <section className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-gray-950 via-orange-600 to-pink-500 text-white shadow-xl shadow-orange-500/20">
@@ -660,9 +778,9 @@ export default function AppHomePage() {
       <section className="space-y-3">
         <div className="flex items-center justify-between px-1">
           <div>
-            <h2 className="text-base font-black text-gray-900">Acesso rápido</h2>
+            <h2 className="text-base font-black text-gray-900">Seu painel</h2>
             <p className="text-sm text-gray-500">
-              Personalizado por usuário e nível de acesso.
+              Atalhos fixados e sugestões inteligentes para hoje.
             </p>
           </div>
 
@@ -677,41 +795,110 @@ export default function AppHomePage() {
           </Button>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          {quickModules.map((item) => (
-            <Link key={item.id} href={item.href}>
-              <Card className="border-0 shadow-sm transition-all hover:shadow-md">
-                <CardContent className="p-4">
-                  <div className={`inline-flex rounded-2xl p-3 ${item.color}`}>
-                    <item.icon className="h-5 w-5" />
-                  </div>
-                  <h3 className="mt-3 text-sm font-black text-gray-900">{item.title}</h3>
-                  <div className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-orange-600">
-                    Entrar
-                    <ArrowRight className="h-3.5 w-3.5" />
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
+        <Card className="border-0 shadow-sm">
+          <CardContent className="space-y-5 p-4">
+            <div>
+              <div className="mb-3 flex items-center gap-2">
+                <Target className="h-4 w-4 text-orange-600" />
+                <h3 className="text-sm font-black text-gray-900">Fixados por você</h3>
+              </div>
 
-          {quickModules.length < 4 &&
-            Array.from({ length: 4 - quickModules.length }).map((_, index) => (
-              <button
-                key={`empty-${index}`}
-                onClick={() => setShowShortcutEditor(true)}
-                className="rounded-2xl border-2 border-dashed border-orange-200 bg-orange-50/50 p-4 text-left transition-all hover:border-orange-300 hover:bg-orange-50"
-              >
-                <div className="inline-flex rounded-2xl bg-white p-3 text-orange-500 shadow-sm">
-                  <Plus className="h-5 w-5" />
+              <div className="grid grid-cols-2 gap-3">
+                {quickModules.map((item) => (
+                  <Link key={item.id} href={item.href}>
+                    <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:border-orange-200 hover:shadow-md">
+                      <div className={`inline-flex rounded-2xl p-3 ${item.color}`}>
+                        <item.icon className="h-5 w-5" />
+                      </div>
+                      <h4 className="mt-3 text-sm font-black text-gray-900">{item.title}</h4>
+                      <div className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-orange-600">
+                        Entrar
+                        <ArrowRight className="h-3.5 w-3.5" />
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+
+                {quickModules.length < 4 &&
+                  Array.from({ length: 4 - quickModules.length }).map((_, index) => (
+                    <button
+                      key={`empty-${index}`}
+                      onClick={() => setShowShortcutEditor(true)}
+                      className="rounded-2xl border-2 border-dashed border-orange-200 bg-orange-50/50 p-4 text-left transition-all hover:border-orange-300 hover:bg-orange-50"
+                    >
+                      <div className="inline-flex rounded-2xl bg-white p-3 text-orange-500 shadow-sm">
+                        <Plus className="h-5 w-5" />
+                      </div>
+                      <h4 className="mt-3 text-sm font-black text-gray-800">Adicionar</h4>
+                      <div className="mt-2 text-xs font-semibold text-orange-600">
+                        Escolher atalho
+                      </div>
+                    </button>
+                  ))}
+              </div>
+            </div>
+
+            <div>
+              <div className="mb-3 flex items-center gap-2">
+                <Zap className="h-4 w-4 text-orange-600" />
+                <h3 className="text-sm font-black text-gray-900">Agora no app</h3>
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-2">
+                {smartNow.map((item) => (
+                  <Link key={item.title} href={item.href}>
+                    <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:border-orange-200 hover:shadow-md">
+                      <div className="flex items-start gap-3">
+                        <div className={`rounded-2xl p-3 ${item.tone}`}>
+                          <item.icon className="h-5 w-5" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <h4 className="text-sm font-black text-gray-900">{item.title}</h4>
+                          <p className="mt-1 text-sm text-gray-500">{item.description}</p>
+                          <div className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-orange-600">
+                            {item.cta}
+                            <ChevronRight className="h-3.5 w-3.5" />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+
+            {!!opportunities.length && (
+              <div>
+                <div className="mb-3 flex items-center gap-2">
+                  <Lightbulb className="h-4 w-4 text-orange-600" />
+                  <h3 className="text-sm font-black text-gray-900">Oportunidades de hoje</h3>
                 </div>
-                <h3 className="mt-3 text-sm font-black text-gray-800">Adicionar</h3>
-                <div className="mt-2 text-xs font-semibold text-orange-600">
-                  Escolher atalho
+
+                <div className="grid gap-3 md:grid-cols-2">
+                  {opportunities.map((item) => (
+                    <Link key={item.title} href={item.href}>
+                      <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:border-orange-200 hover:shadow-md">
+                        <div className="flex items-start gap-3">
+                          <div className={`rounded-2xl p-3 ${item.tone}`}>
+                            <item.icon className="h-5 w-5" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <h4 className="text-sm font-black text-gray-900">{item.title}</h4>
+                            <p className="mt-1 text-sm text-gray-500">{item.description}</p>
+                            <div className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-orange-600">
+                              {item.cta}
+                              <ChevronRight className="h-3.5 w-3.5" />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
                 </div>
-              </button>
-            ))}
-        </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </section>
 
       <section className="space-y-3">
@@ -765,48 +952,10 @@ export default function AppHomePage() {
         </div>
       </section>
 
-      <section className="grid gap-3 md:grid-cols-3">
-        <Card className="border-0 bg-orange-50 shadow-sm">
-          <CardContent className="p-4">
-            <div className="w-fit rounded-2xl bg-white p-3 text-orange-600 shadow-sm">
-              <BarChart3 className="h-5 w-5" />
-            </div>
-            <h3 className="mt-3 text-sm font-black text-gray-900">Mais clareza</h3>
-            <p className="mt-1 text-sm text-gray-600">
-              O cliente entende rápido o que precisa fazer.
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-0 bg-orange-50 shadow-sm">
-          <CardContent className="p-4">
-            <div className="w-fit rounded-2xl bg-white p-3 text-orange-600 shadow-sm">
-              <Zap className="h-5 w-5" />
-            </div>
-            <h3 className="mt-3 text-sm font-black text-gray-900">Mais ação</h3>
-            <p className="mt-1 text-sm text-gray-600">
-              Menos confusão e mais velocidade operacional.
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-0 bg-orange-50 shadow-sm">
-          <CardContent className="p-4">
-            <div className="w-fit rounded-2xl bg-white p-3 text-orange-600 shadow-sm">
-              <ShieldCheck className="h-5 w-5" />
-            </div>
-            <h3 className="mt-3 text-sm font-black text-gray-900">Mais segurança</h3>
-            <p className="mt-1 text-sm text-gray-600">
-              Riscos e oportunidades ficam visíveis mais cedo.
-            </p>
-          </CardContent>
-        </Card>
-      </section>
-
       <Dialog open={showShortcutEditor} onOpenChange={setShowShortcutEditor}>
         <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Editar acesso rápido</DialogTitle>
+            <DialogTitle>Editar fixados do painel</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-2">

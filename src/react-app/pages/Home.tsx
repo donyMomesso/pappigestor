@@ -33,6 +33,9 @@ import {
   Pencil,
   Plus,
   DollarSign,
+  ArrowRight,
+  Brain,
+  Crown,
 } from "lucide-react";
 
 import { useAppAuthOptional } from "@/contexts/AppAuthContext";
@@ -46,232 +49,351 @@ interface ModuleCard {
   icon: ElementType;
   gradient: string;
   shadowColor: string;
-  bgLight: string;
   roles: string[];
+  featured?: boolean;
 }
 
 const ALL_MODULES: ModuleCard[] = [
   {
+    id: "dashboard",
+    title: "Dashboard",
+    description: "Indicadores e visão geral",
+    href: "/app/dashboard",
+    icon: BarChart3,
+    gradient: "from-amber-500 to-yellow-500",
+    shadowColor: "shadow-amber-500/30",
+    roles: ["financeiro", "admin", "dono"],
+    featured: true,
+  },
+  {
+    id: "estoque",
+    title: "Estoque",
+    description: "Entradas, saídas e alertas",
+    href: "/app/estoque",
+    icon: Package,
+    gradient: "from-cyan-500 to-teal-500",
+    shadowColor: "shadow-cyan-500/30",
+    roles: ["operador", "comprador", "admin", "dono"],
+    featured: true,
+  },
+  {
     id: "compras",
-    title: "Compras",
-    description: "Nova provisão de gasto",
-    href: "/comprador",
-    icon: ShoppingCart,
+    title: "Compras IA",
+    description: "Planejamento e provisão",
+    href: "/app/compras",
+    icon: Sparkles,
     gradient: "from-orange-500 to-amber-500",
     shadowColor: "shadow-orange-500/30",
-    bgLight: "bg-orange-50",
-    roles: ["comprador", "admin_empresa", "super_admin"],
+    roles: ["comprador", "admin", "dono"],
+    featured: true,
+  },
+  {
+    id: "financeiro",
+    title: "Financeiro",
+    description: "Pagamentos, caixa e boletos",
+    href: "/app/financeiro",
+    icon: Calculator,
+    gradient: "from-rose-500 to-red-500",
+    shadowColor: "shadow-rose-500/30",
+    roles: ["financeiro", "admin", "dono"],
+    featured: true,
+  },
+  {
+    id: "comprador",
+    title: "Nova Compra",
+    description: "Lançamento manual",
+    href: "/app/comprador",
+    icon: ShoppingCart,
+    gradient: "from-pink-500 to-rose-500",
+    shadowColor: "shadow-pink-500/30",
+    roles: ["comprador", "admin", "dono"],
+  },
+  {
+    id: "compra-mercado",
+    title: "Compra Mercado",
+    description: "Operação prática do dia",
+    href: "/app/compra-mercado",
+    icon: ShoppingCart,
+    gradient: "from-fuchsia-500 to-pink-500",
+    shadowColor: "shadow-fuchsia-500/30",
+    roles: ["operador", "comprador", "admin", "dono"],
   },
   {
     id: "recebimento",
     title: "Recebimento",
     description: "Conferir entregas",
-    href: "/recebimento",
+    href: "/app/recebimento",
     icon: PackageCheck,
-    gradient: "from-green-500 to-emerald-500",
-    shadowColor: "shadow-green-500/30",
-    bgLight: "bg-green-50",
-    roles: ["operador", "comprador", "admin_empresa", "super_admin"],
-  },
-  {
-    id: "estoque",
-    title: "Estoque",
-    description: "Auditoria de produtos",
-    href: "/estoque",
-    icon: Package,
-    gradient: "from-teal-500 to-cyan-500",
-    shadowColor: "shadow-teal-500/30",
-    bgLight: "bg-teal-50",
-    roles: ["operador", "comprador", "admin_empresa", "super_admin"],
+    gradient: "from-emerald-500 to-green-500",
+    shadowColor: "shadow-emerald-500/30",
+    roles: ["operador", "comprador", "admin", "dono"],
   },
   {
     id: "lista-compras",
     title: "Lista Compras",
-    description: "Solicitações pendentes",
-    href: "/lista-compras",
+    description: "Necessidades pendentes",
+    href: "/app/lista-compras",
     icon: ClipboardList,
     gradient: "from-indigo-500 to-blue-500",
     shadowColor: "shadow-indigo-500/30",
-    bgLight: "bg-indigo-50",
-    roles: ["operador", "comprador", "admin_empresa", "super_admin"],
+    roles: ["operador", "comprador", "admin", "dono"],
   },
   {
-    id: "financeiro",
-    title: "Financeiro",
-    description: "Boletos e pagamentos",
-    href: "/financeiro",
-    icon: Calculator,
-    gradient: "from-red-500 to-rose-500",
+    id: "boletos-dda",
+    title: "Boletos DDA",
+    description: "Visualização dos boletos",
+    href: "/app/boletos-dda",
+    icon: DollarSign,
+    gradient: "from-red-500 to-orange-500",
     shadowColor: "shadow-red-500/30",
-    bgLight: "bg-red-50",
-    roles: ["financeiro", "admin_empresa", "super_admin"],
+    roles: ["financeiro", "admin", "dono"],
+  },
+  {
+    id: "open-finance",
+    title: "Open Finance",
+    description: "Conexões e visão bancária",
+    href: "/app/open-finance",
+    icon: TrendingUp,
+    gradient: "from-emerald-500 to-teal-500",
+    shadowColor: "shadow-emerald-500/30",
+    roles: ["financeiro", "admin", "dono"],
   },
   {
     id: "cotacao",
     title: "Cotação",
     description: "Comparar preços",
-    href: "/cotacao",
+    href: "/app/cotacao",
     icon: FileText,
     gradient: "from-violet-500 to-purple-500",
     shadowColor: "shadow-violet-500/30",
-    bgLight: "bg-violet-50",
-    roles: ["comprador", "admin_empresa", "super_admin"],
+    roles: ["comprador", "admin", "dono"],
+  },
+  {
+    id: "ranking-fornecedores",
+    title: "Ranking Preços",
+    description: "Oportunidades de economia",
+    href: "/app/ranking-fornecedores",
+    icon: Crown,
+    gradient: "from-purple-500 to-fuchsia-500",
+    shadowColor: "shadow-purple-500/30",
+    roles: ["comprador", "financeiro", "admin", "dono"],
   },
   {
     id: "fornecedores",
     title: "Fornecedores",
-    description: "Cadastro e WhatsApp",
-    href: "/fornecedores",
+    description: "Cadastro e parceiros",
+    href: "/app/fornecedores",
     icon: Truck,
-    gradient: "from-cyan-500 to-sky-500",
-    shadowColor: "shadow-cyan-500/30",
-    bgLight: "bg-cyan-50",
-    roles: ["comprador", "admin_empresa", "super_admin"],
+    gradient: "from-sky-500 to-cyan-500",
+    shadowColor: "shadow-sky-500/30",
+    roles: ["comprador", "admin", "dono"],
   },
   {
     id: "produtos",
     title: "Produtos",
-    description: "Catálogo de itens",
-    href: "/produtos",
+    description: "Gestão dos itens",
+    href: "/app/produtos",
     icon: Box,
     gradient: "from-pink-500 to-rose-500",
     shadowColor: "shadow-pink-500/30",
-    bgLight: "bg-pink-50",
-    roles: ["comprador", "admin_empresa", "super_admin"],
+    roles: ["operador", "comprador", "admin", "dono"],
   },
   {
-    id: "dashboard",
-    title: "Dashboard",
-    description: "Gráficos e relatórios",
-    href: "/dashboard",
-    icon: BarChart3,
-    gradient: "from-amber-500 to-yellow-500",
-    shadowColor: "shadow-amber-500/30",
-    bgLight: "bg-amber-50",
-    roles: ["financeiro", "admin_empresa", "super_admin"],
+    id: "produtos-master",
+    title: "Catálogo Master",
+    description: "Base principal",
+    href: "/app/produtos-master",
+    icon: Box,
+    gradient: "from-slate-500 to-zinc-500",
+    shadowColor: "shadow-slate-500/30",
+    roles: ["comprador", "admin", "dono"],
+  },
+  {
+    id: "catalogo-global",
+    title: "Catálogo Global",
+    description: "Referência global",
+    href: "/app/catalogo-global",
+    icon: Box,
+    gradient: "from-blue-500 to-cyan-500",
+    shadowColor: "shadow-blue-500/30",
+    roles: ["admin", "dono"],
   },
   {
     id: "assessor-ia",
     title: "Assessor IA",
-    description: "Análises inteligentes",
-    href: "/assessor-ia",
-    icon: Sparkles,
+    description: "Análises e apoio inteligente",
+    href: "/app/assessor-ia",
+    icon: Brain,
     gradient: "from-purple-500 to-fuchsia-500",
     shadowColor: "shadow-purple-500/30",
-    bgLight: "bg-purple-50",
-    roles: ["financeiro", "admin_empresa", "super_admin"],
+    roles: ["comprador", "financeiro", "admin", "dono"],
   },
   {
     id: "caixa-entrada",
     title: "Caixa Entrada",
-    description: "Processar arquivos",
-    href: "/caixa-entrada",
+    description: "Arquivos e documentos",
+    href: "/app/caixa-entrada",
     icon: MessageSquare,
-    gradient: "from-emerald-500 to-green-500",
-    shadowColor: "shadow-emerald-500/30",
-    bgLight: "bg-emerald-50",
-    roles: ["comprador", "financeiro", "admin_empresa", "super_admin"],
+    gradient: "from-green-500 to-emerald-500",
+    shadowColor: "shadow-green-500/30",
+    roles: ["comprador", "financeiro", "admin", "dono"],
+  },
+  {
+    id: "equipe",
+    title: "Equipe",
+    description: "Time e acessos",
+    href: "/app/equipe",
+    icon: Users,
+    gradient: "from-blue-500 to-indigo-500",
+    shadowColor: "shadow-blue-500/30",
+    roles: ["admin", "dono"],
   },
   {
     id: "usuarios",
     title: "Usuários",
-    description: "Gerenciar equipe",
-    href: "/usuarios",
+    description: "Permissões e gestão",
+    href: "/app/usuarios",
     icon: Users,
-    gradient: "from-blue-500 to-indigo-500",
-    shadowColor: "shadow-blue-500/30",
-    bgLight: "bg-blue-50",
-    roles: ["admin_empresa", "super_admin"],
+    gradient: "from-indigo-500 to-violet-500",
+    shadowColor: "shadow-indigo-500/30",
+    roles: ["admin", "dono"],
+  },
+  {
+    id: "aprovacoes",
+    title: "Aprovações",
+    description: "Pendências administrativas",
+    href: "/app/aprovacoes",
+    icon: Clock,
+    gradient: "from-yellow-500 to-orange-500",
+    shadowColor: "shadow-yellow-500/30",
+    roles: ["admin", "dono"],
   },
   {
     id: "empresas",
     title: "Empresas",
-    description: "Administrar contas",
-    href: "/empresas",
+    description: "Estrutura e contas",
+    href: "/app/empresas",
     icon: Building2,
     gradient: "from-slate-500 to-gray-500",
     shadowColor: "shadow-slate-500/30",
-    bgLight: "bg-slate-50",
-    roles: ["super_admin"],
+    roles: ["admin"],
   },
   {
     id: "configuracoes",
     title: "Configurações",
-    description: "IA, DDA e assinatura",
-    href: "/configuracoes",
+    description: "IA, DDA e ajustes",
+    href: "/app/configuracoes",
     icon: Settings,
     gradient: "from-gray-500 to-zinc-500",
     shadowColor: "shadow-gray-500/30",
-    bgLight: "bg-gray-50",
-    roles: ["admin_empresa", "super_admin"],
+    roles: ["admin", "dono"],
   },
 ];
 
-const DEFAULT_SHORTCUTS = ["compras", "financeiro", "recebimento", "dashboard"];
-const STORAGE_KEY = "pappi_quick_access";
-
-interface BoletosAlerta {
-  vencidos: number;
-  totalVencidos: number;
-  vencendoHoje: number;
-  totalVencendoHoje: number;
-  vencendo7Dias: number;
-  totalVencendo7Dias: number;
+function getDefaultShortcutsByRole(role?: string | null): string[] {
+  switch (role) {
+    case "operador":
+      return ["estoque", "compra-mercado", "recebimento", "lista-compras"];
+    case "comprador":
+      return ["compras", "compra-mercado", "cotacao", "fornecedores"];
+    case "financeiro":
+      return ["financeiro", "dashboard", "boletos-dda", "open-finance"];
+    case "admin":
+      return ["dashboard", "financeiro", "estoque", "assessor-ia"];
+    case "dono":
+      return ["dashboard", "financeiro", "compras", "assessor-ia"];
+    default:
+      return ["dashboard", "estoque", "compras", "financeiro"];
+  }
 }
 
-interface ValidadeAlerta {
-  vencidos: number;
-  vencendo7Dias: number;
-  vencendo30Dias: number;
-}
+function ModuleGridCard({
+  module,
+}: {
+  module: ModuleCard;
+}) {
+  const Icon = module.icon;
 
-interface PrecoAlerta {
-  tipo: "acima" | "abaixo";
-  produto_nome: string;
-  fornecedor_nome: string;
-  variacao_percentual: number;
-  preco_atual: number;
-  preco_medio: number;
-}
+  return (
+    <Link
+      href={module.href}
+      className="group relative overflow-hidden rounded-2xl border border-zinc-200/70 bg-white p-4 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl dark:border-zinc-800 dark:bg-zinc-900"
+    >
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.9),transparent_35%)]" />
+      <div
+        className={`absolute -right-8 -top-8 h-24 w-24 rounded-full bg-gradient-to-br ${module.gradient} opacity-10 blur-2xl transition-all duration-300 group-hover:opacity-20`}
+      />
 
-interface PrecosAlerta {
-  alertas: PrecoAlerta[];
-  total: number;
-  acima_media: number;
-  abaixo_media: number;
-}
+      <div
+        className={`relative mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br ${module.gradient} shadow-lg ${module.shadowColor}`}
+      >
+        <Icon className="h-5 w-5 text-white" />
+      </div>
 
-type NeedItem = {
-  produto_id: string;
-  produto: string;
-  quantidade: number;
-  unidade: string;
-};
+      <div className="relative">
+        <h3 className="text-sm font-bold text-zinc-900 dark:text-white">{module.title}</h3>
+        <p className="mt-1 text-[11px] leading-4 text-zinc-500 dark:text-zinc-400">
+          {module.description}
+        </p>
+      </div>
+
+      <div className="relative mt-3 flex items-center gap-1 text-[11px] font-semibold text-orange-600 dark:text-orange-400">
+        Abrir <ArrowRight className="h-3.5 w-3.5" />
+      </div>
+    </Link>
+  );
+}
 
 export default function HomePage() {
   const router = useRouter();
   const auth = useAppAuthOptional();
   const localUser = auth?.localUser ?? null;
 
+  const role = localUser?.nivel_acesso ?? null;
+
   const [copiado, setCopiado] = useState(false);
   const [showEditor, setShowEditor] = useState(false);
-  const [selectedShortcuts, setSelectedShortcuts] = useState<string[]>([]);
+  const [quickShortcutIds, setQuickShortcutIds] = useState<string[]>([]);
   const [editingSlot, setEditingSlot] = useState<number | null>(null);
 
-  const [boletosAlerta, setBoletosAlerta] = useState<BoletosAlerta | null>(null);
-  const [validadeAlerta, setValidadeAlerta] = useState<ValidadeAlerta | null>(null);
-  const [precosAlerta, setPrecosAlerta] = useState<PrecosAlerta | null>(null);
+  const [boletosAlerta, setBoletosAlerta] = useState<{
+    vencidos: number;
+    totalVencidos: number;
+    vencendoHoje: number;
+    totalVencendoHoje: number;
+    vencendo7Dias: number;
+    totalVencendo7Dias: number;
+  } | null>(null);
+
+  const [validadeAlerta, setValidadeAlerta] = useState<{
+    vencidos: number;
+    vencendo7Dias: number;
+    vencendo30Dias: number;
+  } | null>(null);
+
+  const [precosAlerta, setPrecosAlerta] = useState<{
+    alertas: Array<{
+      tipo: "acima" | "abaixo";
+      produto_nome: string;
+      fornecedor_nome: string;
+      variacao_percentual: number;
+      preco_atual: number;
+      preco_medio: number;
+    }>;
+    total: number;
+    acima_media: number;
+    abaixo_media: number;
+  } | null>(null);
+
   const [stats, setStats] = useState({ pedidosHoje: 0, aPagar: 0, entregas: 0 });
 
-  // ✅ Itens para comprar (por enquanto vazio para não quebrar)
-  // Depois a gente liga com seu endpoint de “necessidades do estoque”.
   const necessidades = useMemo<NeedItem[]>(() => [], []);
 
   const hasAnyRole = useCallback(
     (roles: string[]) => {
-      const role = localUser?.nivel_acesso;
-      if (!role) return false;
-      return roles.includes(role);
+      const currentRole = localUser?.nivel_acesso;
+      if (!currentRole) return false;
+      return roles.includes(currentRole);
     },
     [localUser?.nivel_acesso]
   );
@@ -281,14 +403,60 @@ export default function HomePage() {
     [hasAnyRole]
   );
 
+  const availableQuickModules = availableModules;
+
   const shortcutModules = useMemo(() => {
-    const list = selectedShortcuts
+    const list = quickShortcutIds
       .map((id) => ALL_MODULES.find((m) => m.id === id))
       .filter((m): m is ModuleCard => !!m && hasAnyRole(m.roles));
 
     while (list.length < 4) list.push(undefined as unknown as ModuleCard);
     return list.slice(0, 4);
-  }, [selectedShortcuts, hasAnyRole]);
+  }, [quickShortcutIds, hasAnyRole]);
+
+  const featuredModules = useMemo(
+    () => ALL_MODULES.filter((m) => m.featured && hasAnyRole(m.roles)),
+    [hasAnyRole]
+  );
+
+  const operationModules = useMemo(
+    () =>
+      ALL_MODULES.filter(
+        (m) =>
+          [
+            "comprador",
+            "compra-mercado",
+            "recebimento",
+            "lista-compras",
+            "cotacao",
+            "fornecedores",
+            "produtos",
+          ].includes(m.id) && hasAnyRole(m.roles)
+      ),
+    [hasAnyRole]
+  );
+
+  const managementModules = useMemo(
+    () =>
+      ALL_MODULES.filter(
+        (m) =>
+          [
+            "assessor-ia",
+            "caixa-entrada",
+            "ranking-fornecedores",
+            "boletos-dda",
+            "open-finance",
+            "equipe",
+            "usuarios",
+            "aprovacoes",
+            "configuracoes",
+            "catalogo-global",
+            "produtos-master",
+            "empresas",
+          ].includes(m.id) && hasAnyRole(m.roles)
+      ),
+    [hasAnyRole]
+  );
 
   const linkIndicacao = useMemo(
     () => `https://dqifkajp3lsn2.mocha.app/cadastro?ref=${localUser?.id || ""}`,
@@ -296,30 +464,59 @@ export default function HomePage() {
   );
 
   const copiarLink = () => {
-    navigator.clipboard.writeText(linkIndicacao);
-    setCopiado(true);
-    setTimeout(() => setCopiado(false), 2000);
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      navigator.clipboard.writeText(linkIndicacao);
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 2000);
+    }
   };
 
-  const saveShortcuts = (shortcuts: string[]) => {
-    const cleaned = shortcuts.filter(Boolean).slice(0, 4);
-    setSelectedShortcuts(cleaned);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(cleaned));
-  };
+  const saveShortcuts = useCallback(
+    async (ids: string[]) => {
+      const next = ids.slice(0, 4);
+      setQuickShortcutIds(next);
 
-  const handleSelectModule = (moduleId: string) => {
+      if (!localUser?.id) return;
+
+      try {
+        const empresaId =
+          typeof (localUser as any).empresaId === "string"
+            ? (localUser as any).empresaId
+            : typeof (localUser as any).empresa_id === "string"
+              ? (localUser as any).empresa_id
+              : null;
+
+        await fetch("/api/home-preferences", {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            userId: localUser.id,
+            empresaId,
+            quickShortcuts: next,
+          }),
+        });
+      } catch (error) {
+        console.error("Erro ao salvar preferências da home:", error);
+      }
+    },
+    [localUser]
+  );
+
+  const handleSelectModule = async (moduleId: string) => {
     if (editingSlot === null) return;
 
-    const newShortcuts = [...selectedShortcuts];
+    const next = [...quickShortcutIds];
+    const existingIndex = next.indexOf(moduleId);
 
-    const existingIndex = newShortcuts.indexOf(moduleId);
     if (existingIndex !== -1 && existingIndex !== editingSlot) {
-      newShortcuts[existingIndex] = newShortcuts[editingSlot] || "";
+      next[existingIndex] = next[editingSlot] || "";
     }
 
-    newShortcuts[editingSlot] = moduleId;
+    next[editingSlot] = moduleId;
 
-    saveShortcuts(newShortcuts);
+    await saveShortcuts(next.filter(Boolean));
     setEditingSlot(null);
     setShowEditor(false);
   };
@@ -417,296 +614,156 @@ export default function HomePage() {
   }, [fetchAlertas]);
 
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length <= 4) {
-          setSelectedShortcuts(parsed);
-          return;
-        }
-      } catch {}
-    }
+    const loadPreferences = async () => {
+      if (!localUser?.id) return;
 
-    const defaults = DEFAULT_SHORTCUTS.filter((id) => availableModules.some((m) => m.id === id));
-    while (defaults.length < 4 && availableModules.length > defaults.length) {
-      const next = availableModules.find((m) => !defaults.includes(m.id));
-      if (next) defaults.push(next.id);
-    }
-    setSelectedShortcuts(defaults.slice(0, 4));
-  }, [availableModules]);
+      try {
+        const response = await fetch(
+          `/api/home-preferences?userId=${encodeURIComponent(localUser.id)}`,
+          { cache: "no-store" }
+        );
+
+        if (!response.ok) {
+          throw new Error("Falha ao carregar preferências");
+        }
+
+        const result = await response.json();
+        const saved = result?.preference?.quick_shortcuts;
+
+        if (Array.isArray(saved) && saved.length > 0) {
+          const validSaved = saved.filter((id: string) =>
+            availableQuickModules.some((m) => m.id === id)
+          );
+
+          if (validSaved.length > 0) {
+            setQuickShortcutIds(validSaved.slice(0, 4));
+            return;
+          }
+        }
+      } catch (error) {
+        console.error("Erro ao carregar preferências da home:", error);
+      }
+
+      const defaults = getDefaultShortcutsByRole(role).filter((id) =>
+        availableQuickModules.some((m) => m.id === id)
+      );
+
+      const fallback = [...defaults];
+      for (const mod of availableQuickModules) {
+        if (fallback.length >= 4) break;
+        if (!fallback.includes(mod.id)) fallback.push(mod.id);
+      }
+
+      setQuickShortcutIds(fallback.slice(0, 4));
+    };
+
+    loadPreferences();
+  }, [localUser?.id, role, availableQuickModules]);
 
   return (
-    <div className="space-y-6">
-      {/* Hero Welcome Section */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-orange-500 via-red-500 to-rose-600 rounded-3xl p-5 text-white shadow-xl shadow-orange-500/20">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
-        <div className="absolute bottom-0 left-0 w-20 h-20 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2" />
+    <div className="space-y-5">
+      <section className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-orange-500 via-red-500 to-pink-600 p-5 text-white shadow-[0_20px_60px_rgba(249,115,22,0.28)]">
+        <div className="absolute -right-10 -top-10 h-28 w-28 rounded-full bg-white/10 blur-2xl" />
+        <div className="absolute -bottom-10 -left-10 h-28 w-28 rounded-full bg-white/10 blur-2xl" />
 
-        <div className="relative flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold">Olá, {localUser?.nome?.split(" ")[0] || "Gestor"}! </h1>
-            <p className="text-white/80 text-sm mt-0.5">
+        <div className="relative flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/75">
+              central inteligente
+            </p>
+            <h1 className="mt-1 text-xl font-black leading-tight">
+              Olá, {localUser?.nome?.split(" ")[0] || "Gestor"}!
+            </h1>
+            <p className="mt-1 text-sm text-white/85">
               {localUser?.nivel_acesso ? NIVEL_LABELS[localUser.nivel_acesso] : ""}
               {(localUser as any)?.empresa_nome ? ` • ${(localUser as any).empresa_nome}` : ""}
             </p>
+            <p className="mt-3 max-w-[240px] text-xs leading-5 text-white/85">
+              Controle compras, estoque e financeiro com uma experiência que convida a explorar.
+            </p>
           </div>
-          <div className="w-12 h-12 ...">
-  {localUser?.nome?.charAt(0)?.toUpperCase() || "P"}
-</div>
+
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/20 bg-white/15 text-lg font-black shadow-lg backdrop-blur-sm">
+            {localUser?.nome?.charAt(0)?.toUpperCase() || "P"}
+          </div>
         </div>
 
-        {/* Stats in Hero */}
-        <div className="relative grid grid-cols-3 gap-2 mt-4">
-          <div className="bg-white/15 backdrop-blur-sm rounded-lg p-2.5 text-center">
+        <div className="relative mt-5 grid grid-cols-3 gap-2">
+          <div className="rounded-2xl border border-white/10 bg-white/15 p-3 text-center backdrop-blur-sm">
             <div className="flex items-center justify-center gap-1">
-              <TrendingUp className="w-3.5 h-3.5" />
-              <span className="text-lg font-bold">{stats.pedidosHoje}</span>
+              <TrendingUp className="h-3.5 w-3.5" />
+              <span className="text-lg font-black">{stats.pedidosHoje}</span>
             </div>
-            <p className="text-[10px] text-white/70">Pedidos Hoje</p>
+            <p className="mt-1 text-[10px] text-white/75">Pedidos hoje</p>
           </div>
-          <div className="bg-white/15 backdrop-blur-sm rounded-lg p-2.5 text-center">
+
+          <div className="rounded-2xl border border-white/10 bg-white/15 p-3 text-center backdrop-blur-sm">
             <div className="flex items-center justify-center gap-1">
-              <AlertCircle className="w-3.5 h-3.5" />
-              <span className="text-lg font-bold">{stats.aPagar}</span>
+              <AlertCircle className="h-3.5 w-3.5" />
+              <span className="text-lg font-black">{stats.aPagar}</span>
             </div>
-            <p className="text-[10px] text-white/70">A Pagar</p>
+            <p className="mt-1 text-[10px] text-white/75">A pagar</p>
           </div>
-          <div className="bg-white/15 backdrop-blur-sm rounded-lg p-2.5 text-center">
+
+          <div className="rounded-2xl border border-white/10 bg-white/15 p-3 text-center backdrop-blur-sm">
             <div className="flex items-center justify-center gap-1">
-              <Clock className="w-3.5 h-3.5" />
-              <span className="text-lg font-bold">{stats.entregas}</span>
+              <Clock className="h-3.5 w-3.5" />
+              <span className="text-lg font-black">{stats.entregas}</span>
             </div>
-            <p className="text-[10px] text-white/70">Entregas</p>
+            <p className="mt-1 text-[10px] text-white/75">Entregas</p>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Itens para comprar (não quebra build) */}
-      <Card className="border-orange-200 bg-orange-50">
-        <CardHeader>
-          <CardTitle>⚠️ Itens para comprar</CardTitle>
+      {featuredModules.length > 0 && (
+        <section className="space-y-3">
+          <div>
+            <h2 className="text-base font-black text-zinc-900 dark:text-white">
+              Centrais do negócio
+            </h2>
+            <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+              Os módulos mais importantes para decidir rápido
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            {featuredModules.map((module) => (
+              <ModuleGridCard key={module.id} module={module} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      <Card className="overflow-hidden rounded-3xl border border-orange-200 bg-gradient-to-br from-orange-50 to-amber-50 shadow-sm dark:border-orange-900 dark:from-orange-950/40 dark:to-amber-950/40">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-black text-zinc-900 dark:text-white">
+            ⚠️ Itens para comprar
+          </CardTitle>
         </CardHeader>
-        <CardContent>
-          {necessidades.length === 0 && <p className="text-sm text-gray-500">Estoque saudável</p>}
 
-          {necessidades.map((n: NeedItem) => (
-            <div key={n.produto_id} className="flex justify-between py-2 border-b">
-              <span>{n.produto}</span>
-              <span className="font-bold text-orange-600">
-                {n.quantidade} {n.unidade}
-              </span>
-            </div>
-          ))}
+        <CardContent className="pt-0">
+          {necessidades.length === 0 && (
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">Estoque saudável</p>
+          )}
 
-          <Button className="mt-4 w-full" onClick={() => router.push("/app/lista-compras")}>
+          <Button
+            className="mt-2 h-11 w-full rounded-2xl bg-gradient-to-r from-orange-500 to-pink-500 text-white hover:from-orange-600 hover:to-pink-600"
+            onClick={() => router.push("/app/lista-compras")}
+          >
             Gerenciar compras
           </Button>
         </CardContent>
       </Card>
 
-      {/* Alertas de Boletos */}
-      {boletosAlerta &&
-        (boletosAlerta.vencidos > 0 ||
-          boletosAlerta.vencendoHoje > 0 ||
-          boletosAlerta.vencendo7Dias > 0) && (
-          <Card className="border-0 overflow-hidden shadow-lg">
-            <CardContent className="p-0">
-              {boletosAlerta.vencidos > 0 && (
-                <Link
-                  href="/financeiro"
-                  className="flex items-center gap-3 p-3 bg-gradient-to-r from-red-500 to-rose-600 text-white hover:from-red-600 hover:to-rose-700 transition-all"
-                >
-                  <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center flex-shrink-0">
-                    <AlertCircle className="w-5 h-5" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-bold text-sm">
-                      🚨 {boletosAlerta.vencidos} boleto{boletosAlerta.vencidos > 1 ? "s" : ""} vencido
-                      {boletosAlerta.vencidos > 1 ? "s" : ""}!
-                    </p>
-                    <p className="text-red-100 text-xs">
-                      Total:{" "}
-                      {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
-                        boletosAlerta.totalVencidos
-                      )}
-                    </p>
-                  </div>
-                  <span className="text-white/80 text-xs">Ver →</span>
-                </Link>
-              )}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-base font-black text-zinc-900 dark:text-white">Acesso rápido</h2>
+            <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+              Seus atalhos pessoais, salvos na sua conta
+            </p>
+          </div>
 
-              {boletosAlerta.vencendoHoje > 0 && (
-                <Link
-                  href="/financeiro"
-                  className="flex items-center gap-3 p-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600 transition-all"
-                >
-                  <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center flex-shrink-0">
-                    <Clock className="w-5 h-5" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-bold text-sm">
-                      ⚠️ {boletosAlerta.vencendoHoje} boleto{boletosAlerta.vencendoHoje > 1 ? "s" : ""} vence
-                      {boletosAlerta.vencendoHoje > 1 ? "m" : ""} HOJE!
-                    </p>
-                    <p className="text-orange-100 text-xs">
-                      Total:{" "}
-                      {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
-                        boletosAlerta.totalVencendoHoje
-                      )}
-                    </p>
-                  </div>
-                  <span className="text-white/80 text-xs">Ver →</span>
-                </Link>
-              )}
-
-              {boletosAlerta.vencendo7Dias > 0 && (
-                <Link
-                  href="/financeiro"
-                  className="flex items-center gap-3 p-3 bg-gradient-to-r from-yellow-500 to-amber-400 text-yellow-900 hover:from-yellow-400 hover:to-amber-300 transition-all"
-                >
-                  <div className="w-10 h-10 bg-yellow-900/20 backdrop-blur-sm rounded-xl flex items-center justify-center flex-shrink-0">
-                    <Calculator className="w-5 h-5" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-bold text-sm">
-                      📅 {boletosAlerta.vencendo7Dias} boleto{boletosAlerta.vencendo7Dias > 1 ? "s" : ""} nos
-                      próximos 7 dias
-                    </p>
-                    <p className="text-yellow-800 text-xs">
-                      Total:{" "}
-                      {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
-                        boletosAlerta.totalVencendo7Dias
-                      )}
-                    </p>
-                  </div>
-                  <span className="text-yellow-800/80 text-xs">Ver →</span>
-                </Link>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-      {/* Alertas de Validade do Estoque */}
-      {validadeAlerta &&
-        (validadeAlerta.vencidos > 0 ||
-          validadeAlerta.vencendo7Dias > 0 ||
-          validadeAlerta.vencendo30Dias > 0) && (
-          <Card className="border-0 overflow-hidden shadow-lg">
-            <CardContent className="p-0">
-              {validadeAlerta.vencidos > 0 && (
-                <Link
-                  href="/estoque"
-                  className="flex items-center gap-3 p-3 bg-gradient-to-r from-red-600 to-pink-600 text-white hover:from-red-700 hover:to-pink-700 transition-all"
-                >
-                  <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center flex-shrink-0">
-                    <Package className="w-5 h-5" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-bold text-sm">
-                      🚨 {validadeAlerta.vencidos} produto{validadeAlerta.vencidos > 1 ? "s" : ""} com validade
-                      vencida!
-                    </p>
-                    <p className="text-red-100 text-xs">Verificar estoque urgente</p>
-                  </div>
-                  <span className="text-white/80 text-xs">Ver →</span>
-                </Link>
-              )}
-
-              {validadeAlerta.vencendo7Dias > 0 && (
-                <Link
-                  href="/estoque"
-                  className="flex items-center gap-3 p-3 bg-gradient-to-r from-orange-600 to-red-500 text-white hover:from-orange-700 hover:to-red-600 transition-all"
-                >
-                  <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center flex-shrink-0">
-                    <Package className="w-5 h-5" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-bold text-sm">
-                      ⚠️ {validadeAlerta.vencendo7Dias} produto{validadeAlerta.vencendo7Dias > 1 ? "s" : ""} vence
-                      {validadeAlerta.vencendo7Dias > 1 ? "m" : ""} em 7 dias
-                    </p>
-                    <p className="text-orange-100 text-xs">Priorizar consumo</p>
-                  </div>
-                  <span className="text-white/80 text-xs">Ver →</span>
-                </Link>
-              )}
-
-              {validadeAlerta.vencendo30Dias > 0 && (
-                <Link
-                  href="/estoque"
-                  className="flex items-center gap-3 p-3 bg-gradient-to-r from-amber-500 to-yellow-400 text-amber-900 hover:from-amber-400 hover:to-yellow-300 transition-all"
-                >
-                  <div className="w-10 h-10 bg-amber-900/20 backdrop-blur-sm rounded-xl flex items-center justify-center flex-shrink-0">
-                    <Package className="w-5 h-5" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-bold text-sm">
-                      📦 {validadeAlerta.vencendo30Dias} produto{validadeAlerta.vencendo30Dias > 1 ? "s" : ""} vence
-                      {validadeAlerta.vencendo30Dias > 1 ? "m" : ""} em 30 dias
-                    </p>
-                    <p className="text-amber-800 text-xs">Atenção ao estoque</p>
-                  </div>
-                  <span className="text-amber-800/80 text-xs">Ver →</span>
-                </Link>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-      {/* Alertas de Preços */}
-      {precosAlerta && precosAlerta.total > 0 && (
-        <Card className="border-0 overflow-hidden shadow-lg">
-          <CardContent className="p-0">
-            {precosAlerta.acima_media > 0 && (
-              <Link
-                href="/ranking-fornecedores"
-                className="flex items-center gap-3 p-3 bg-gradient-to-r from-red-500 to-orange-500 text-white hover:from-red-600 hover:to-orange-600 transition-all"
-              >
-                <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center flex-shrink-0">
-                  <DollarSign className="w-5 h-5" />
-                </div>
-                <div className="flex-1">
-                  <p className="font-bold text-sm">
-                    📈 {precosAlerta.acima_media} produto{precosAlerta.acima_media > 1 ? "s" : ""} acima da média!
-                  </p>
-                  <p className="text-red-100 text-xs">
-                    {precosAlerta.alertas.find((a) => a.tipo === "acima")?.produto_nome}: +
-                    {precosAlerta.alertas.find((a) => a.tipo === "acima")?.variacao_percentual}%
-                  </p>
-                </div>
-                <span className="text-white/80 text-xs">Ver →</span>
-              </Link>
-            )}
-
-            {precosAlerta.abaixo_media > 0 && (
-              <Link
-                href="/ranking-fornecedores"
-                className="flex items-center gap-3 p-3 bg-gradient-to-r from-emerald-500 to-green-500 text-white hover:from-emerald-600 hover:to-green-600 transition-all"
-              >
-                <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center flex-shrink-0">
-                  <TrendingUp className="w-5 h-5" />
-                </div>
-                <div className="flex-1">
-                  <p className="font-bold text-sm">
-                    💰 {precosAlerta.abaixo_media} oportunidade{precosAlerta.abaixo_media > 1 ? "s" : ""} de economia!
-                  </p>
-                  <p className="text-green-100 text-xs">
-                    {precosAlerta.alertas.find((a) => a.tipo === "abaixo")?.produto_nome}:{" "}
-                    {precosAlerta.alertas.find((a) => a.tipo === "abaixo")?.variacao_percentual}%
-                  </p>
-                </div>
-                <span className="text-white/80 text-xs">Ver →</span>
-              </Link>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Quick Access */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-base font-bold text-gray-800 dark:text-white">Acesso Rápido</h2>
           <Button
             variant="ghost"
             size="sm"
@@ -714,9 +771,9 @@ export default function HomePage() {
               setShowEditor(true);
               setEditingSlot(null);
             }}
-            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 gap-1.5 h-8"
+            className="h-8 rounded-xl px-2 text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
           >
-            <Pencil className="w-3.5 h-3.5" />
+            <Pencil className="mr-1 h-3.5 w-3.5" />
             Editar
           </Button>
         </div>
@@ -731,10 +788,10 @@ export default function HomePage() {
                     setShowEditor(true);
                     setEditingSlot(index);
                   }}
-                  className="border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-2xl p-4 flex flex-col items-center justify-center min-h-[120px] hover:border-gray-300 hover:bg-gray-50 dark:hover:border-gray-600 dark:hover:bg-gray-800 transition-all"
+                  className="flex min-h-[118px] flex-col items-center justify-center rounded-2xl border-2 border-dashed border-zinc-300 bg-white p-4 text-zinc-400 transition-all hover:border-orange-400 hover:bg-orange-50 dark:border-zinc-700 dark:bg-zinc-900"
                 >
-                  <Plus className="w-8 h-8 text-gray-300" />
-                  <span className="text-xs text-gray-400 mt-2">Adicionar</span>
+                  <Plus className="h-8 w-8" />
+                  <span className="mt-2 text-xs font-medium">Adicionar</span>
                 </button>
               );
             }
@@ -745,194 +802,218 @@ export default function HomePage() {
               <Link
                 key={card.id}
                 href={card.href}
-                className={`${card.bgLight} dark:bg-gray-800 group relative overflow-hidden rounded-2xl p-4 border-2 border-transparent hover:border-gray-200 dark:hover:border-gray-600 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg active:scale-[0.98] min-h-[120px]`}
+                className="group relative min-h-[118px] overflow-hidden rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl dark:border-zinc-800 dark:bg-zinc-900"
               >
+                <div className={`absolute -right-8 -top-8 h-24 w-24 rounded-full bg-gradient-to-br ${card.gradient} opacity-10 blur-2xl`} />
                 <div
-                  className={`w-12 h-12 bg-gradient-to-br ${card.gradient} rounded-xl flex items-center justify-center shadow-lg ${card.shadowColor} mb-3 group-hover:scale-110 transition-transform duration-300`}
+                  className={`relative mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br ${card.gradient} shadow-lg ${card.shadowColor}`}
                 >
-                  <Icon className="w-6 h-6 text-white" />
+                  <Icon className="h-5 w-5 text-white" />
                 </div>
-                <h3 className="font-semibold text-gray-800 dark:text-white">{card.title}</h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{card.description}</p>
-
-                <div
-                  className={`absolute inset-0 bg-gradient-to-br ${card.gradient} opacity-0 group-hover:opacity-5 transition-opacity duration-300 rounded-2xl`}
-                />
+                <h3 className="relative text-sm font-black text-zinc-900 dark:text-white">
+                  {card.title}
+                </h3>
+                <p className="relative mt-1 text-[11px] leading-4 text-zinc-500 dark:text-zinc-400">
+                  {card.description}
+                </p>
               </Link>
             );
           })}
         </div>
-      </div>
+      </section>
 
-      {/* All Modules Link */}
-      <button
-        type="button"
-        onClick={() => {
-          setShowEditor(true);
-          setEditingSlot(null);
-        }}
-        className="flex items-center justify-center gap-2 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 py-2 w-full"
-      >
-        Ver todos os {availableModules.length} módulos →
-      </button>
+      {operationModules.length > 0 && (
+        <section className="space-y-3">
+          <div>
+            <h2 className="text-base font-black text-zinc-900 dark:text-white">Operação e compras</h2>
+            <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+              Fluxo diário da empresa
+            </p>
+          </div>
 
-      {/* Indique e Ganhe */}
-      <Card className="border-0 bg-gradient-to-r from-emerald-500 to-green-600 text-white shadow-lg shadow-emerald-500/20 overflow-hidden">
+          <div className="grid grid-cols-2 gap-3">
+            {operationModules.map((module) => (
+              <ModuleGridCard key={module.id} module={module} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {managementModules.length > 0 && (
+        <section className="space-y-3">
+          <div>
+            <h2 className="text-base font-black text-zinc-900 dark:text-white">Gestão e inteligência</h2>
+            <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+              Administração, análise e automação
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            {managementModules.map((module) => (
+              <ModuleGridCard key={module.id} module={module} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      <Card className="overflow-hidden rounded-3xl border-0 bg-gradient-to-r from-emerald-500 to-green-600 text-white shadow-[0_18px_45px_rgba(16,185,129,0.25)]">
         <CardContent className="p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center flex-shrink-0">
-              <Gift className="w-5 h-5 text-white" />
+            <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-sm">
+              <Gift className="h-5 w-5 text-white" />
             </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="text-sm font-bold">Indique e Ganhe R$ 20!</h3>
-              <p className="text-emerald-100 text-xs">Convide comerciantes e ganhe crédito</p>
+
+            <div className="min-w-0 flex-1">
+              <h3 className="text-sm font-black">Indique e Ganhe R$ 20</h3>
+              <p className="text-xs text-emerald-100">Convide comerciantes e ganhe crédito</p>
             </div>
+
             <Button
               onClick={copiarLink}
               size="sm"
-              className="bg-white text-emerald-600 hover:bg-emerald-50 font-semibold px-3 flex-shrink-0"
+              className="h-10 rounded-xl bg-white px-3 font-bold text-emerald-600 hover:bg-emerald-50"
             >
-              {copiado ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              {copiado ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
             </Button>
           </div>
         </CardContent>
       </Card>
 
-      {/* Dica do dia */}
-      <Card className="border-purple-200 dark:border-purple-900 bg-gradient-to-br from-purple-50 to-fuchsia-50 dark:from-purple-950 dark:to-fuchsia-950">
+      <Card className="overflow-hidden rounded-3xl border border-purple-200 bg-gradient-to-br from-purple-50 to-fuchsia-50 shadow-sm dark:border-purple-900 dark:from-purple-950 dark:to-fuchsia-950">
         <CardContent className="p-4">
           <div className="flex items-start gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-fuchsia-500 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg shadow-purple-500/30">
-              <Sparkles className="w-5 h-5 text-white" />
+            <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-500 to-fuchsia-500 shadow-lg shadow-purple-500/30">
+              <Sparkles className="h-5 w-5 text-white" />
             </div>
+
             <div>
-              <h3 className="font-bold text-gray-900 dark:text-white text-sm">💡 Dica: Use o Assessor IA</h3>
-              <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
-                Tire fotos de notas fiscais e a IA extrai os dados automaticamente!
+              <h3 className="text-sm font-black text-zinc-900 dark:text-white">
+                Dica do dia: use o Assessor IA
+              </h3>
+              <p className="mt-1 text-xs leading-5 text-zinc-600 dark:text-zinc-300">
+                Tire foto de notas e documentos para acelerar o lançamento e ganhar produtividade.
               </p>
               <Link
-                href="/assessor-ia"
-                className="inline-flex items-center gap-1 text-xs font-semibold text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300 mt-1"
+                href="/app/assessor-ia"
+                className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300"
               >
-                Experimentar →
+                Experimentar agora <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Module Selector Dialog */}
       <Dialog open={showEditor} onOpenChange={setShowEditor}>
-        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Settings className="w-5 h-5" />
-              {editingSlot !== null ? "Escolher Módulo" : "Todos os Módulos"}
+        <DialogContent className="max-h-[84vh] max-w-lg overflow-y-auto rounded-[28px] border-0 bg-white p-0 shadow-[0_30px_80px_rgba(0,0,0,0.16)] dark:bg-zinc-950">
+          <DialogHeader className="border-b border-zinc-100 px-5 py-4 dark:border-zinc-800">
+            <DialogTitle className="flex items-center gap-2 text-base font-black text-zinc-900 dark:text-white">
+              <Settings className="h-4 w-4" />
+              {editingSlot !== null ? "Escolher módulo" : "Todos os módulos"}
             </DialogTitle>
           </DialogHeader>
 
-          {/* Current Shortcuts Preview */}
-          {editingSlot === null && (
-            <div className="mb-4">
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Seus atalhos atuais:</p>
-              <div className="grid grid-cols-4 gap-2">
-                {[0, 1, 2, 3].map((index) => {
-                  const moduleId = selectedShortcuts[index];
-                  const module = ALL_MODULES.find((m) => m.id === moduleId);
+          <div className="px-5 py-4">
+            {editingSlot === null && (
+              <div className="mb-4">
+                <p className="mb-3 text-sm text-zinc-500 dark:text-zinc-400">Seus atalhos atuais:</p>
 
-                  return (
-                    <button
-                      key={index}
-                      onClick={() => setEditingSlot(index)}
-                      className={`relative p-2 rounded-xl border-2 ${
-                        editingSlot === index
-                          ? "border-orange-500 bg-orange-50 dark:bg-orange-950"
-                          : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
-                      } transition-all`}
-                    >
-                      {module ? (
-                        <div className="flex flex-col items-center">
-                          <div className={`w-8 h-8 bg-gradient-to-br ${module.gradient} rounded-lg flex items-center justify-center`}>
-                            <module.icon className="w-4 h-4 text-white" />
+                <div className="grid grid-cols-4 gap-2">
+                  {[0, 1, 2, 3].map((index) => {
+                    const moduleId = quickShortcutIds[index];
+                    const module = ALL_MODULES.find((m) => m.id === moduleId);
+
+                    return (
+                      <button
+                        key={index}
+                        onClick={() => setEditingSlot(index)}
+                        className="relative rounded-2xl border border-zinc-200 bg-zinc-50 p-2 transition-all hover:border-orange-300 hover:bg-orange-50 dark:border-zinc-800 dark:bg-zinc-900"
+                      >
+                        {module ? (
+                          <div className="flex flex-col items-center">
+                            <div
+                              className={`flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br ${module.gradient}`}
+                            >
+                              <module.icon className="h-4 w-4 text-white" />
+                            </div>
+                            <span className="mt-1 w-full truncate text-center text-[10px] font-medium text-zinc-600 dark:text-zinc-300">
+                              {module.title}
+                            </span>
                           </div>
-                          <span className="text-[10px] text-gray-600 dark:text-gray-300 mt-1 truncate w-full text-center">
-                            {module.title}
-                          </span>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col items-center py-1">
-                          <Plus className="w-6 h-6 text-gray-300" />
-                          <span className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">Vazio</span>
-                        </div>
-                      )}
-                      <div className="absolute -top-1 -right-1 w-4 h-4 bg-orange-500 rounded-full flex items-center justify-center">
-                        <Pencil className="w-2 h-2 text-white" />
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-              <p className="text-xs text-gray-400 dark:text-gray-500 mt-2 text-center">
-                Clique em um atalho para trocar
-              </p>
-            </div>
-          )}
+                        ) : (
+                          <div className="flex flex-col items-center py-1">
+                            <Plus className="h-6 w-6 text-zinc-300" />
+                            <span className="mt-1 text-[10px] text-zinc-400">Vazio</span>
+                          </div>
+                        )}
 
-          {/* Module List */}
-          <div className="space-y-2">
-            {editingSlot !== null && (
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-                Escolha o módulo para a posição {editingSlot + 1}:
-              </p>
+                        <div className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-orange-500">
+                          <Pencil className="h-2 w-2 text-white" />
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <p className="mt-3 text-center text-xs text-zinc-400">
+                  Clique em um atalho para trocar
+                </p>
+              </div>
             )}
 
-            {availableModules.map((module) => {
-              const Icon = module.icon;
-              const isSelected = selectedShortcuts.includes(module.id);
-              const slotIndex = selectedShortcuts.indexOf(module.id);
+            <div className="space-y-2">
+              {editingSlot !== null && (
+                <p className="mb-2 text-sm text-zinc-500 dark:text-zinc-400">
+                  Escolha o módulo para a posição {editingSlot + 1}:
+                </p>
+              )}
 
-              return (
-                <button
-                  key={module.id}
-                  onClick={() => {
-                    if (editingSlot !== null) {
-                      handleSelectModule(module.id);
-                    } else {
-                      if (!isSelected && selectedShortcuts.length < 4) {
-                        saveShortcuts([...selectedShortcuts, module.id]);
-                      } else if (isSelected) {
-                        saveShortcuts(selectedShortcuts.filter((id) => id !== module.id));
+              {availableModules.map((module) => {
+                const Icon = module.icon;
+                const isSelected = quickShortcutIds.includes(module.id);
+                const slotIndex = quickShortcutIds.indexOf(module.id);
+
+                return (
+                  <button
+                    key={module.id}
+                    onClick={() => {
+                      if (editingSlot !== null) {
+                        handleSelectModule(module.id);
                       }
-                    }
-                  }}
-                  className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-all ${
-                    isSelected
-                      ? "border-orange-300 bg-orange-50 dark:bg-orange-950 dark:border-orange-800"
-                      : "border-gray-100 hover:border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:border-gray-600 dark:hover:bg-gray-800"
-                  }`}
-                >
-                  <div className={`w-10 h-10 bg-gradient-to-br ${module.gradient} rounded-lg flex items-center justify-center shadow ${module.shadowColor}`}>
-                    <Icon className="w-5 h-5 text-white" />
-                  </div>
-                  <div className="flex-1 text-left">
-                    <h4 className="font-medium text-gray-800 dark:text-white text-sm">{module.title}</h4>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{module.description}</p>
-                  </div>
-                  {isSelected && (
-                    <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                      {slotIndex + 1}
+                    }}
+                    className={`flex w-full items-center gap-3 rounded-2xl border p-3 transition-all ${
+                      isSelected
+                        ? "border-orange-300 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/40"
+                        : "border-zinc-200 bg-white hover:border-orange-200 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:bg-zinc-800"
+                    }`}
+                  >
+                    <div
+                      className={`flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br ${module.gradient} shadow ${module.shadowColor}`}
+                    >
+                      <Icon className="h-5 w-5 text-white" />
                     </div>
-                  )}
-                </button>
-              );
-            })}
-          </div>
 
-          {editingSlot !== null && (
-            <Button variant="outline" onClick={() => setEditingSlot(null)} className="w-full mt-2">
-              Cancelar
-            </Button>
-          )}
+                    <div className="flex-1 text-left">
+                      <h4 className="text-sm font-bold text-zinc-900 dark:text-white">{module.title}</h4>
+                      <p className="text-[11px] text-zinc-500 dark:text-zinc-400">{module.description}</p>
+                    </div>
+
+                    {isSelected && (
+                      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-orange-500 text-xs font-black text-white">
+                        {slotIndex + 1}
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {editingSlot !== null && (
+              <Button variant="outline" onClick={() => setEditingSlot(null)} className="mt-4 w-full rounded-2xl">
+                Cancelar
+              </Button>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

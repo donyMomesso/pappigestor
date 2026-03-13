@@ -1,4 +1,7 @@
-import { useState, useEffect } from "react";
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { Button } from "@/react-app/components/ui/button";
 import { Input } from "@/react-app/components/ui/input";
 import { Card, CardContent } from "@/react-app/components/ui/card";
@@ -33,12 +36,17 @@ import {
   Check,
   Merge,
   GitMerge,
+  Database,
+  BrainCircuit,
 } from "lucide-react";
 import { Textarea } from "@/react-app/components/ui/textarea";
 import {
   PRODUTOS_FOOD_SERVICE,
   CATEGORIAS_FOOD_SERVICE,
   ProdutoFoodService,
+  buscarProdutoFoodService,
+  buscarSugestoesFoodService,
+  normalizarTexto,
 } from "@/data/produtos-food-service";
 
 interface Produto {
@@ -84,14 +92,15 @@ interface DuplicadoGrupo {
   }>;
 }
 
-const CATEGORIAS = [
-  ...CATEGORIAS_FOOD_SERVICE,
-  "Insumos",
-  "Embalagens",
-  "Bebidas",
-  "Mercado",
-  "Outros",
-];
+const CATEGORIAS = Array.from(
+  new Set([
+    ...CATEGORIAS_FOOD_SERVICE,
+    "Insumos",
+    "Embalagens",
+    "Mercado",
+    "Outros",
+  ])
+);
 
 const UNIDADES = [
   "Kg",
@@ -115,7 +124,6 @@ function getEmpresaId() {
 
 const getHeaders = (withJson = false): HeadersInit => {
   const pId = getEmpresaId();
-
   return {
     ...(withJson ? { "Content-Type": "application/json" } : {}),
     ...(pId ? { "x-pizzaria-id": pId } : {}),
@@ -123,13 +131,10 @@ const getHeaders = (withJson = false): HeadersInit => {
 };
 
 const getImportUnidade = (item: ProdutoFoodServiceCompat) =>
-  String(
-    item.unidadeMedida ?? item.unidade_medida ?? item.unidade ?? "kg"
-  ).toLowerCase();
+  String(item.unidadeMedida ?? item.unidade_medida ?? item.unidade ?? "kg").toLowerCase();
 
 const getImportEmbalagem = (item: ProdutoFoodServiceCompat) => {
-  const valor =
-    item.embalagem ?? item.pesoAprox ?? item.peso_aprox ?? item.peso ?? null;
+  const valor = item.embalagem ?? item.pesoAprox ?? item.peso_aprox ?? item.peso ?? null;
   return valor == null || valor === "" ? null : String(valor);
 };
 
@@ -144,28 +149,22 @@ export default function ProdutosPage() {
   const [filterCategoria, setFilterCategoria] = useState<string>("all");
   const [importSearch, setImportSearch] = useState("");
   const [importCategoria, setImportCategoria] = useState<string>("all");
-  const [selectedImportItems, setSelectedImportItems] = useState<
-    ProdutoFoodService[]
-  >([]);
+  const [selectedImportItems, setSelectedImportItems] = useState<ProdutoFoodService[]>([]);
   const [isImporting, setIsImporting] = useState(false);
-
   const [isImportTextDialogOpen, setIsImportTextDialogOpen] = useState(false);
   const [importText, setImportText] = useState("");
   const [isImportingText, setIsImportingText] = useState(false);
   const [importTextResults, setImportTextResults] = useState<
     Array<{ produto: string; added: boolean; exists?: boolean }>
   >([]);
-
-  const [editingCell, setEditingCell] = useState<{
-    id: number;
-    field: string;
-  } | null>(null);
+  const [editingCell, setEditingCell] = useState<{ id: number; field: string } | null>(null);
   const [editingValue, setEditingValue] = useState("");
-
   const [duplicados, setDuplicados] = useState<DuplicadoGrupo[]>([]);
   const [isDuplicadosDialogOpen, setIsDuplicadosDialogOpen] = useState(false);
   const [isLoadingDuplicados, setIsLoadingDuplicados] = useState(false);
   const [unificando, setUnificando] = useState<number | null>(null);
+  const [catalogoBaseSelecionado, setCatalogoBaseSelecionado] =
+    useState<ProdutoFoodServiceCompat | null>(null);
 
   const [form, setForm] = useState({
     nome_produto: "",
@@ -181,7 +180,6 @@ export default function ProdutosPage() {
 
   const fetchProdutos = async () => {
     const pId = getEmpresaId();
-
     if (!pId) {
       console.error("Empresa não encontrada no localStorage para buscar produtos.");
       setIsLoading(false);
@@ -210,7 +208,6 @@ export default function ProdutosPage() {
 
   const fetchFornecedores = async () => {
     const pId = getEmpresaId();
-
     if (!pId) {
       console.error("Empresa não encontrada no localStorage para buscar fornecedores.");
       return;
@@ -238,7 +235,6 @@ export default function ProdutosPage() {
 
   const fetchDuplicados = async () => {
     const pId = getEmpresaId();
-
     if (!pId) {
       console.error("Empresa não encontrada no localStorage para buscar duplicados.");
       setIsLoadingDuplicados(false);
@@ -274,6 +270,7 @@ export default function ProdutosPage() {
   }, []);
 
   const resetForm = () => {
+    setCatalogoBaseSelecionado(null);
     setForm({
       nome_produto: "",
       categoria_produto: "",
@@ -287,6 +284,52 @@ export default function ProdutosPage() {
     });
   };
 
+  const sugestoesCatalogo = useMemo(() => {
+    if (!form.nome_produto.trim() || editingProduto) return [];
+    return buscarSugestoesFoodService(form.nome_produto, 6) as ProdutoFoodServiceCompat[];
+  }, [form.nome_produto, editingProduto]);
+
+  const produtosParecidosEmpresa = useMemo(() => {
+    const termo = normalizarTexto(form.nome_produto);
+    if (!termo || editingProduto) return [];
+
+    return produtos
+      .filter((produto) => {
+        const nome = normalizarTexto(produto.nome_produto);
+        return nome.includes(termo) || termo.includes(nome);
+      })
+      .slice(0, 4);
+  }, [form.nome_produto, produtos, editingProduto]);
+
+  const aplicarCatalogoNoFormulario = (item: ProdutoFoodServiceCompat) => {
+    setCatalogoBaseSelecionado(item);
+    setForm((prev) => ({
+      ...prev,
+      nome_produto: item.nome,
+      categoria_produto: item.categoria || prev.categoria_produto,
+      unidade_medida: getImportUnidade(item),
+      peso_embalagem: getImportEmbalagem(item) || prev.peso_embalagem,
+      descricao: item.descricao || prev.descricao,
+    }));
+  };
+
+  const limparLinhaImportacao = (linha: string) => {
+    return linha
+      .replace(/[-–—]/g, " ")
+      .replace(/\b\d+[\.,]?\d*\s*(kg|g|gr|l|ml|lt|un|und|cx|caixa|pct|pacote|fardo)\b/gi, " ")
+      .replace(/\b\d+[\.,]?\d*\b/g, " ")
+      .replace(/[;,]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  };
+
+  const capitalizarNomeLivre = (texto: string) =>
+    texto
+      .split(" ")
+      .filter(Boolean)
+      .map((parte) => parte.charAt(0).toUpperCase() + parte.slice(1).toLowerCase())
+      .join(" ");
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -299,19 +342,14 @@ export default function ProdutosPage() {
     const payload = {
       ...form,
       fornecedor_preferencial_id:
-        form.fornecedor_preferencial_id &&
-        form.fornecedor_preferencial_id !== "none"
+        form.fornecedor_preferencial_id && form.fornecedor_preferencial_id !== "none"
           ? parseInt(form.fornecedor_preferencial_id)
           : null,
-      preco_referencia: form.preco_referencia
-        ? parseFloat(form.preco_referencia)
-        : null,
+      preco_referencia: form.preco_referencia ? parseFloat(form.preco_referencia) : null,
     };
 
     try {
-      const url = editingProduto
-        ? `/api/produtos/${editingProduto.id}`
-        : "/api/produtos";
+      const url = editingProduto ? `/api/produtos/${editingProduto.id}` : "/api/produtos";
       const method = editingProduto ? "PATCH" : "POST";
 
       const res = await fetch(url, {
@@ -336,6 +374,7 @@ export default function ProdutosPage() {
 
   const handleEdit = (produto: Produto) => {
     setEditingProduto(produto);
+    setCatalogoBaseSelecionado(null);
     setForm({
       nome_produto: produto.nome_produto,
       categoria_produto: produto.categoria_produto || "",
@@ -347,9 +386,7 @@ export default function ProdutosPage() {
       marca: produto.marca || "",
       descricao: produto.descricao || "",
       peso_embalagem: produto.peso_embalagem || "",
-      preco_referencia: produto.preco_referencia
-        ? String(produto.preco_referencia)
-        : "",
+      preco_referencia: produto.preco_referencia ? String(produto.preco_referencia) : "",
     });
     setIsDialogOpen(true);
   };
@@ -455,8 +492,9 @@ export default function ProdutosPage() {
       !confirm(
         "Unificar estes produtos? Todas as referências serão atualizadas para o produto principal."
       )
-    )
+    ) {
       return;
+    }
 
     const pId = getEmpresaId();
     if (!pId) {
@@ -495,8 +533,9 @@ export default function ProdutosPage() {
       !confirm(
         `Unificar todos os ${grupo.produtos.length} produtos "${grupo.nome_normalizado}" no primeiro item?`
       )
-    )
+    ) {
       return;
+    }
 
     const pId = getEmpresaId();
     if (!pId) {
@@ -541,11 +580,8 @@ export default function ProdutosPage() {
   });
 
   const filteredImportProdutos = PRODUTOS_FOOD_SERVICE.filter((p) => {
-    const matchesSearch = p.nome
-      .toLowerCase()
-      .includes(importSearch.toLowerCase());
-    const matchesCategoria =
-      importCategoria === "all" || p.categoria === importCategoria;
+    const matchesSearch = p.nome.toLowerCase().includes(importSearch.toLowerCase());
+    const matchesCategoria = importCategoria === "all" || p.categoria === importCategoria;
     return matchesSearch && matchesCategoria;
   });
 
@@ -610,54 +646,51 @@ export default function ProdutosPage() {
     setImportTextResults([]);
 
     try {
-      const res = await fetch("/api/ia/interpretar-lista", {
-        method: "POST",
-        headers: getHeaders(true),
-        body: JSON.stringify({ texto: importText }),
-      });
+      const linhas = importText
+        .split(/\r?\n/)
+        .map((linha) => linha.trim())
+        .filter(Boolean);
 
-      if (!res.ok) {
-        const data = await res.json();
-        alert(data.error || "Erro ao interpretar lista");
-        setIsImportingText(false);
-        return;
-      }
-
-      const data = await res.json();
-      const itensInterpretados = data.itens || [];
       const results: typeof importTextResults = [];
 
-      for (const item of itensInterpretados) {
+      for (const linha of linhas) {
+        const textoLimpo = limparLinhaImportacao(linha);
+        const produtoBase = buscarProdutoFoodService(textoLimpo || linha) as ProdutoFoodServiceCompat | null;
+
+        const nomeCanonico = produtoBase?.nome || capitalizarNomeLivre(textoLimpo || linha);
         const produtoExistente = produtos.find(
-          (p) => p.nome_produto.toLowerCase() === item.produto.toLowerCase()
+          (p) => normalizarTexto(p.nome_produto) === normalizarTexto(nomeCanonico)
         );
 
         if (produtoExistente) {
           results.push({
-            produto: item.produto,
+            produto: nomeCanonico,
             added: false,
             exists: true,
           });
-        } else {
-          const addRes = await fetch("/api/produtos", {
-            method: "POST",
-            headers: getHeaders(true),
-            body: JSON.stringify({
-              nome_produto: item.produto,
-              unidade_medida: item.unidade || "un",
-              categoria_produto: "Insumos",
-            }),
-          });
-
-          results.push({
-            produto: item.produto,
-            added: addRes.ok,
-          });
+          continue;
         }
+
+        const addRes = await fetch("/api/produtos", {
+          method: "POST",
+          headers: getHeaders(true),
+          body: JSON.stringify({
+            nome_produto: nomeCanonico,
+            unidade_medida: produtoBase ? getImportUnidade(produtoBase) : "kg",
+            categoria_produto: produtoBase?.categoria || "Insumos",
+            peso_embalagem: produtoBase ? getImportEmbalagem(produtoBase) : null,
+            descricao: produtoBase?.descricao || "Importado automaticamente da lista de compras.",
+          }),
+        });
+
+        results.push({
+          produto: nomeCanonico,
+          added: addRes.ok,
+        });
       }
 
       setImportTextResults(results);
-      fetchProdutos();
+      await fetchProdutos();
     } catch (err) {
       console.error("Erro ao importar:", err);
       alert("Erro de conexão");
@@ -676,17 +709,30 @@ export default function ProdutosPage() {
 
   return (
     <div className="dark:text-white">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      <div className="flex flex-col gap-4 mb-6 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Cadastro de Produtos
+            Meus Produtos
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            Cadastro centralizado de todos os produtos
+            Cadastro oficial da empresa para estoque, compras, CMV e precificação.
           </p>
         </div>
 
         <div className="flex gap-2 flex-wrap">
+          <Button asChild variant="outline" className="dark:border-gray-600 dark:text-gray-200">
+            <Link href="/app/catalogo-global">
+              <Database className="w-4 h-4 mr-2" />
+              Catálogo Global
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="dark:border-gray-600 dark:text-gray-200">
+            <Link href="/app/produtos-master">
+              <BrainCircuit className="w-4 h-4 mr-2" />
+              Inteligência
+            </Link>
+          </Button>
+
           {duplicados.length > 0 && (
             <Button
               onClick={handleOpenDuplicados}
@@ -746,17 +792,14 @@ export default function ProdutosPage() {
                     />
                   </div>
 
-                  <Select
-                    value={importCategoria}
-                    onValueChange={setImportCategoria}
-                  >
+                  <Select value={importCategoria} onValueChange={setImportCategoria}>
                     <SelectTrigger className="w-48 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                       <SelectValue placeholder="Categoria" />
                     </SelectTrigger>
                     <SelectContent className="dark:bg-gray-800 dark:border-gray-700">
                       <SelectItem value="all">Todas</SelectItem>
-                      {CATEGORIAS_FOOD_SERVICE.map((cat) => (
-                        <SelectItem key={cat} value={cat}>
+                      {CATEGORIAS_FOOD_SERVICE.map((cat, index) => (
+                        <SelectItem key={`${cat}-${index}`} value={cat}>
                           {cat}
                         </SelectItem>
                       ))}
@@ -783,9 +826,7 @@ export default function ProdutosPage() {
                 <div className="max-h-[400px] overflow-y-auto space-y-2">
                   {filteredImportProdutos.map((rawItem) => {
                     const item = rawItem as ProdutoFoodServiceCompat;
-                    const isSelected = selectedImportItems.find(
-                      (i) => i.id === item.id
-                    );
+                    const isSelected = selectedImportItems.find((i) => i.id === item.id);
                     const embalagemLabel = getImportEmbalagem(item);
 
                     return (
@@ -800,9 +841,7 @@ export default function ProdutosPage() {
                       >
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="font-medium text-gray-900 dark:text-white">
-                              {item.nome}
-                            </p>
+                            <p className="font-medium text-gray-900 dark:text-white">{item.nome}</p>
 
                             <div className="flex gap-2 mt-1 flex-wrap">
                               <span className="text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
@@ -824,9 +863,7 @@ export default function ProdutosPage() {
                                 : "border-gray-300 dark:border-gray-500"
                             }`}
                           >
-                            {isSelected && (
-                              <span className="text-white text-xs">✓</span>
-                            )}
+                            {isSelected && <span className="text-white text-xs">✓</span>}
                           </div>
                         </div>
                       </div>
@@ -848,12 +885,8 @@ export default function ProdutosPage() {
                     disabled={selectedImportItems.length === 0 || isImporting}
                     className="flex-1 bg-orange-600 hover:bg-orange-700"
                   >
-                    {isImporting ? (
-                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                    ) : null}
-                    Importar{" "}
-                    {selectedImportItems.length > 0 &&
-                      `(${selectedImportItems.length})`}
+                    {isImporting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                    Importar {selectedImportItems.length > 0 && `(${selectedImportItems.length})`}
                   </Button>
                 </div>
               </div>
@@ -862,10 +895,7 @@ export default function ProdutosPage() {
 
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button
-                onClick={openNewDialog}
-                className="bg-orange-600 hover:bg-orange-700"
-              >
+              <Button onClick={openNewDialog} className="bg-orange-600 hover:bg-orange-700">
                 <Plus className="w-4 h-4 mr-2" />
                 Novo Produto
               </Button>
@@ -886,13 +916,81 @@ export default function ProdutosPage() {
                     </label>
                     <Input
                       value={form.nome_produto}
-                      onChange={(e) =>
-                        setForm({ ...form, nome_produto: e.target.value })
-                      }
-                      placeholder="Ex: Mussarela Fatiada"
+                      onChange={(e) => {
+                        setCatalogoBaseSelecionado(null);
+                        setForm({ ...form, nome_produto: e.target.value });
+                      }}
+                      placeholder="Ex: Mussarela, Sal refinado, Molho de tomate"
                       className="dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                       required
                     />
+
+                    {!!catalogoBaseSelecionado && (
+                      <div className="mt-2 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-xs text-orange-800 dark:border-orange-900/40 dark:bg-orange-900/20 dark:text-orange-300">
+                        Base padronizada vinculada: <strong>{catalogoBaseSelecionado.nome}</strong> · {catalogoBaseSelecionado.categoria}
+                      </div>
+                    )}
+
+                    {!editingProduto && (sugestoesCatalogo.length > 0 || produtosParecidosEmpresa.length > 0) && (
+                      <div className="mt-2 space-y-2 rounded-xl border border-gray-200 bg-white p-2 dark:border-gray-700 dark:bg-gray-900">
+                        {sugestoesCatalogo.length > 0 && (
+                          <div>
+                            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                              Sugestões do catálogo inteligente
+                            </p>
+                            <div className="space-y-1">
+                              {sugestoesCatalogo.map((item) => (
+                                <button
+                                  key={item.id}
+                                  type="button"
+                                  onClick={() => aplicarCatalogoNoFormulario(item)}
+                                  className="flex w-full items-start justify-between rounded-lg border border-transparent px-3 py-2 text-left hover:border-orange-200 hover:bg-orange-50 dark:hover:border-orange-900/40 dark:hover:bg-orange-900/20"
+                                >
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-900 dark:text-white">{item.nome}</p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                                      {item.categoria} · {item.unidadeMedida || "kg"}
+                                      {item.embalagem ? ` · ${item.embalagem}` : ""}
+                                    </p>
+                                  </div>
+                                  <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[11px] font-medium text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
+                                    Usar base
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {produtosParecidosEmpresa.length > 0 && (
+                          <div>
+                            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                              Já existem nos meus produtos
+                            </p>
+                            <div className="space-y-1">
+                              {produtosParecidosEmpresa.map((item) => (
+                                <button
+                                  key={item.id}
+                                  type="button"
+                                  onClick={() => handleEdit(item)}
+                                  className="flex w-full items-start justify-between rounded-lg border border-transparent px-3 py-2 text-left hover:border-blue-200 hover:bg-blue-50 dark:hover:border-blue-900/40 dark:hover:bg-blue-900/20"
+                                >
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-900 dark:text-white">{item.nome_produto}</p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                                      {item.categoria_produto || "Sem categoria"}
+                                    </p>
+                                  </div>
+                                  <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                                    Abrir cadastro
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   <div>
@@ -901,9 +999,7 @@ export default function ProdutosPage() {
                     </label>
                     <Input
                       value={form.marca}
-                      onChange={(e) =>
-                        setForm({ ...form, marca: e.target.value })
-                      }
+                      onChange={(e) => setForm({ ...form, marca: e.target.value })}
                       placeholder="Ex: Sadia"
                       className="dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                     />
@@ -917,9 +1013,7 @@ export default function ProdutosPage() {
                       <Barcode className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                       <Input
                         value={form.codigo_barras}
-                        onChange={(e) =>
-                          setForm({ ...form, codigo_barras: e.target.value })
-                        }
+                        onChange={(e) => setForm({ ...form, codigo_barras: e.target.value })}
                         placeholder="EAN/GTIN"
                         className="pl-9 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                       />
@@ -932,16 +1026,14 @@ export default function ProdutosPage() {
                     </label>
                     <Select
                       value={form.categoria_produto}
-                      onValueChange={(v) =>
-                        setForm({ ...form, categoria_produto: v })
-                      }
+                      onValueChange={(v) => setForm({ ...form, categoria_produto: v })}
                     >
                       <SelectTrigger className="dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                         <SelectValue placeholder="Selecione" />
                       </SelectTrigger>
                       <SelectContent className="dark:bg-gray-800 dark:border-gray-700">
-                        {CATEGORIAS.map((cat) => (
-                          <SelectItem key={cat} value={cat}>
+                        {CATEGORIAS.map((cat, index) => (
+                          <SelectItem key={`${cat}-${index}`} value={cat}>
                             {cat}
                           </SelectItem>
                         ))}
@@ -955,9 +1047,7 @@ export default function ProdutosPage() {
                     </label>
                     <Select
                       value={form.unidade_medida}
-                      onValueChange={(v) =>
-                        setForm({ ...form, unidade_medida: v })
-                      }
+                      onValueChange={(v) => setForm({ ...form, unidade_medida: v })}
                     >
                       <SelectTrigger className="dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                         <SelectValue placeholder="Selecione" />
@@ -978,9 +1068,7 @@ export default function ProdutosPage() {
                     </label>
                     <Input
                       value={form.peso_embalagem}
-                      onChange={(e) =>
-                        setForm({ ...form, peso_embalagem: e.target.value })
-                      }
+                      onChange={(e) => setForm({ ...form, peso_embalagem: e.target.value })}
                       placeholder="Ex: 2,5kg, Cx 12un"
                       className="dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                     />
@@ -994,9 +1082,7 @@ export default function ProdutosPage() {
                       type="number"
                       step="0.01"
                       value={form.preco_referencia}
-                      onChange={(e) =>
-                        setForm({ ...form, preco_referencia: e.target.value })
-                      }
+                      onChange={(e) => setForm({ ...form, preco_referencia: e.target.value })}
                       placeholder="0,00"
                       className="dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                     />
@@ -1008,9 +1094,7 @@ export default function ProdutosPage() {
                     </label>
                     <Select
                       value={form.fornecedor_preferencial_id}
-                      onValueChange={(v) =>
-                        setForm({ ...form, fornecedor_preferencial_id: v })
-                      }
+                      onValueChange={(v) => setForm({ ...form, fornecedor_preferencial_id: v })}
                     >
                       <SelectTrigger className="dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                         <SelectValue placeholder="Selecione" />
@@ -1032,9 +1116,7 @@ export default function ProdutosPage() {
                     </label>
                     <Input
                       value={form.descricao}
-                      onChange={(e) =>
-                        setForm({ ...form, descricao: e.target.value })
-                      }
+                      onChange={(e) => setForm({ ...form, descricao: e.target.value })}
                       placeholder="Informações adicionais do produto"
                       className="dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                     />
@@ -1050,10 +1132,7 @@ export default function ProdutosPage() {
                   >
                     Cancelar
                   </Button>
-                  <Button
-                    type="submit"
-                    className="flex-1 bg-orange-600 hover:bg-orange-700"
-                  >
+                  <Button type="submit" className="flex-1 bg-orange-600 hover:bg-orange-700">
                     {editingProduto ? "Salvar" : "Criar"}
                   </Button>
                 </div>
@@ -1066,24 +1145,16 @@ export default function ProdutosPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <Card className="dark:bg-gray-800 dark:border-gray-700">
           <CardContent className="p-4">
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Total de Produtos
-            </p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">
-              {produtos.length}
-            </p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Total de Produtos</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{produtos.length}</p>
           </CardContent>
         </Card>
 
         <Card className="dark:bg-gray-800 dark:border-gray-700">
           <CardContent className="p-4">
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Categorias
-            </p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Categorias</p>
             <p className="text-2xl font-bold text-gray-900 dark:text-white">
-              {new Set(
-                produtos.map((p) => p.categoria_produto).filter(Boolean)
-              ).size}
+              {new Set(produtos.map((p) => p.categoria_produto).filter(Boolean)).size}
             </p>
           </CardContent>
         </Card>
@@ -1092,18 +1163,16 @@ export default function ProdutosPage() {
           <CardContent className="p-4">
             <p className="text-sm text-gray-500 dark:text-gray-400">Com Preço</p>
             <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-              {produtos.filter((p) => p.ultimo_preco_pago).length}
+              {produtos.filter((p) => p.ultimo_preco_pago || p.preco_referencia).length}
             </p>
           </CardContent>
         </Card>
 
         <Card className="dark:bg-gray-800 dark:border-gray-700">
           <CardContent className="p-4">
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Com Código de Barras
-            </p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Com Fornecedor</p>
             <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-              {produtos.filter((p) => p.codigo_barras).length}
+              {produtos.filter((p) => p.fornecedor_nome || p.fornecedor_preferencial_id).length}
             </p>
           </CardContent>
         </Card>
@@ -1126,8 +1195,8 @@ export default function ProdutosPage() {
           </SelectTrigger>
           <SelectContent className="dark:bg-gray-800 dark:border-gray-700">
             <SelectItem value="all">Todas as categorias</SelectItem>
-            {CATEGORIAS.map((cat) => (
-              <SelectItem key={cat} value={cat}>
+            {CATEGORIAS.map((cat, index) => (
+              <SelectItem key={`${cat}-${index}`} value={cat}>
                 {cat}
               </SelectItem>
             ))}
@@ -1145,7 +1214,7 @@ export default function ProdutosPage() {
                 : "Nenhum produto cadastrado"}
             </p>
             <p className="text-sm text-gray-400 dark:text-gray-500 mt-2">
-              Clique em "Novo Produto" ou "Importar Food Service" para começar
+              Use o Catálogo Global, importe uma lista ou cadastre manualmente.
             </p>
           </CardContent>
         </Card>
@@ -1154,47 +1223,24 @@ export default function ProdutosPage() {
           <table className="w-full bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow">
             <thead className="bg-gray-50 dark:bg-gray-700">
               <tr>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Produto
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300 hidden md:table-cell">
-                  Categoria
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300 hidden lg:table-cell">
-                  Unidade
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300 hidden lg:table-cell">
-                  Embalagem
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Último Preço
-                </th>
-                <th className="px-4 py-3 text-right text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Ações
-                </th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">Produto</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300 hidden md:table-cell">Categoria</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300 hidden lg:table-cell">Unidade</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300 hidden lg:table-cell">Embalagem</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">Último Preço</th>
+                <th className="px-4 py-3 text-right text-sm font-medium text-gray-700 dark:text-gray-300">Ações</th>
               </tr>
             </thead>
 
             <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
               {filteredProdutos.map((produto) => {
-                const isEditingNome =
-                  editingCell?.id === produto.id &&
-                  editingCell?.field === "nome_produto";
-                const isEditingCategoria =
-                  editingCell?.id === produto.id &&
-                  editingCell?.field === "categoria_produto";
-                const isEditingUnidade =
-                  editingCell?.id === produto.id &&
-                  editingCell?.field === "unidade_medida";
-                const isEditingEmbalagem =
-                  editingCell?.id === produto.id &&
-                  editingCell?.field === "peso_embalagem";
+                const isEditingNome = editingCell?.id === produto.id && editingCell?.field === "nome_produto";
+                const isEditingCategoria = editingCell?.id === produto.id && editingCell?.field === "categoria_produto";
+                const isEditingUnidade = editingCell?.id === produto.id && editingCell?.field === "unidade_medida";
+                const isEditingEmbalagem = editingCell?.id === produto.id && editingCell?.field === "peso_embalagem";
 
                 return (
-                  <tr
-                    key={produto.id}
-                    className="hover:bg-gray-50 dark:hover:bg-gray-700/50"
-                  >
+                  <tr key={produto.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                     <td className="px-4 py-3">
                       {isEditingNome ? (
                         <div className="flex items-center gap-1">
@@ -1205,47 +1251,26 @@ export default function ProdutosPage() {
                             autoFocus
                             className="h-7 text-sm dark:bg-gray-700 dark:border-gray-600"
                           />
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={saveInlineEdit}
-                          >
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={saveInlineEdit}>
                             <Check className="w-3 h-3 text-green-600" />
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={cancelInlineEdit}
-                          >
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={cancelInlineEdit}>
                             <X className="w-3 h-3 text-gray-400" />
                           </Button>
                         </div>
                       ) : (
                         <div
                           className="cursor-pointer hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded px-1 -mx-1"
-                          onClick={() =>
-                            startInlineEdit(
-                              produto.id,
-                              "nome_produto",
-                              produto.nome_produto
-                            )
-                          }
+                          onClick={() => startInlineEdit(produto.id, "nome_produto", produto.nome_produto)}
                           title="Clique para editar"
                         >
-                          <span className="font-medium text-gray-900 dark:text-white">
-                            {produto.nome_produto}
-                          </span>
+                          <span className="font-medium text-gray-900 dark:text-white">{produto.nome_produto}</span>
                           {produto.marca && (
-                            <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
-                              ({produto.marca})
-                            </span>
+                            <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">({produto.marca})</span>
                           )}
                           {produto.codigo_barras && (
                             <span className="text-xs text-gray-400 dark:text-gray-500 flex items-center gap-1 mt-0.5">
-                              <Barcode className="w-3 h-3" />
-                              {produto.codigo_barras}
+                              <Barcode className="w-3 h-3" /> {produto.codigo_barras}
                             </span>
                           )}
                         </div>
@@ -1255,50 +1280,29 @@ export default function ProdutosPage() {
                     <td className="px-4 py-3 hidden md:table-cell">
                       {isEditingCategoria ? (
                         <div className="flex items-center gap-1">
-                          <Select
-                            value={editingValue}
-                            onValueChange={(v) => {
-                              setEditingValue(v);
-                            }}
-                          >
+                          <Select value={editingValue} onValueChange={(v) => setEditingValue(v)}>
                             <SelectTrigger className="h-7 text-xs w-32 dark:bg-gray-700 dark:border-gray-600">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent className="dark:bg-gray-800 dark:border-gray-700">
-                              {CATEGORIAS.map((cat) => (
-                                <SelectItem key={cat} value={cat}>
+                              {CATEGORIAS.map((cat, index) => (
+                                <SelectItem key={`${cat}-${index}`} value={cat}>
                                   {cat}
                                 </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={saveInlineEdit}
-                          >
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={saveInlineEdit}>
                             <Check className="w-3 h-3 text-green-600" />
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={cancelInlineEdit}
-                          >
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={cancelInlineEdit}>
                             <X className="w-3 h-3 text-gray-400" />
                           </Button>
                         </div>
                       ) : (
                         <div
                           className="cursor-pointer hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded px-1 -mx-1 inline-block"
-                          onClick={() =>
-                            startInlineEdit(
-                              produto.id,
-                              "categoria_produto",
-                              produto.categoria_produto || ""
-                            )
-                          }
+                          onClick={() => startInlineEdit(produto.id, "categoria_produto", produto.categoria_produto || "")}
                           title="Clique para editar"
                         >
                           {produto.categoria_produto ? (
@@ -1306,9 +1310,7 @@ export default function ProdutosPage() {
                               {produto.categoria_produto}
                             </span>
                           ) : (
-                            <span className="text-xs text-gray-400">
-                              + categoria
-                            </span>
+                            <span className="text-xs text-gray-400">+ categoria</span>
                           )}
                         </div>
                       )}
@@ -1317,57 +1319,30 @@ export default function ProdutosPage() {
                     <td className="px-4 py-3 hidden lg:table-cell">
                       {isEditingUnidade ? (
                         <div className="flex items-center gap-1">
-                          <Select
-                            value={editingValue}
-                            onValueChange={(v) => {
-                              setEditingValue(v);
-                            }}
-                          >
+                          <Select value={editingValue} onValueChange={(v) => setEditingValue(v)}>
                             <SelectTrigger className="h-7 text-xs w-24 dark:bg-gray-700 dark:border-gray-600">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent className="dark:bg-gray-800 dark:border-gray-700">
                               {UNIDADES.map((un) => (
-                                <SelectItem key={un} value={un}>
-                                  {un}
-                                </SelectItem>
+                                <SelectItem key={un} value={un}>{un}</SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={saveInlineEdit}
-                          >
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={saveInlineEdit}>
                             <Check className="w-3 h-3 text-green-600" />
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={cancelInlineEdit}
-                          >
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={cancelInlineEdit}>
                             <X className="w-3 h-3 text-gray-400" />
                           </Button>
                         </div>
                       ) : (
                         <div
                           className="cursor-pointer hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded px-1 -mx-1 inline-block text-gray-600 dark:text-gray-400"
-                          onClick={() =>
-                            startInlineEdit(
-                              produto.id,
-                              "unidade_medida",
-                              produto.unidade_medida || ""
-                            )
-                          }
+                          onClick={() => startInlineEdit(produto.id, "unidade_medida", produto.unidade_medida || "")}
                           title="Clique para editar"
                         >
-                          {produto.unidade_medida || (
-                            <span className="text-xs text-gray-400">
-                              + unidade
-                            </span>
-                          )}
+                          {produto.unidade_medida || <span className="text-xs text-gray-400">+ unidade</span>}
                         </div>
                       )}
                     </td>
@@ -1383,69 +1358,35 @@ export default function ProdutosPage() {
                             placeholder="Ex: 2,5kg"
                             className="h-7 text-sm w-24 dark:bg-gray-700 dark:border-gray-600"
                           />
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={saveInlineEdit}
-                          >
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={saveInlineEdit}>
                             <Check className="w-3 h-3 text-green-600" />
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={cancelInlineEdit}
-                          >
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={cancelInlineEdit}>
                             <X className="w-3 h-3 text-gray-400" />
                           </Button>
                         </div>
                       ) : (
                         <div
                           className="cursor-pointer hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded px-1 -mx-1 inline-block text-gray-600 dark:text-gray-400"
-                          onClick={() =>
-                            startInlineEdit(
-                              produto.id,
-                              "peso_embalagem",
-                              produto.peso_embalagem || ""
-                            )
-                          }
+                          onClick={() => startInlineEdit(produto.id, "peso_embalagem", produto.peso_embalagem || "")}
                           title="Clique para editar"
                         >
-                          {produto.peso_embalagem || (
-                            <span className="text-xs text-gray-400">
-                              + embalagem
-                            </span>
-                          )}
+                          {produto.peso_embalagem || <span className="text-xs text-gray-400">+ embalagem</span>}
                         </div>
                       )}
                     </td>
 
                     <td className="px-4 py-3">
-                      <span
-                        className={
-                          produto.ultimo_preco_pago
-                            ? "font-medium text-green-600 dark:text-green-400"
-                            : "text-gray-400 dark:text-gray-500"
-                        }
-                      >
-                        {formatCurrency(produto.ultimo_preco_pago)}
+                      <span className={produto.ultimo_preco_pago || produto.preco_referencia ? "font-medium text-green-600 dark:text-green-400" : "text-gray-400 dark:text-gray-500"}>
+                        {formatCurrency(produto.ultimo_preco_pago ?? produto.preco_referencia)}
                       </span>
                     </td>
 
                     <td className="px-4 py-3 text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleEdit(produto)}
-                      >
+                      <Button variant="ghost" size="icon" onClick={() => handleEdit(produto)}>
                         <Edit2 className="w-4 h-4 text-gray-500 dark:text-gray-400" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDelete(produto.id)}
-                      >
+                      <Button variant="ghost" size="icon" onClick={() => handleDelete(produto.id)}>
                         <Trash2 className="w-4 h-4 text-red-500" />
                       </Button>
                     </td>
@@ -1477,8 +1418,7 @@ export default function ProdutosPage() {
 
           <div className="mt-4 space-y-4">
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              Cole uma lista de produtos recebida por WhatsApp ou digite os
-              nomes. A IA vai cadastrar automaticamente.
+              Cole uma lista de produtos recebida por WhatsApp ou digite os nomes. A IA vai cadastrar automaticamente.
             </p>
 
             <Textarea
@@ -1490,9 +1430,7 @@ export default function ProdutosPage() {
 
             {importTextResults.length > 0 && (
               <div className="border rounded-lg p-3 max-h-48 overflow-auto dark:border-gray-600">
-                <p className="text-sm font-medium mb-2 dark:text-white">
-                  Resultado da importação:
-                </p>
+                <p className="text-sm font-medium mb-2 dark:text-white">Resultado da importação:</p>
                 <div className="space-y-1">
                   {importTextResults.map((r, idx) => (
                     <div
@@ -1513,12 +1451,8 @@ export default function ProdutosPage() {
                         <AlertTriangle className="w-4 h-4 flex-shrink-0" />
                       )}
                       <span>{r.produto}</span>
-                      {r.exists && (
-                        <span className="text-xs">(já cadastrado)</span>
-                      )}
-                      {!r.added && !r.exists && (
-                        <span className="text-xs">(erro ao cadastrar)</span>
-                      )}
+                      {r.exists && <span className="text-xs">(já cadastrado)</span>}
+                      {!r.added && !r.exists && <span className="text-xs">(erro ao cadastrar)</span>}
                     </div>
                   ))}
                 </div>
@@ -1558,10 +1492,7 @@ export default function ProdutosPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog
-        open={isDuplicadosDialogOpen}
-        onOpenChange={setIsDuplicadosDialogOpen}
-      >
+      <Dialog open={isDuplicadosDialogOpen} onOpenChange={setIsDuplicadosDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[80vh] dark:bg-gray-800 dark:border-gray-700">
           <DialogHeader>
             <DialogTitle className="dark:text-white flex items-center gap-2">
@@ -1578,17 +1509,12 @@ export default function ProdutosPage() {
             ) : duplicados.length === 0 ? (
               <div className="text-center py-8">
                 <CheckCircle2 className="w-12 h-12 mx-auto text-green-500 mb-3" />
-                <p className="text-gray-600 dark:text-gray-400">
-                  Nenhum produto duplicado encontrado!
-                </p>
+                <p className="text-gray-600 dark:text-gray-400">Nenhum produto duplicado encontrado!</p>
               </div>
             ) : (
               <div className="space-y-4 max-h-[50vh] overflow-y-auto">
                 {duplicados.map((grupo, gIdx) => (
-                  <div
-                    key={gIdx}
-                    className="border rounded-lg p-3 dark:border-gray-600"
-                  >
+                  <div key={gIdx} className="border rounded-lg p-3 dark:border-gray-600">
                     <div className="flex items-center justify-between mb-2">
                       <span className="font-medium text-orange-700 dark:text-orange-400">
                         "{grupo.nome_normalizado}" ({grupo.produtos.length} duplicados)
@@ -1624,13 +1550,9 @@ export default function ProdutosPage() {
                         >
                           <div className="flex-1">
                             <div className="flex items-center gap-2">
-                              <span className="font-medium dark:text-white">
-                                {p.nome_produto}
-                              </span>
+                              <span className="font-medium dark:text-white">{p.nome_produto}</span>
                               {pIdx === 0 && (
-                                <span className="text-xs px-2 py-0.5 bg-green-500 text-white rounded">
-                                  PRINCIPAL
-                                </span>
+                                <span className="text-xs px-2 py-0.5 bg-green-500 text-white rounded">PRINCIPAL</span>
                               )}
                             </div>
 
@@ -1645,9 +1567,7 @@ export default function ProdutosPage() {
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() =>
-                                handleUnificar(grupo.produtos[0].id, p.id)
-                              }
+                              onClick={() => handleUnificar(grupo.produtos[0].id, p.id)}
                               disabled={unificando !== null}
                               className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
                             >

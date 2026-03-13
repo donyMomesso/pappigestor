@@ -42,7 +42,7 @@ export const PRODUTOS_FOOD_SERVICE: ProdutoFoodService[] = [
     unidadeMedida: "kg",
     embalagem: "peça",
     descricao: "Queijo muçarela para preparo, cobertura e recheio",
-    sinonimos: ["mussarela", "mucarela", "queijo muçarela"],
+    sinonimos: ["mussarela", "mucarela", "queijo muçarela", "mussa"],
   },
   {
     id: "laticinios-prato",
@@ -114,7 +114,6 @@ export const PRODUTOS_FOOD_SERVICE: ProdutoFoodService[] = [
     descricao: "Margarina para chapa, panificação e confeitaria",
     sinonimos: ["margarina culinária"],
   },
-
   {
     id: "frios-presunto",
     nome: "Presunto",
@@ -165,7 +164,6 @@ export const PRODUTOS_FOOD_SERVICE: ProdutoFoodService[] = [
     descricao: "Salsicha para lanches, cachorro-quente e preparo",
     sinonimos: ["salsicha hot dog"],
   },
-
   {
     id: "carnes-frango-file",
     nome: "Filé de frango",
@@ -206,7 +204,6 @@ export const PRODUTOS_FOOD_SERVICE: ProdutoFoodService[] = [
     descricao: "Hambúrguer bovino para lanches",
     sinonimos: ["burger bovino", "hamburguer"],
   },
-
   {
     id: "pescados-atum",
     nome: "Atum",
@@ -217,17 +214,6 @@ export const PRODUTOS_FOOD_SERVICE: ProdutoFoodService[] = [
     descricao: "Atum para recheios, saladas e pizzas",
     sinonimos: ["atum sólido", "atum ralado"],
   },
-  {
-    id: "pescados-sardinha",
-    nome: "Sardinha",
-    categoria: "Pescados",
-    subcategoria: "Conservas e pescados",
-    unidadeMedida: "kg",
-    embalagem: "lata",
-    descricao: "Sardinha em conserva para preparo",
-    sinonimos: ["sardinha em lata"],
-  },
-
   {
     id: "hortifruti-tomate",
     nome: "Tomate",
@@ -259,36 +245,6 @@ export const PRODUTOS_FOOD_SERVICE: ProdutoFoodService[] = [
     sinonimos: ["alho cabeça"],
   },
   {
-    id: "hortifruti-pimentao",
-    nome: "Pimentão",
-    categoria: "Hortifruti",
-    subcategoria: "Legumes",
-    unidadeMedida: "kg",
-    embalagem: "caixa",
-    descricao: "Pimentão para recheios, molhos e saladas",
-    sinonimos: ["pimentão verde", "pimentão vermelho"],
-  },
-  {
-    id: "hortifruti-alface",
-    nome: "Alface",
-    categoria: "Hortifruti",
-    subcategoria: "Folhosos",
-    unidadeMedida: "un",
-    embalagem: "maço",
-    descricao: "Folhoso para saladas e lanches",
-    sinonimos: ["alface americana", "alface crespa"],
-  },
-  {
-    id: "hortifruti-rucula",
-    nome: "Rúcula",
-    categoria: "Hortifruti",
-    subcategoria: "Folhosos",
-    unidadeMedida: "maço",
-    embalagem: "maço",
-    descricao: "Folhoso para saladas e pizzas",
-    sinonimos: ["rucula"],
-  },
-  {
     id: "hortifruti-batata",
     nome: "Batata",
     categoria: "Hortifruti",
@@ -298,17 +254,6 @@ export const PRODUTOS_FOOD_SERVICE: ProdutoFoodService[] = [
     descricao: "Batata para fritura, cozimento e preparo",
     sinonimos: ["batata inglesa"],
   },
-  {
-    id: "hortifruti-limao",
-    nome: "Limão",
-    categoria: "Hortifruti",
-    subcategoria: "Frutas",
-    unidadeMedida: "kg",
-    embalagem: "caixa",
-    descricao: "Limão para bebidas, temperos e finalização",
-    sinonimos: ["limão tahiti"],
-  },
-
   {
     id: "graos-arroz",
     nome: "Arroz",
@@ -330,27 +275,6 @@ export const PRODUTOS_FOOD_SERVICE: ProdutoFoodService[] = [
     sinonimos: ["feijão carioca", "feijão preto"],
   },
   {
-    id: "graos-milho-verde",
-    nome: "Milho verde",
-    categoria: "Grãos e Cereais",
-    subcategoria: "Conservas e grãos",
-    unidadeMedida: "kg",
-    embalagem: "lata",
-    descricao: "Milho verde para recheios, saladas e pizzas",
-    sinonimos: ["milho"],
-  },
-  {
-    id: "graos-ervilha",
-    nome: "Ervilha",
-    categoria: "Grãos e Cereais",
-    subcategoria: "Conservas e grãos",
-    unidadeMedida: "kg",
-    embalagem: "lata",
-    descricao: "Ervilha para preparo e recheios",
-    sinonimos: ["ervilha em conserva"],
-  },
-
-  {
     id: "farinhas-trigo",
     nome: "Farinha de trigo",
     categoria: "Farinhas e Misturas",
@@ -371,16 +295,6 @@ export const PRODUTOS_FOOD_SERVICE: ProdutoFoodService[] = [
     sinonimos: ["fuba"],
   },
   {
-    id: "farinhas-farinha-rosca",
-    nome: "Farinha de rosca",
-    categoria: "Farinhas e Misturas",
-    subcategoria: "Farinhas",
-    unidadeMedida: "kg",
-    embalagem: "pacote",
-    descricao: "Farinha de rosca para empanar e preparo",
-    sinonimos: ["rosca"],
-  },
-  {
     id: "farinhas-amido-milho",
     nome: "Amido de milho",
     categoria: "Farinhas e Misturas",
@@ -390,27 +304,6 @@ export const PRODUTOS_FOOD_SERVICE: ProdutoFoodService[] = [
     descricao: "Amido para engrossar preparos e confeitaria",
     sinonimos: ["maisena", "amido"],
   },
-  {
-    id: "farinhas-fermento-biologico",
-    nome: "Fermento biológico",
-    categoria: "Farinhas e Misturas",
-    subcategoria: "Fermentos",
-    unidadeMedida: "kg",
-    embalagem: "pacote",
-    descricao: "Fermento para massas e panificação",
-    sinonimos: ["fermento seco", "fermento pão"],
-  },
-  {
-    id: "farinhas-fermento-quimico",
-    nome: "Fermento químico",
-    categoria: "Farinhas e Misturas",
-    subcategoria: "Fermentos",
-    unidadeMedida: "kg",
-    embalagem: "lata",
-    descricao: "Fermento para bolos e confeitaria",
-    sinonimos: ["fermento bolo", "pó químico"],
-  },
-
   {
     id: "massas-macarrao",
     nome: "Macarrão",
@@ -422,16 +315,6 @@ export const PRODUTOS_FOOD_SERVICE: ProdutoFoodService[] = [
     sinonimos: ["espaguete", "parafuso", "penne"],
   },
   {
-    id: "massas-lasanha",
-    nome: "Massa para lasanha",
-    categoria: "Massas",
-    subcategoria: "Massas secas",
-    unidadeMedida: "kg",
-    embalagem: "caixa",
-    descricao: "Massa para montagem de lasanha",
-    sinonimos: ["lasanha"],
-  },
-  {
     id: "massas-disco-pizza",
     nome: "Disco de pizza",
     categoria: "Massas",
@@ -441,7 +324,6 @@ export const PRODUTOS_FOOD_SERVICE: ProdutoFoodService[] = [
     descricao: "Base de pizza para montagem",
     sinonimos: ["massa de pizza", "disco pizza"],
   },
-
   {
     id: "molhos-tomate",
     nome: "Molho de tomate",
@@ -483,27 +365,6 @@ export const PRODUTOS_FOOD_SERVICE: ProdutoFoodService[] = [
     sinonimos: ["maionese tradicional"],
   },
   {
-    id: "molhos-shoyu",
-    nome: "Molho shoyu",
-    categoria: "Molhos e Condimentos",
-    subcategoria: "Molhos salgados",
-    unidadeMedida: "l",
-    embalagem: "garrafa",
-    descricao: "Molho shoyu para preparo e tempero",
-    sinonimos: ["shoyu"],
-  },
-  {
-    id: "molhos-barbecue",
-    nome: "Molho barbecue",
-    categoria: "Molhos e Condimentos",
-    subcategoria: "Molhos",
-    unidadeMedida: "kg",
-    embalagem: "bisnaga",
-    descricao: "Molho barbecue para lanches e carnes",
-    sinonimos: ["barbecue"],
-  },
-
-  {
     id: "padaria-pao-hamburguer",
     nome: "Pão de hambúrguer",
     categoria: "Padaria e Confeitaria",
@@ -524,57 +385,6 @@ export const PRODUTOS_FOOD_SERVICE: ProdutoFoodService[] = [
     sinonimos: ["pão hot dog"],
   },
   {
-    id: "padaria-pao-forma",
-    nome: "Pão de forma",
-    categoria: "Padaria e Confeitaria",
-    subcategoria: "Pães",
-    unidadeMedida: "un",
-    embalagem: "pacote",
-    descricao: "Pão para lanches e preparo",
-    sinonimos: ["pão forma"],
-  },
-  {
-    id: "padaria-biscoito",
-    nome: "Biscoito",
-    categoria: "Padaria e Confeitaria",
-    subcategoria: "Secos",
-    unidadeMedida: "kg",
-    embalagem: "pacote",
-    descricao: "Biscoito para sobremesas e consumo",
-    sinonimos: ["bolacha"],
-  },
-  {
-    id: "padaria-leite-condensado",
-    nome: "Leite condensado",
-    categoria: "Padaria e Confeitaria",
-    subcategoria: "Confeitaria",
-    unidadeMedida: "kg",
-    embalagem: "caixa",
-    descricao: "Ingrediente para confeitaria e sobremesas",
-    sinonimos: ["condensado"],
-  },
-  {
-    id: "padaria-achocolatado",
-    nome: "Achocolatado",
-    categoria: "Padaria e Confeitaria",
-    subcategoria: "Confeitaria",
-    unidadeMedida: "kg",
-    embalagem: "lata",
-    descricao: "Ingrediente para bebidas e sobremesas",
-    sinonimos: ["chocolate em pó doce"],
-  },
-  {
-    id: "padaria-chocolate-po",
-    nome: "Chocolate em pó",
-    categoria: "Padaria e Confeitaria",
-    subcategoria: "Confeitaria",
-    unidadeMedida: "kg",
-    embalagem: "pacote",
-    descricao: "Ingrediente para confeitaria e bebidas",
-    sinonimos: ["cacau em pó", "chocolate po"],
-  },
-
-  {
     id: "congelados-batata-pre-frita",
     nome: "Batata pré-frita congelada",
     categoria: "Congelados",
@@ -584,27 +394,6 @@ export const PRODUTOS_FOOD_SERVICE: ProdutoFoodService[] = [
     descricao: "Batata congelada para fritura",
     sinonimos: ["batata frita congelada", "batata palito congelada"],
   },
-  {
-    id: "congelados-pao-alho",
-    nome: "Pão de alho",
-    categoria: "Congelados",
-    subcategoria: "Panificados congelados",
-    unidadeMedida: "un",
-    embalagem: "pacote",
-    descricao: "Pão de alho para preparo e venda",
-    sinonimos: ["pão alho"],
-  },
-  {
-    id: "congelados-polpa-fruta",
-    nome: "Polpa de fruta",
-    categoria: "Congelados",
-    subcategoria: "Polpas",
-    unidadeMedida: "kg",
-    embalagem: "pacote",
-    descricao: "Polpa de fruta congelada para sucos e sobremesas",
-    sinonimos: ["polpa congelada"],
-  },
-
   {
     id: "bebidas-agua-sem-gas",
     nome: "Água sem gás",
@@ -616,16 +405,6 @@ export const PRODUTOS_FOOD_SERVICE: ProdutoFoodService[] = [
     sinonimos: ["agua mineral"],
   },
   {
-    id: "bebidas-agua-com-gas",
-    nome: "Água com gás",
-    categoria: "Bebidas",
-    subcategoria: "Águas",
-    unidadeMedida: "un",
-    embalagem: "fardo",
-    descricao: "Água mineral com gás",
-    sinonimos: ["agua com gas"],
-  },
-  {
     id: "bebidas-refrigerante-cola",
     nome: "Refrigerante cola",
     categoria: "Bebidas",
@@ -633,39 +412,8 @@ export const PRODUTOS_FOOD_SERVICE: ProdutoFoodService[] = [
     unidadeMedida: "un",
     embalagem: "fardo",
     descricao: "Bebida gaseificada sabor cola",
-    sinonimos: ["refrigerante cola", "cola"],
+    sinonimos: ["refrigerante cola", "cola", "refri cola"],
   },
-  {
-    id: "bebidas-refrigerante-laranja",
-    nome: "Refrigerante laranja",
-    categoria: "Bebidas",
-    subcategoria: "Refrigerantes",
-    unidadeMedida: "un",
-    embalagem: "fardo",
-    descricao: "Bebida gaseificada sabor laranja",
-    sinonimos: ["refri laranja"],
-  },
-  {
-    id: "bebidas-suco-caixa",
-    nome: "Suco",
-    categoria: "Bebidas",
-    subcategoria: "Sucos",
-    unidadeMedida: "l",
-    embalagem: "caixa",
-    descricao: "Suco pronto para consumo",
-    sinonimos: ["suco pronto", "néctar"],
-  },
-  {
-    id: "bebidas-energetico",
-    nome: "Energético",
-    categoria: "Bebidas",
-    subcategoria: "Energéticos",
-    unidadeMedida: "un",
-    embalagem: "fardo",
-    descricao: "Bebida energética pronta para consumo",
-    sinonimos: ["energetico"],
-  },
-
   {
     id: "descartaveis-copo",
     nome: "Copo descartável",
@@ -675,16 +423,6 @@ export const PRODUTOS_FOOD_SERVICE: ProdutoFoodService[] = [
     embalagem: "pacote",
     descricao: "Copo descartável para bebidas",
     sinonimos: ["copo plastico"],
-  },
-  {
-    id: "descartaveis-tampa-copo",
-    nome: "Tampa para copo",
-    categoria: "Descartáveis e Embalagens",
-    subcategoria: "Tampas",
-    unidadeMedida: "pct",
-    embalagem: "pacote",
-    descricao: "Tampa para copos descartáveis",
-    sinonimos: ["tampa copo"],
   },
   {
     id: "descartaveis-marmita",
@@ -697,57 +435,6 @@ export const PRODUTOS_FOOD_SERVICE: ProdutoFoodService[] = [
     sinonimos: ["marmitex", "embalagem marmita"],
   },
   {
-    id: "descartaveis-pote-molho",
-    nome: "Pote para molho",
-    categoria: "Descartáveis e Embalagens",
-    subcategoria: "Potes",
-    unidadeMedida: "un",
-    embalagem: "caixa",
-    descricao: "Pote pequeno para molhos e acompanhamentos",
-    sinonimos: ["molheira", "pote molho"],
-  },
-  {
-    id: "descartaveis-saco-delivery",
-    nome: "Saco delivery",
-    categoria: "Descartáveis e Embalagens",
-    subcategoria: "Sacolas",
-    unidadeMedida: "un",
-    embalagem: "fardo",
-    descricao: "Embalagem para transporte de pedidos",
-    sinonimos: ["sacola delivery", "saco kraft"],
-  },
-  {
-    id: "descartaveis-guardanapo",
-    nome: "Guardanapo",
-    categoria: "Descartáveis e Embalagens",
-    subcategoria: "Papelaria",
-    unidadeMedida: "pct",
-    embalagem: "fardo",
-    descricao: "Guardanapo de papel para atendimento",
-    sinonimos: ["guardanapo papel"],
-  },
-  {
-    id: "descartaveis-papel-aluminio",
-    nome: "Papel alumínio",
-    categoria: "Descartáveis e Embalagens",
-    subcategoria: "Filmes e papéis",
-    unidadeMedida: "un",
-    embalagem: "rolo",
-    descricao: "Papel alumínio para conservação e preparo",
-    sinonimos: ["aluminio"],
-  },
-  {
-    id: "descartaveis-filme-pvc",
-    nome: "Filme PVC",
-    categoria: "Descartáveis e Embalagens",
-    subcategoria: "Filmes e papéis",
-    unidadeMedida: "un",
-    embalagem: "rolo",
-    descricao: "Filme para conservação e embalagem",
-    sinonimos: ["papel filme", "filme plastico"],
-  },
-
-  {
     id: "limpeza-detergente",
     nome: "Detergente",
     categoria: "Limpeza",
@@ -757,77 +444,6 @@ export const PRODUTOS_FOOD_SERVICE: ProdutoFoodService[] = [
     descricao: "Detergente para limpeza de utensílios",
     sinonimos: ["detergente neutro"],
   },
-  {
-    id: "limpeza-desengordurante",
-    nome: "Desengordurante",
-    categoria: "Limpeza",
-    subcategoria: "Lavagem pesada",
-    unidadeMedida: "l",
-    embalagem: "galão",
-    descricao: "Produto para remoção de gordura",
-    sinonimos: ["desengraxante cozinha"],
-  },
-  {
-    id: "limpeza-agua-sanitaria",
-    nome: "Água sanitária",
-    categoria: "Limpeza",
-    subcategoria: "Sanitização",
-    unidadeMedida: "l",
-    embalagem: "galão",
-    descricao: "Produto para higienização e limpeza",
-    sinonimos: ["cloro"],
-  },
-  {
-    id: "limpeza-sabao-po",
-    nome: "Sabão em pó",
-    categoria: "Limpeza",
-    subcategoria: "Lavanderia",
-    unidadeMedida: "kg",
-    embalagem: "caixa",
-    descricao: "Produto para lavagem de tecidos e panos",
-    sinonimos: ["sabão pó"],
-  },
-  {
-    id: "limpeza-papel-toalha",
-    nome: "Papel toalha",
-    categoria: "Limpeza",
-    subcategoria: "Papéis",
-    unidadeMedida: "pct",
-    embalagem: "fardo",
-    descricao: "Papel toalha para secagem e limpeza",
-    sinonimos: ["toalha papel"],
-  },
-  {
-    id: "limpeza-papel-higienico",
-    nome: "Papel higiênico",
-    categoria: "Limpeza",
-    subcategoria: "Papéis",
-    unidadeMedida: "pct",
-    embalagem: "fardo",
-    descricao: "Papel higiênico para uso operacional",
-    sinonimos: ["papel higienico"],
-  },
-  {
-    id: "limpeza-esponja",
-    nome: "Esponja",
-    categoria: "Limpeza",
-    subcategoria: "Acessórios",
-    unidadeMedida: "un",
-    embalagem: "pacote",
-    descricao: "Esponja para limpeza geral",
-    sinonimos: ["esponja cozinha"],
-  },
-  {
-    id: "limpeza-luva",
-    nome: "Luva descartável",
-    categoria: "Limpeza",
-    subcategoria: "Proteção",
-    unidadeMedida: "cx",
-    embalagem: "caixa",
-    descricao: "Luva descartável para manipulação e higienização",
-    sinonimos: ["luva procedimento", "luva descartavel"],
-  },
-
   {
     id: "mercearia-acucar",
     nome: "Açúcar",
@@ -840,13 +456,13 @@ export const PRODUTOS_FOOD_SERVICE: ProdutoFoodService[] = [
   },
   {
     id: "mercearia-sal",
-    nome: "Sal",
+    nome: "Sal refinado",
     categoria: "Mercearia",
     subcategoria: "Secos",
     unidadeMedida: "kg",
     embalagem: "pacote",
     descricao: "Sal para tempero e preparo",
-    sinonimos: ["sal refinado"],
+    sinonimos: ["sal", "sal refinado"],
   },
   {
     id: "mercearia-vinagre",
@@ -869,16 +485,6 @@ export const PRODUTOS_FOOD_SERVICE: ProdutoFoodService[] = [
     sinonimos: ["azeitona verde", "azeitona preta"],
   },
   {
-    id: "mercearia-palmito",
-    nome: "Palmito",
-    categoria: "Mercearia",
-    subcategoria: "Conservas",
-    unidadeMedida: "kg",
-    embalagem: "vidro",
-    descricao: "Palmito para pizzas, saladas e recheios",
-    sinonimos: ["palmito pupunha"],
-  },
-  {
     id: "mercearia-ovo",
     nome: "Ovo",
     categoria: "Mercearia",
@@ -888,7 +494,6 @@ export const PRODUTOS_FOOD_SERVICE: ProdutoFoodService[] = [
     descricao: "Ovos para preparo culinário e confeitaria",
     sinonimos: ["ovos", "ovo branco"],
   },
-
   {
     id: "temperos-oregano",
     nome: "Orégano",
@@ -900,47 +505,6 @@ export const PRODUTOS_FOOD_SERVICE: ProdutoFoodService[] = [
     sinonimos: ["oregano"],
   },
   {
-    id: "temperos-pimenta-calabresa",
-    nome: "Pimenta calabresa",
-    categoria: "Temperos e Especiarias",
-    subcategoria: "Pimentas",
-    unidadeMedida: "kg",
-    embalagem: "pacote",
-    descricao: "Tempero seco para finalização e preparo",
-    sinonimos: ["calabresa seca"],
-  },
-  {
-    id: "temperos-pimenta-reino",
-    nome: "Pimenta-do-reino",
-    categoria: "Temperos e Especiarias",
-    subcategoria: "Pimentas",
-    unidadeMedida: "kg",
-    embalagem: "pacote",
-    descricao: "Tempero para preparo culinário",
-    sinonimos: ["pimenta reino", "pimenta-do-reino moída"],
-  },
-  {
-    id: "temperos-colorau",
-    nome: "Colorau",
-    categoria: "Temperos e Especiarias",
-    subcategoria: "Temperos secos",
-    unidadeMedida: "kg",
-    embalagem: "pacote",
-    descricao: "Tempero seco para preparo culinário",
-    sinonimos: ["colorífico", "colorifico"],
-  },
-  {
-    id: "temperos-cominho",
-    nome: "Cominho",
-    categoria: "Temperos e Especiarias",
-    subcategoria: "Temperos secos",
-    unidadeMedida: "kg",
-    embalagem: "pacote",
-    descricao: "Tempero seco para preparo culinário",
-    sinonimos: ["cominho moído"],
-  },
-
-  {
     id: "oleos-oleo-soja",
     nome: "Óleo vegetal",
     categoria: "Óleos e Gorduras",
@@ -948,71 +512,8 @@ export const PRODUTOS_FOOD_SERVICE: ProdutoFoodService[] = [
     unidadeMedida: "l",
     embalagem: "garrafa",
     descricao: "Óleo para fritura e preparo culinário",
-    sinonimos: ["óleo de soja", "oleo cozinha"],
+    sinonimos: ["óleo de soja", "oleo cozinha", "oleo"],
   },
-  {
-    id: "oleos-azeite",
-    nome: "Azeite",
-    categoria: "Óleos e Gorduras",
-    subcategoria: "Óleos especiais",
-    unidadeMedida: "l",
-    embalagem: "garrafa",
-    descricao: "Azeite para finalização e preparo",
-    sinonimos: ["azeite oliva"],
-  },
-
-  {
-    id: "doces-brigadeiro",
-    nome: "Brigadeiro",
-    categoria: "Doces e Sobremesas",
-    subcategoria: "Recheios e doces",
-    unidadeMedida: "kg",
-    embalagem: "balde",
-    descricao: "Doce para sobremesas e recheios",
-    sinonimos: ["massa de brigadeiro"],
-  },
-  {
-    id: "doces-doce-leite",
-    nome: "Doce de leite",
-    categoria: "Doces e Sobremesas",
-    subcategoria: "Recheios e doces",
-    unidadeMedida: "kg",
-    embalagem: "balde",
-    descricao: "Doce para recheios e sobremesas",
-    sinonimos: ["doce leite"],
-  },
-  {
-    id: "doces-cobertura-chocolate",
-    nome: "Cobertura de chocolate",
-    categoria: "Doces e Sobremesas",
-    subcategoria: "Coberturas",
-    unidadeMedida: "kg",
-    embalagem: "balde",
-    descricao: "Cobertura para sobremesas e confeitaria",
-    sinonimos: ["calda chocolate", "ganache base"],
-  },
-
-  {
-    id: "conservas-seleta-legumes",
-    nome: "Seleta de legumes",
-    categoria: "Enlatados e Conservas",
-    subcategoria: "Conservas",
-    unidadeMedida: "kg",
-    embalagem: "lata",
-    descricao: "Mistura de legumes em conserva para preparo",
-    sinonimos: ["mix legumes"],
-  },
-  {
-    id: "conservas-cogumelo",
-    nome: "Cogumelo em conserva",
-    categoria: "Enlatados e Conservas",
-    subcategoria: "Conservas",
-    unidadeMedida: "kg",
-    embalagem: "vidro",
-    descricao: "Cogumelo para pizzas, molhos e preparo",
-    sinonimos: ["champignon", "cogumelo"],
-  },
-
   {
     id: "insumos-gas-glp",
     nome: "Gás GLP",
@@ -1023,34 +524,7 @@ export const PRODUTOS_FOOD_SERVICE: ProdutoFoodService[] = [
     descricao: "Insumo operacional para cocção",
     sinonimos: ["gas", "botijão de gás"],
   },
-  {
-    id: "insumos-carvao",
-    nome: "Carvão",
-    categoria: "Insumos Operacionais",
-    subcategoria: "Operação",
-    unidadeMedida: "kg",
-    embalagem: "saco",
-    descricao: "Combustível para preparo em churrasqueira e forno",
-    sinonimos: ["carvao"],
-  },
-  {
-    id: "insumos-lenha",
-    nome: "Lenha",
-    categoria: "Insumos Operacionais",
-    subcategoria: "Operação",
-    unidadeMedida: "kg",
-    embalagem: "feixe",
-    descricao: "Combustível para preparo em forno ou churrasqueira",
-    sinonimos: ["lenha forno"],
-  },
 ];
-
-export const MAPA_SINONIMOS_PRODUTOS: Record<string, string> = Object.fromEntries(
-  PRODUTOS_FOOD_SERVICE.flatMap((produto) => {
-    const termos = [produto.nome, ...(produto.sinonimos ?? [])];
-    return termos.map((termo) => [normalizarTexto(termo), produto.id]);
-  })
-);
 
 export function normalizarTexto(texto: string) {
   return texto
@@ -1059,6 +533,13 @@ export function normalizarTexto(texto: string) {
     .toLowerCase()
     .trim();
 }
+
+export const MAPA_SINONIMOS_PRODUTOS: Record<string, string> = Object.fromEntries(
+  PRODUTOS_FOOD_SERVICE.flatMap((produto) => {
+    const termos = [produto.nome, ...(produto.sinonimos ?? [])];
+    return termos.map((termo) => [normalizarTexto(termo), produto.id]);
+  })
+);
 
 export function buscarProdutoFoodService(termo: string) {
   const normalizado = normalizarTexto(termo);
@@ -1082,6 +563,42 @@ export function buscarProdutoFoodService(termo: string) {
       );
     }) ?? null
   );
+}
+
+export function buscarSugestoesFoodService(
+  termo: string,
+  limite = 8
+): ProdutoFoodService[] {
+  const normalizado = normalizarTexto(termo);
+
+  if (!normalizado) return [];
+
+  const pontuados = PRODUTOS_FOOD_SERVICE.map((produto) => {
+    const nome = normalizarTexto(produto.nome);
+    const sinonimos = (produto.sinonimos ?? []).map(normalizarTexto);
+
+    let score = 0;
+
+    if (nome === normalizado) score += 100;
+    if (sinonimos.includes(normalizado)) score += 95;
+
+    if (nome.startsWith(normalizado)) score += 70;
+    if (sinonimos.some((s) => s.startsWith(normalizado))) score += 65;
+
+    if (nome.includes(normalizado)) score += 40;
+    if (sinonimos.some((s) => s.includes(normalizado))) score += 35;
+
+    if (normalizado.includes(nome)) score += 20;
+    if (sinonimos.some((s) => normalizado.includes(s))) score += 18;
+
+    return { produto, score };
+  })
+    .filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score || a.produto.nome.localeCompare(b.produto.nome))
+    .slice(0, limite)
+    .map((item) => item.produto);
+
+  return pontuados;
 }
 
 export function listarProdutosPorCategoria(categoria: string) {

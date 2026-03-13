@@ -308,7 +308,10 @@ export default function EstoquePage() {
         </div>
 
         <Button
-          onClick={() => setIsAddDialogOpen(true)}
+          type="button"
+          onClick={() => {
+            setIsAddDialogOpen(true);
+          }}
           className="bg-orange-600 hover:bg-orange-700 w-full sm:w-auto"
         >
           <Plus className="w-4 h-4 mr-2" />
@@ -732,7 +735,10 @@ export default function EstoquePage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+      <Dialog
+        open={isAddDialogOpen}
+        onOpenChange={(open) => setIsAddDialogOpen(open)}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Adicionar Produto ao Estoque</DialogTitle>
@@ -873,7 +879,7 @@ export default function EstoquePage() {
                   <Button
                     type="submit"
                     className="flex-1 bg-orange-600 hover:bg-orange-700"
-                    disabled={!addForm.produto_id || savingAdd}
+                    disabled={savingAdd}
                   >
                     {savingAdd ? (
                       <>

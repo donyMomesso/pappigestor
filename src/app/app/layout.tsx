@@ -1,443 +1,655 @@
 "use client";
 
-import React, { ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAppAuth } from "@/contexts/AppAuthContext";
+import type { Feature, NivelAcesso } from "@/react-app/types/auth";
+import { PREMIUM_FEATURES } from "@/react-app/types/auth";
 import {
-  Home,
   ShoppingCart,
-  DollarSign,
   Package,
+  DollarSign,
+  BarChart3,
+  Users,
+  Building2,
   LogOut,
-  Sparkles,
-  Inbox,
   Menu,
   X,
-  Settings,
-  Calculator,
-  Brain,
   ChevronDown,
+  Truck,
+  Box,
+  ClipboardCheck,
+  ListTodo,
+  FileSearch,
+  Database,
+  Bot,
+  Home,
+  Settings,
+  Layers,
+  CreditCard,
+  Inbox,
+  Trophy,
+  Clock,
+  Wifi,
+  QrCode,
+  Crown,
+  Sparkles,
 } from "lucide-react";
 
-type InboxCountResponse = { count: number };
-
-type NavItemProps = {
-  href: string;
-  active: boolean;
-  icon: ReactNode;
-  label: string;
-  badge?: number;
-  onClick?: () => void;
-};
-
-interface ProtectedLayoutProps {
+interface AppLayoutProps {
   children: ReactNode;
 }
 
-export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
-  const router = useRouter();
-  const pathname = usePathname();
+interface NavItem {
+  label: string;
+  href: string;
+  icon: ReactNode;
+  roles: NivelAcesso[];
+  feature?: Feature;
+}
 
-  const [inboxCount, setInboxCount] = useState<number>(0);
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement | null>(null);
+interface NavGroup {
+  label: string;
+  icon: ReactNode;
+  items: NavItem[];
+}
 
-  const LOGO_URL =
-    "https://019c7b56-2054-7d0b-9c55-e7a603c40ba8.mochausercontent.com/1771799343659.png";
+const LOGO_URL =
+  "https://019c7b56-2054-7d0b-9c55-e7a603c40ba8.mochausercontent.com/1771799343659.png";
 
-  let auth: any = null;
-  try {
-    auth = useAppAuth();
-  } catch {
-    auth = null;
-  }
+const mainNavItems: NavItem[] = [
+  {
+    label: "Início",
+    href: "/app",
+    icon: <Home className="w-4 h-4" />,
+    roles: ["operador", "comprador", "financeiro", "admin", "dono", "viewer"],
+  },
+  {
+    label: "Caixa de Entrada",
+    href: "/app/caixa-entrada",
+    icon: <Inbox className="w-4 h-4" />,
+    roles: ["comprador", "financeiro", "admin", "dono"],
+    feature: "caixa_entrada",
+  },
+  {
+    label: "Dashboard",
+    href: "/app/dashboard",
+    icon: <BarChart3 className="w-4 h-4" />,
+    roles: ["financeiro", "admin", "dono"],
+  },
+  {
+    label: "Assessor IA",
+    href: "/app/assessor-ia",
+    icon: <Bot className="w-4 h-4" />,
+    roles: ["financeiro", "comprador", "admin", "dono"],
+    feature: "assessor_ia",
+  },
+];
 
-  const localUser = auth?.localUser ?? null;
-  const signOut: undefined | (() => void | Promise<void>) = auth?.signOut;
+const navGroups: NavGroup[] = [
+  {
+    label: "Compras",
+    icon: <ShoppingCart className="w-4 h-4" />,
+    items: [
+      {
+        label: "Nova Compra",
+        href: "/app/comprador",
+        icon: <ShoppingCart className="w-4 h-4" />,
+        roles: ["comprador", "admin", "dono"],
+      },
+      {
+        label: "Compras IA",
+        href: "/app/compras",
+        icon: <Sparkles className="w-4 h-4" />,
+        roles: ["comprador", "admin", "dono"],
+      },
+      {
+        label: "Lista de Compras",
+        href: "/app/lista-compras",
+        icon: <ListTodo className="w-4 h-4" />,
+        roles: ["operador", "comprador", "admin", "dono"],
+      },
+      {
+        label: "Compra Mercado",
+        href: "/app/compra-mercado",
+        icon: <QrCode className="w-4 h-4" />,
+        roles: ["operador", "comprador", "admin", "dono"],
+      },
+      {
+        label: "Cotações",
+        href: "/app/cotacao",
+        icon: <FileSearch className="w-4 h-4" />,
+        roles: ["comprador", "admin", "dono"],
+        feature: "cotacao",
+      },
+      {
+        label: "Ranking Preços",
+        href: "/app/ranking-fornecedores",
+        icon: <Trophy className="w-4 h-4" />,
+        roles: ["comprador", "financeiro", "admin", "dono"],
+      },
+      {
+        label: "Recebimento",
+        href: "/app/recebimento",
+        icon: <Package className="w-4 h-4" />,
+        roles: ["operador", "comprador", "admin", "dono"],
+      },
+    ],
+  },
+  {
+    label: "Financeiro",
+    icon: <DollarSign className="w-4 h-4" />,
+    items: [
+      {
+        label: "Controle Financeiro",
+        href: "/app/financeiro",
+        icon: <DollarSign className="w-4 h-4" />,
+        roles: ["financeiro", "admin", "dono"],
+      },
+      {
+        label: "Boletos DDA",
+        href: "/app/boletos-dda",
+        icon: <CreditCard className="w-4 h-4" />,
+        roles: ["financeiro", "admin", "dono"],
+        feature: "dda",
+      },
+      {
+        label: "Open Finance",
+        href: "/app/open-finance",
+        icon: <Wifi className="w-4 h-4" />,
+        roles: ["financeiro", "admin", "dono"],
+        feature: "dda",
+      },
+    ],
+  },
+  {
+    label: "Cadastros",
+    icon: <Layers className="w-4 h-4" />,
+    items: [
+      {
+        label: "Fornecedores",
+        href: "/app/fornecedores",
+        icon: <Truck className="w-4 h-4" />,
+        roles: ["comprador", "admin", "dono"],
+      },
+      {
+        label: "Produtos",
+        href: "/app/produtos",
+        icon: <Box className="w-4 h-4" />,
+        roles: ["operador", "comprador", "admin", "dono"],
+      },
+      {
+        label: "Catálogo Master",
+        href: "/app/produtos-master",
+        icon: <Database className="w-4 h-4" />,
+        roles: ["comprador", "admin", "dono"],
+        feature: "produtos_master",
+      },
+      {
+        label: "Estoque",
+        href: "/app/estoque",
+        icon: <ClipboardCheck className="w-4 h-4" />,
+        roles: ["operador", "comprador", "admin", "dono"],
+      },
+    ],
+  },
+  {
+    label: "Admin",
+    icon: <Settings className="w-4 h-4" />,
+    items: [
+      {
+        label: "Aprovações",
+        href: "/app/aprovacoes",
+        icon: <Clock className="w-4 h-4" />,
+        roles: ["admin", "dono"],
+      },
+      {
+        label: "Configurações",
+        href: "/app/configuracoes",
+        icon: <Settings className="w-4 h-4" />,
+        roles: ["admin", "dono"],
+      },
+      {
+        label: "Usuários",
+        href: "/app/usuarios",
+        icon: <Users className="w-4 h-4" />,
+        roles: ["admin", "dono"],
+      },
+      {
+        label: "Empresas",
+        href: "/app/empresas",
+        icon: <Building2 className="w-4 h-4" />,
+        roles: ["admin"],
+      },
+    ],
+  },
+];
 
-  const empresaNome = useMemo(() => {
-    return (
-      localUser?.empresa_nome ||
-      localUser?.nome_empresa ||
-      localUser?.empresaNome ||
-      "Pappi Gestor"
-    );
-  }, [localUser]);
+function isPathActive(pathname: string, href: string) {
+  if (href === "/app") return pathname === "/app";
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
-  const nomeUser = useMemo(() => localUser?.nome || "Gestor", [localUser]);
+function DropdownMenu({
+  group,
+  pathname,
+  hasRole,
+  hasFeature,
+}: {
+  group: NavGroup;
+  pathname: string;
+  hasRole: (allowed: NivelAcesso | NivelAcesso[]) => boolean;
+  hasFeature: (feature: Feature) => boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
 
-  const initialLetter = useMemo(() => {
-    const n = (localUser?.nome || "").trim();
-    return n ? n.charAt(0).toUpperCase() : "P";
-  }, [localUser]);
+  const visibleItems = group.items.filter((item) => hasRole(item.roles));
+  const isGroupActive = visibleItems.some((item) => isPathActive(pathname, item.href));
 
   useEffect(() => {
-    if (!auth) return;
-    if (!localUser && pathname?.startsWith("/app")) {
-      router.replace("/login");
-    }
-  }, [auth, localUser, pathname, router]);
-
-  useEffect(() => {
-    const onDown = (e: MouseEvent) => {
-      if (!menuOpen) return;
-      if (!menuRef.current) return;
-      if (!menuRef.current.contains(e.target as Node)) setMenuOpen(false);
-    };
-
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setMenuOpen(false);
-        setMobileOpen(false);
+    const handleClickOutside = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
       }
     };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [menuOpen]);
-
-  useEffect(() => {
-    let alive = true;
-    let consecutiveFails = 0;
-
-    const fetchInboxCount = async () => {
-      try {
-        const res = await fetch("/api/ia/inbox-count", { cache: "no-store" });
-
-        if (!res.ok) {
-          consecutiveFails++;
-          if (consecutiveFails >= 3) return;
-          return;
-        }
-
-        const data = (await res.json()) as InboxCountResponse;
-
-        if (!alive) return;
-
-        setInboxCount(Number(data?.count || 0));
-        consecutiveFails = 0;
-      } catch {
-        consecutiveFails++;
-      }
-    };
-
-    fetchInboxCount();
-    const interval = setInterval(fetchInboxCount, 60000);
-
-    return () => {
-      alive = false;
-      clearInterval(interval);
-    };
-  }, [pathname]);
-
-  const isActive = (href: string) => {
-    if (href === "/app") return pathname === "/app";
-    return pathname?.startsWith(href);
-  };
-
-  const doSignOut = async () => {
-    try {
-      await signOut?.();
-    } finally {
-      router.replace("/");
-    }
-  };
-
-  if (!auth) {
-    return (
-      <div className="min-h-screen bg-[#f8fafc]">
-        <header className="sticky top-0 z-50 border-b border-gray-100 bg-white/85 backdrop-blur-2xl">
-          <div className="max-w-[1600px] mx-auto px-6 md:px-8 h-20 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="p-2.5 bg-gradient-to-br from-orange-500 to-pink-500 rounded-[20px] shadow-lg shadow-orange-200/50">
-                <img
-                  src={LOGO_URL}
-                  alt="Logo"
-                  className="h-6 w-6 brightness-0 invert"
-                />
-              </div>
-
-              <div className="flex flex-col">
-                <span className="text-xl font-black italic uppercase tracking-tighter bg-gradient-to-r from-orange-600 to-pink-600 bg-clip-text text-transparent leading-none">
-                  Pappi Gestor
-                </span>
-                <span className="text-[9px] font-black uppercase tracking-[0.34em] text-gray-400 italic mt-1">
-                  central inteligente
-                </span>
-              </div>
-            </div>
-
-            <div className="inline-flex items-center gap-2 rounded-full bg-orange-50 px-4 py-2">
-              <Sparkles className="w-4 h-4 text-orange-500" />
-              <span className="text-[10px] uppercase font-black tracking-[0.22em] italic text-orange-600">
-                carregando
-              </span>
-            </div>
-          </div>
-        </header>
-
-        <main className="max-w-[1600px] mx-auto px-6 py-6 md:px-8 md:py-8 animate-in fade-in duration-500">
-          {children}
-        </main>
-      </div>
-    );
-  }
+  if (visibleItems.length === 0) return null;
 
   return (
-    <div className="min-h-screen bg-[#f8fafc]">
-      <header className="sticky top-0 z-50 border-b border-gray-100 bg-white/85 backdrop-blur-2xl">
-        <div className="max-w-[1600px] mx-auto px-6 md:px-8 h-20 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-4 md:gap-6 min-w-0">
-            <Link
-              href="/app"
-              className="shrink-0 p-2.5 bg-gradient-to-br from-orange-500 to-pink-500 rounded-[20px] shadow-lg shadow-orange-200/50 transition-transform hover:scale-105 active:scale-95"
-              onClick={() => setMobileOpen(false)}
-            >
-              <img
-                src={LOGO_URL}
-                alt="Logo"
-                className="h-6 w-6 brightness-0 invert"
-              />
-            </Link>
-
-            <div className="min-w-0 hidden sm:flex flex-col">
-              <span className="text-xl font-black italic uppercase tracking-tighter bg-gradient-to-r from-orange-600 to-pink-600 bg-clip-text text-transparent leading-none truncate">
-                {empresaNome}
-              </span>
-              <span className="text-[9px] font-black uppercase tracking-[0.34em] text-gray-400 italic mt-1">
-                central de inteligência
-              </span>
-            </div>
-          </div>
-
-          <nav className="hidden xl:flex items-center gap-1 bg-gray-100/70 p-1.5 rounded-[28px] border border-gray-100 shadow-inner">
-            <NavItem
-              href="/app"
-              active={isActive("/app")}
-              icon={<Home size={18} />}
-              label="Dashboard"
-            />
-            <NavItem
-              href="/app/caixa-entrada"
-              active={isActive("/app/caixa-entrada")}
-              icon={<Inbox size={18} />}
-              label="Inbox"
-              badge={inboxCount}
-            />
-            <NavItem
-              href="/app/compras"
-              active={isActive("/app/compras")}
-              icon={<ShoppingCart size={18} />}
-              label="Compras"
-            />
-            <NavItem
-              href="/app/financeiro"
-              active={isActive("/app/financeiro")}
-              icon={<DollarSign size={18} />}
-              label="Financeiro"
-            />
-            <NavItem
-              href="/app/estoque"
-              active={isActive("/app/estoque")}
-              icon={<Package size={18} />}
-              label="Estoque"
-            />
-            <NavItem
-              href="/app/precificacao"
-              active={isActive("/app/precificacao")}
-              icon={<Calculator size={18} />}
-              label="Eng. Preços"
-            />
-          </nav>
-
-          <div className="flex items-center gap-3">
-            <button
-              className="xl:hidden w-11 h-11 rounded-[18px] bg-white border border-gray-100 shadow-sm flex items-center justify-center text-gray-700"
-              onClick={() => setMobileOpen((v) => !v)}
-              aria-label="Abrir menu"
-            >
-              {mobileOpen ? <X size={18} /> : <Menu size={18} />}
-            </button>
-
-            <div className="hidden md:flex items-center gap-3 px-4 py-2 rounded-[22px] border border-gray-100 bg-white shadow-sm">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-orange-500 to-pink-500 text-white flex items-center justify-center font-black italic">
-                {initialLetter}
-              </div>
-
-              <div className="text-left">
-                <p className="text-xs font-black italic uppercase tracking-tight text-gray-900 leading-none">
-                  {nomeUser}
-                </p>
-                <p className="text-[10px] uppercase font-black text-orange-600 italic mt-1 tracking-[0.18em] leading-none">
-                  ambiente ativo
-                </p>
-              </div>
-            </div>
-
-            <div className="relative" ref={menuRef}>
-              <button
-                onClick={() => setMenuOpen((v) => !v)}
-                className="w-12 h-12 rounded-[18px] bg-gray-900 shadow-xl flex items-center justify-center text-white hover:scale-105 transition-all border-4 border-white ring-1 ring-gray-100"
-                aria-label="Menu do usuário"
-              >
-                <ChevronDown size={18} />
-              </button>
-
-              {menuOpen && (
-                <div className="absolute right-0 mt-3 w-72 bg-white rounded-[28px] shadow-2xl border border-gray-100 p-3 z-50">
-                  <div className="px-4 py-3 border-b border-gray-50 mb-2">
-                    <p className="text-[9px] font-black uppercase text-gray-400 italic tracking-[0.2em]">
-                      sua conta
-                    </p>
-                    <p className="text-sm font-black italic uppercase tracking-tight text-gray-900 mt-2">
-                      {nomeUser}
-                    </p>
-                    <p className="text-[10px] text-gray-500 font-bold mt-1 truncate">
-                      {empresaNome}
-                    </p>
-                  </div>
-
-                  <Link
-                    href="/app/assessor-ia"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      setMobileOpen(false);
-                    }}
-                    className="flex items-center gap-3 px-4 py-3 text-xs font-bold italic uppercase text-gray-600 hover:bg-gray-50 rounded-xl transition-all"
-                  >
-                    <Brain size={16} /> Assessor IA
-                  </Link>
-
-                  <Link
-                    href="/app/configuracoes"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      setMobileOpen(false);
-                    }}
-                    className="flex items-center gap-3 px-4 py-3 text-xs font-bold italic uppercase text-gray-600 hover:bg-gray-50 rounded-xl transition-all"
-                  >
-                    <Settings size={16} /> Configurações
-                  </Link>
-
-                  <button
-                    onClick={doSignOut}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-xs font-black italic uppercase text-red-500 hover:bg-red-50 rounded-xl transition-all"
-                  >
-                    <LogOut size={16} /> Sair do sistema
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {mobileOpen && (
-          <div className="xl:hidden border-t border-gray-100 bg-white/90 backdrop-blur-2xl">
-            <div className="max-w-[1600px] mx-auto px-6 py-4 flex flex-col gap-2">
-              <NavItem
-                href="/app"
-                active={isActive("/app")}
-                icon={<Home size={18} />}
-                label="Dashboard"
-                onClick={() => setMobileOpen(false)}
-              />
-              <NavItem
-                href="/app/caixa-entrada"
-                active={isActive("/app/caixa-entrada")}
-                icon={<Inbox size={18} />}
-                label="Inbox"
-                badge={inboxCount}
-                onClick={() => setMobileOpen(false)}
-              />
-              <NavItem
-                href="/app/compras"
-                active={isActive("/app/compras")}
-                icon={<ShoppingCart size={18} />}
-                label="Compras"
-                onClick={() => setMobileOpen(false)}
-              />
-              <NavItem
-                href="/app/financeiro"
-                active={isActive("/app/financeiro")}
-                icon={<DollarSign size={18} />}
-                label="Financeiro"
-                onClick={() => setMobileOpen(false)}
-              />
-              <NavItem
-                href="/app/estoque"
-                active={isActive("/app/estoque")}
-                icon={<Package size={18} />}
-                label="Estoque"
-                onClick={() => setMobileOpen(false)}
-              />
-              <NavItem
-                href="/app/precificacao"
-                active={isActive("/app/precificacao")}
-                icon={<Calculator size={18} />}
-                label="Eng. Preços"
-                onClick={() => setMobileOpen(false)}
-              />
-            </div>
-          </div>
-        )}
-      </header>
-
-      <main className="max-w-[1600px] mx-auto px-6 py-6 md:px-8 md:py-8 animate-in fade-in duration-500">
-        {children}
-      </main>
-
-      <Link
-        href="/app/assessor-ia"
-        className="fixed bottom-8 right-8 md:bottom-10 md:right-10 group z-50"
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+          isGroupActive
+            ? "bg-orange-100 text-orange-700"
+            : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+        }`}
       >
-        <div className="absolute inset-0 bg-orange-500 blur-3xl opacity-20 group-hover:opacity-40 transition-all" />
-        <button className="relative w-16 h-16 bg-gradient-to-br from-orange-600 to-pink-600 rounded-[22px] shadow-2xl flex items-center justify-center text-white border-2 border-white/20 hover:rotate-6 transition-transform hover:scale-110 active:scale-90">
-          <Sparkles size={28} className="animate-pulse" />
-          <span className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full" />
-        </button>
-      </Link>
+        {group.icon}
+        <span className="hidden lg:inline">{group.label}</span>
+        <ChevronDown className={`w-3 h-3 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {open && (
+        <div className="absolute top-full left-0 mt-1 w-56 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+          {visibleItems.map((item) => {
+            const active = isPathActive(pathname, item.href);
+            const isPremium = !!item.feature && PREMIUM_FEATURES.includes(item.feature);
+            const allowed = !item.feature || hasFeature(item.feature);
+
+            if (!allowed) {
+              return (
+                <Link
+                  key={item.href}
+                  href="/app/configuracoes?tab=assinatura"
+                  onClick={() => setOpen(false)}
+                  className="flex items-center justify-between gap-2 px-3 py-2 text-sm text-gray-400 hover:bg-purple-50 transition-colors"
+                >
+                  <span className="flex items-center gap-2">
+                    {item.icon}
+                    {item.label}
+                  </span>
+                  <span className="flex items-center gap-1 px-1.5 py-0.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-[10px] font-bold rounded">
+                    <Crown className="w-3 h-3" />
+                    PRO
+                  </span>
+                </Link>
+              );
+            }
+
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setOpen(false)}
+                className={`flex items-center justify-between gap-2 px-3 py-2 text-sm transition-colors ${
+                  active
+                    ? "bg-orange-50 text-orange-700 font-medium"
+                    : "text-gray-700 hover:bg-gray-50"
+                }`}
+              >
+                <span className="flex items-center gap-2">
+                  {item.icon}
+                  {item.label}
+                </span>
+                {isPremium && (
+                  <span className="px-1.5 py-0.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-[10px] font-bold rounded">
+                    PRO
+                  </span>
+                )}
+              </Link>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
 
-function NavItem({
-  href,
-  active,
-  icon,
-  label,
-  badge = 0,
-  onClick,
-}: NavItemProps) {
+export default function ProtectedLayout({ children }: AppLayoutProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const {
+    localUser,
+    signOut,
+    hasRole,
+    hasFeature,
+    isLoading,
+  } = useAppAuth();
+
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  const empresaNome = localUser?.nome_empresa || "Pappi Gestor";
+
+  const visibleMainItems = useMemo(() => {
+    return mainNavItems.filter((item) => hasRole(item.roles));
+  }, [hasRole]);
+
+  useEffect(() => {
+    const onDown = (e: MouseEvent) => {
+      if (!userMenuRef.current) return;
+      if (!userMenuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, []);
+
+  useEffect(() => {
+    if (!isLoading && !localUser && pathname.startsWith("/app")) {
+      router.replace("/login");
+    }
+  }, [isLoading, localUser, pathname, router]);
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+    } finally {
+      router.replace("/login");
+    }
+  };
+
   return (
-    <Link
-      href={href}
-      onClick={onClick}
-      className={`relative flex items-center gap-3 px-5 py-3 rounded-[22px] transition-all duration-300 ${
-        active
-          ? "bg-white text-orange-600 font-black italic shadow-md shadow-orange-100/50 border border-orange-50"
-          : "text-gray-400 hover:text-gray-700 hover:bg-white/60"
-      }`}
-    >
-      <span className={active ? "text-orange-600" : "text-gray-400"}>
-        {icon}
-      </span>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-orange-50/30">
+      <header className="bg-white/80 backdrop-blur-md border-b border-gray-200/50 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-14 gap-2">
+            <Link href="/app" className="flex items-center gap-2 group flex-shrink-0">
+              <div className="relative">
+                <img
+                  src={LOGO_URL}
+                  alt="Pappi Gestor"
+                  className="h-8 w-8 sm:h-9 sm:w-9 object-contain transition-transform group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-orange-500/20 rounded-full blur-lg opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+              <span className="font-bold text-gray-900 hidden md:block">
+                {empresaNome}
+              </span>
+            </Link>
 
-      <span className="text-[10px] uppercase tracking-[0.2em] font-black leading-none">
-        {label}
-      </span>
+            <nav className="hidden lg:flex items-center gap-1">
+              {visibleMainItems.map((item) => {
+                const active = isPathActive(pathname, item.href);
+                const isPremium = !!item.feature && PREMIUM_FEATURES.includes(item.feature);
+                const allowed = !item.feature || hasFeature(item.feature);
 
-      {badge > 0 && (
-        <span className="absolute -top-1 -right-1 flex h-5 min-w-5 px-1 items-center justify-center rounded-full bg-red-500 text-[9px] font-black text-white ring-4 ring-gray-50 shadow-lg">
-          {badge > 99 ? "99+" : badge}
-        </span>
+                if (!allowed) {
+                  return (
+                    <Link
+                      key={item.href}
+                      href="/app/configuracoes?tab=assinatura"
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-400 hover:bg-purple-50 transition-all"
+                    >
+                      {item.icon}
+                      <span className="hidden lg:inline">{item.label}</span>
+                      <span className="flex items-center gap-0.5 px-1.5 py-0.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-[10px] font-bold rounded">
+                        <Crown className="w-3 h-3" />
+                        PRO
+                      </span>
+                    </Link>
+                  );
+                }
+
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                      active
+                        ? "bg-orange-100 text-orange-700"
+                        : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                    }`}
+                  >
+                    {item.icon}
+                    <span className="hidden lg:inline">{item.label}</span>
+                    {isPremium && (
+                      <span className="px-1 py-0.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-[9px] font-bold rounded">
+                        PRO
+                      </span>
+                    )}
+                  </Link>
+                );
+              })}
+
+              <div className="w-px h-6 bg-gray-200 mx-1" />
+
+              {navGroups.map((group) => (
+                <DropdownMenu
+                  key={group.label}
+                  group={group}
+                  pathname={pathname}
+                  hasRole={hasRole}
+                  hasFeature={hasFeature}
+                />
+              ))}
+            </nav>
+
+            <div className="flex items-center gap-2">
+              <div className="relative" ref={userMenuRef}>
+                <button
+                  onClick={() => setUserMenuOpen((v) => !v)}
+                  className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center shadow-sm">
+                    <span className="text-white font-semibold text-sm">
+                      {localUser?.nome?.charAt(0).toUpperCase() || "U"}
+                    </span>
+                  </div>
+                  <ChevronDown className="w-3 h-3 text-gray-400 hidden sm:block" />
+                </button>
+
+                {userMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-20 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="px-4 py-3 border-b border-gray-100">
+                      <p className="font-semibold text-gray-900">{localUser?.nome || "Usuário"}</p>
+                      <p className="text-sm text-gray-500 truncate">{localUser?.email || ""}</p>
+                      <div className="flex items-center gap-2 mt-2">
+                        <span className="px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 text-xs font-medium">
+                          {localUser?.nivel_acesso || "perfil"}
+                        </span>
+                        <span className="text-xs text-gray-400">•</span>
+                        <span className="text-xs text-gray-500 truncate">
+                          {empresaNome}
+                        </span>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={handleLogout}
+                      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Sair da conta
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <button
+                onClick={() => setMobileMenuOpen((v) => !v)}
+                className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors flex-shrink-0"
+              >
+                {mobileMenuOpen ? (
+                  <X className="w-5 h-5 text-gray-600" />
+                ) : (
+                  <Menu className="w-5 h-5 text-gray-600" />
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {mobileMenuOpen && (
+          <div className="lg:hidden border-t border-gray-200 bg-white/95 backdrop-blur-md animate-in slide-in-from-top-2 duration-200">
+            <nav className="px-3 py-3 max-h-[70vh] overflow-auto">
+              <div className="space-y-1 mb-3">
+                {visibleMainItems.map((item) => {
+                  const active = isPathActive(pathname, item.href);
+                  const isPremium = !!item.feature && PREMIUM_FEATURES.includes(item.feature);
+                  const allowed = !item.feature || hasFeature(item.feature);
+
+                  if (!allowed) {
+                    return (
+                      <Link
+                        key={item.href}
+                        href="/app/configuracoes?tab=assinatura"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-400 hover:bg-purple-50 transition-colors"
+                      >
+                        <span className="flex items-center gap-3">
+                          {item.icon}
+                          {item.label}
+                        </span>
+                        <span className="flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-[10px] font-bold rounded">
+                          <Crown className="w-3 h-3" />
+                          PRO
+                        </span>
+                      </Link>
+                    );
+                  }
+
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                        active
+                          ? "bg-orange-100 text-orange-700"
+                          : "text-gray-600 hover:bg-gray-100"
+                      }`}
+                    >
+                      <span className="flex items-center gap-3">
+                        {item.icon}
+                        {item.label}
+                      </span>
+                      {isPremium && (
+                        <span className="px-1.5 py-0.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-[10px] font-bold rounded">
+                          PRO
+                        </span>
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
+
+              {navGroups.map((group) => {
+                const visibleItems = group.items.filter((item) => hasRole(item.roles));
+                if (visibleItems.length === 0) return null;
+
+                return (
+                  <div key={group.label} className="mb-3">
+                    <div className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider">
+                      {group.icon}
+                      {group.label}
+                    </div>
+
+                    <div className="space-y-1 pl-2 border-l-2 border-gray-200 ml-4">
+                      {visibleItems.map((item) => {
+                        const active = isPathActive(pathname, item.href);
+                        const isPremium = !!item.feature && PREMIUM_FEATURES.includes(item.feature);
+                        const allowed = !item.feature || hasFeature(item.feature);
+
+                        if (!allowed) {
+                          return (
+                            <Link
+                              key={item.href}
+                              href="/app/configuracoes?tab=assinatura"
+                              onClick={() => setMobileMenuOpen(false)}
+                              className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-400 hover:bg-purple-50 transition-colors"
+                            >
+                              <span className="flex items-center gap-3">
+                                {item.icon}
+                                {item.label}
+                              </span>
+                              <span className="flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-[10px] font-bold rounded">
+                                <Crown className="w-3 h-3" />
+                                PRO
+                              </span>
+                            </Link>
+                          );
+                        }
+
+                        return (
+                          <Link
+                            key={item.href}
+                            href={item.href}
+                            onClick={() => setMobileMenuOpen(false)}
+                            className={`flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                              active
+                                ? "bg-orange-100 text-orange-700"
+                                : "text-gray-600 hover:bg-gray-100"
+                            }`}
+                          >
+                            <span className="flex items-center gap-3">
+                              {item.icon}
+                              {item.label}
+                            </span>
+                            {isPremium && (
+                              <span className="px-1.5 py-0.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-[10px] font-bold rounded">
+                                PRO
+                              </span>
+                            )}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </nav>
+          </div>
+        )}
+      </header>
+
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
+        {children}
+      </main>
+
+      {hasFeature("assessor_ia") && (
+        <Link
+          href="/app/assessor-ia"
+          className="fixed bottom-8 right-8 md:bottom-10 md:right-10 group z-50"
+        >
+          <div className="absolute inset-0 bg-orange-500 blur-3xl opacity-20 group-hover:opacity-40 transition-all" />
+          <button className="relative w-16 h-16 bg-gradient-to-br from-orange-600 to-pink-600 rounded-[22px] shadow-2xl flex items-center justify-center text-white border-2 border-white/20 hover:rotate-6 transition-transform hover:scale-110 active:scale-90">
+            <Sparkles size={28} className="animate-pulse" />
+            <span className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full" />
+          </button>
+        </Link>
       )}
-    </Link>
+    </div>
   );
 }

@@ -23,16 +23,12 @@ type UnidadeMedida = "kg" | "g" | "un" | "l" | "ml" | "cx" | "pct" | "fd" | stri
 export interface ProdutoFoodService {
   id: string;
   nome: string;
-
-  // ✅ tudo opcional para não quebrar o build
   descricao?: string;
   unidadeMedida?: UnidadeMedida;
-  embalagem?: string; // ex: "caixa 6x", "fardo", "pacote"
-  pesoAprox?: number; // ex: 4 (kg) ou 500 (g) dependendo do seu padrão
+  embalagem?: string;
+  pesoAprox?: number;
   categoria?: string;
   marca?: string;
-
-  // valores opcionais caso exista no seu banco/IA
   precoMedio?: number;
   ultimaCompraEm?: string;
 }
@@ -44,7 +40,6 @@ function safeLower(v: unknown) {
 function formatPeso(peso?: number, unidade?: string) {
   if (peso == null || Number.isNaN(peso)) return "";
   const u = (unidade || "").toLowerCase();
-  // se a unidade já for kg/g, a gente mostra junto
   if (u === "kg") return `${peso} kg`;
   if (u === "g") return `${peso} g`;
   return `${peso}`;
@@ -57,14 +52,32 @@ function formatUnidade(un?: string) {
   return un;
 }
 
+function getEmpresaId() {
+  if (typeof window === "undefined") return "";
+  return (
+    localStorage.getItem("empresa_id") ||
+    localStorage.getItem("pId") ||
+    localStorage.getItem("pizzariaId") ||
+    ""
+  );
+}
+
+function getUserEmail() {
+  if (typeof window === "undefined") return "";
+  return (
+    localStorage.getItem("user_email") ||
+    localStorage.getItem("userEmail") ||
+    localStorage.getItem("email") ||
+    ""
+  );
+}
+
 export default function CatalogoGlobal() {
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
-
   const [produtos, setProdutos] = useState<ProdutoFoodService[]>([]);
   const [termo, setTermo] = useState("");
 
-  // ✅ carrega “catálogo global” — ajusta a rota se necessário
   useEffect(() => {
     let alive = true;
 
@@ -73,17 +86,31 @@ export default function CatalogoGlobal() {
         setCarregando(true);
         setErro(null);
 
-        // Você pode já ter uma rota pronta. Mantive uma genérica:
-        // - Se já existir outra rota no seu projeto, troque aqui somente.
-        const res = await fetch("/api/catalogo-global", { cache: "no-store" });
+        const empresaId = getEmpresaId();
+        const userEmail = getUserEmail();
+
+        const headers: Record<string, string> = {};
+        if (empresaId) {
+          headers["x-empresa-id"] = empresaId;
+          headers["x-pizzaria-id"] = empresaId;
+        }
+        if (userEmail) {
+          headers["x-user-email"] = userEmail;
+        }
+
+        const res = await fetch("/api/catalogo-global", {
+          cache: "no-store",
+          headers,
+        });
 
         if (!res.ok) {
-          // fallback: não quebra interface
           const txt = await res.text().catch(() => "");
           throw new Error(txt || "Falha ao carregar catálogo");
         }
 
-        const data = (await res.json()) as { produtos?: ProdutoFoodService[] } | ProdutoFoodService[];
+        const data = (await res.json()) as
+          | { produtos?: ProdutoFoodService[] }
+          | ProdutoFoodService[];
 
         const lista = Array.isArray(data) ? data : (data.produtos ?? []);
         if (alive) setProdutos(lista);
@@ -94,7 +121,8 @@ export default function CatalogoGlobal() {
       }
     }
 
-    load();
+    void load();
+
     return () => {
       alive = false;
     };
@@ -125,7 +153,6 @@ export default function CatalogoGlobal() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-1">
           <h1 className="text-xl font-black italic uppercase tracking-tight flex items-center gap-2">
@@ -149,7 +176,6 @@ export default function CatalogoGlobal() {
         </div>
       </div>
 
-      {/* Busca + ações */}
       <Card>
         <CardContent className="pt-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -163,20 +189,13 @@ export default function CatalogoGlobal() {
             </div>
 
             <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setTermo("")}
-                className="h-11"
-              >
+              <Button variant="outline" onClick={() => setTermo("")} className="h-11">
                 Limpar
               </Button>
 
               <Button
                 className="h-11 bg-orange-600 hover:bg-orange-700"
-                onClick={() => {
-                  // ação futura: “usar produto”, “adicionar no meu catálogo”, etc.
-                  // Mantive seguro e neutro.
-                }}
+                onClick={() => {}}
               >
                 <Sparkles className="w-4 h-4 mr-2" />
                 Ação Pro
@@ -186,7 +205,6 @@ export default function CatalogoGlobal() {
         </CardContent>
       </Card>
 
-      {/* Estado */}
       {carregando && (
         <div className="flex items-center justify-center py-14">
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
@@ -201,8 +219,7 @@ export default function CatalogoGlobal() {
           <CardContent className="pt-6">
             <div className="text-sm text-red-600 font-bold">{erro}</div>
             <div className="text-xs text-muted-foreground mt-2">
-              Dica: se você ainda não criou a rota <code>/api/catalogo-global</code>, eu mantenho essa tela funcionando,
-              mas você precisa plugar o endpoint depois.
+              Verifique a rota <code>/api/catalogo-global</code> e os headers de empresa.
             </div>
           </CardContent>
         </Card>
@@ -219,7 +236,6 @@ export default function CatalogoGlobal() {
         </Card>
       )}
 
-      {/* Lista */}
       {!carregando && !erro && filtrados.length > 0 && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filtrados.map((p) => {

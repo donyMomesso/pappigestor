@@ -571,7 +571,7 @@ export default function ProdutosPage() {
                               <span className="text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
                                 {item.categoria}
                               </span>
-                              {(item as any).embalagem (
+                              {(item as any).embalagem && (
                                 <span className="text-xs text-gray-500 dark:text-gray-400">{(item as any).embalagem}</span>
                               )}
                               {(item as any).pesoAprox && (

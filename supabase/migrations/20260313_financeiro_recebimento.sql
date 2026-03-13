@@ -30,3 +30,8 @@ alter table public.lancamentos add column if not exists codigo_barras text null;
 alter table public.lancamentos add column if not exists arquivo_url_boleto text null;
 alter table public.lancamentos add column if not exists boleto_dda_id uuid null;
 alter table public.lancamentos add column if not exists nota_fiscal_id uuid null;
+
+create index if not exists idx_lancamentos_empresa_status on public.lancamentos (empresa_id, status_pagamento);
+create index if not exists idx_lancamentos_empresa_vencimento on public.lancamentos (empresa_id, vencimento_real);
+create index if not exists idx_boletos_empresa_status on public.boletos_dda (empresa_id, status_pagamento);
+create index if not exists idx_notas_recebidas_empresa on public.notas_fiscais_recebidas (empresa_id, created_at desc);

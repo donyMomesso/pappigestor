@@ -32,6 +32,9 @@ import {
   Filter,
   Download,
   FileSpreadsheet,
+  Brain,
+  Siren,
+  TrendingUp,
 } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -124,6 +127,38 @@ interface BoletoFormState {
   vencimento_real: string;
 }
 
+interface DashboardResumo {
+  pagarHoje: number;
+  pagar7Dias: number;
+  pagarAtrasado: number;
+  totalPendente: number;
+  totalPago: number;
+  totalLancamentos: number;
+  totalBoletos: number;
+  totalNotas: number;
+  semBoleto: number;
+  divergencias: number;
+  ticketMedioSaida: number;
+}
+
+interface InsightAlert {
+  id: string;
+  title: string;
+  description: string;
+  level: "critico" | "atencao" | "ok";
+  value?: number;
+  href?: string;
+}
+
+interface FinanceiroInsights {
+  summary: string;
+  deterministicSummary?: string;
+  alerts: InsightAlert[];
+  actions: Array<{ title: string; description: string; href: string }>;
+  topCategorias: Array<{ categoria: string; total: number }>;
+  aiEnabled: boolean;
+}
+
 function toMidnight(date: Date): Date {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);
@@ -159,6 +194,9 @@ export default function FinanceiroPage() {
   const [lancamentos, setLancamentos] = useState<Lancamento[]>([]);
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
   const [empresa, setEmpresa] = useState<Empresa | null>(null);
+  const [dashboardResumo, setDashboardResumo] = useState<DashboardResumo | null>(null);
+  const [insights, setInsights] = useState<FinanceiroInsights | null>(null);
+  const [loadingInsights, setLoadingInsights] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [filter, setFilter] = useState<StatusFilter>("todos");
   const [selectedLancamento, setSelectedLancamento] = useState<Lancamento | null>(null);
@@ -212,6 +250,7 @@ export default function FinanceiroPage() {
   useEffect(() => {
     void fetchData();
     void fetchBoletosDDA();
+    void fetchDashboardAndInsights();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [empresaId, userEmail]);
 
@@ -254,6 +293,31 @@ export default function FinanceiroPage() {
       console.error("Erro ao carregar dados financeiros:", error);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function fetchDashboardAndInsights(): Promise<void> {
+    try {
+      setLoadingInsights(true);
+
+      const [dashboardRes, insightsRes] = await Promise.all([
+        fetch("/api/financeiro/dashboard", { headers: getAuthHeaders() }),
+        fetch("/api/financeiro/insights", { headers: getAuthHeaders() }),
+      ]);
+
+      if (dashboardRes.ok) {
+        const data = (await dashboardRes.json()) as DashboardResumo;
+        setDashboardResumo(data);
+      }
+
+      if (insightsRes.ok) {
+        const data = (await insightsRes.json()) as FinanceiroInsights;
+        setInsights(data);
+      }
+    } catch (error) {
+      console.error("Erro ao carregar resumo/insights financeiros:", error);
+    } finally {
+      setLoadingInsights(false);
     }
   }
 
@@ -327,7 +391,7 @@ export default function FinanceiroPage() {
         is_pago: false,
       });
 
-      await fetchData();
+      await Promise.all([fetchData(), fetchDashboardAndInsights()]);
     } catch (error) {
       console.error("Erro ao salvar lançamento manual:", error);
       alert("Erro ao registrar lançamento");
@@ -360,7 +424,7 @@ export default function FinanceiroPage() {
       }
 
       alert("Pagamento registrado!");
-      await fetchBoletosDDA();
+      await Promise.all([fetchBoletosDDA(), fetchData(), fetchDashboardAndInsights()]);
     } catch (error) {
       console.error("Erro ao pagar DDA:", error);
       alert("Erro ao registrar pagamento");
@@ -408,7 +472,7 @@ export default function FinanceiroPage() {
       alert("Boleto registrado com sucesso!");
       setSelectedLancamento(null);
 
-      await fetchData();
+      await Promise.all([fetchData(), fetchDashboardAndInsights()]);
     } catch (error) {
       console.error("Erro ao salvar boleto:", error);
       alert("Erro ao registrar boleto");
@@ -476,7 +540,7 @@ export default function FinanceiroPage() {
       setPayDialogOpen(false);
       setPayingLancamento(null);
 
-      await fetchData();
+      await Promise.all([fetchData(), fetchDashboardAndInsights()]);
     } catch (error) {
       console.error("Erro ao pagar lançamento:", error);
       alert("Erro ao registrar pagamento");
@@ -497,6 +561,12 @@ export default function FinanceiroPage() {
   function formatDate(date: string | null): string {
     if (!date) return "-";
     return new Date(date).toLocaleDateString("pt-BR");
+  }
+
+  function getInsightLevelClasses(level: InsightAlert["level"]): string {
+    if (level === "critico") return "border-red-200 bg-red-50 text-red-700";
+    if (level === "atencao") return "border-amber-200 bg-amber-50 text-amber-700";
+    return "border-emerald-200 bg-emerald-50 text-emerald-700";
   }
 
   function generateWhatsAppDivergencia(lancamento: Lancamento): string {
@@ -770,6 +840,86 @@ export default function FinanceiroPage() {
           Gerencie boletos, pagamentos e divergências
         </p>
       </div>
+
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-5 mb-6">
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">Pendente</p>
+            <p className="mt-1 text-lg font-semibold">{formatCurrency(dashboardResumo?.totalPendente ?? 0)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">Atrasado</p>
+            <p className="mt-1 text-lg font-semibold text-red-600">{formatCurrency(dashboardResumo?.pagarAtrasado ?? 0)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">7 dias</p>
+            <p className="mt-1 text-lg font-semibold">{formatCurrency(dashboardResumo?.pagar7Dias ?? 0)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">Sem boleto</p>
+            <p className="mt-1 text-lg font-semibold">{dashboardResumo?.semBoleto ?? 0}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">Divergências</p>
+            <p className="mt-1 text-lg font-semibold">{dashboardResumo?.divergencias ?? 0}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card className="mb-6 border-orange-200 bg-gradient-to-r from-orange-50 via-white to-pink-50">
+        <CardHeader className="pb-3">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Brain className="h-4 w-4 text-orange-500" />
+                Análise inteligente do financeiro
+              </CardTitle>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Regras automáticas no backend e resumo de IA quando Gemini estiver configurado.
+              </p>
+            </div>
+            {loadingInsights ? <Loader2 className="h-4 w-4 animate-spin text-orange-500" /> : null}
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="rounded-xl border border-orange-100 bg-white/80 p-4 text-sm leading-6">
+            {insights?.summary || "Ainda não há análise disponível para esta empresa."}
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-3">
+            {(insights?.alerts || []).slice(0, 3).map((alerta) => (
+              <div key={alerta.id} className={`rounded-xl border p-3 ${getInsightLevelClasses(alerta.level)}`}>
+                <div className="mb-1 flex items-center gap-2 font-medium">
+                  {alerta.level === "critico" ? <Siren className="h-4 w-4" /> : <TrendingUp className="h-4 w-4" />}
+                  <span>{alerta.title}</span>
+                </div>
+                <p className="text-xs leading-5 opacity-90">{alerta.description}</p>
+              </div>
+            ))}
+          </div>
+
+          {insights?.topCategorias?.length ? (
+            <div className="rounded-xl border bg-white/80 p-4">
+              <p className="mb-2 text-sm font-medium">Categorias com maior peso</p>
+              <div className="flex flex-wrap gap-2">
+                {insights.topCategorias.map((item) => (
+                  <Badge key={item.categoria} variant="secondary">
+                    {item.categoria}: {formatCurrency(item.total)}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </CardContent>
+      </Card>
 
       <Tabs defaultValue="provisoes" className="mb-6">
         <TabsList className="grid w-full max-w-xs sm:max-w-md grid-cols-2">

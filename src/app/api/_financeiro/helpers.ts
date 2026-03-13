@@ -30,6 +30,10 @@ export function todayISO(): string {
   return new Date().toISOString().split('T')[0];
 }
 
+export function nowIso(): string {
+  return new Date().toISOString();
+}
+
 export function numberOrNull(value: unknown): number | null {
   if (value === null || value === undefined || value === '') return null;
   const parsed = Number(value);
@@ -74,6 +78,51 @@ export async function resolveLocalUpload(imageUrl: string): Promise<{ mimeType: 
   return { mimeType, data: bytes.toString('base64') };
 }
 
+export function normalizeText(value: unknown): string {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+export function similarityScore(a: unknown, b: unknown): number {
+  const aa = normalizeText(a);
+  const bb = normalizeText(b);
+  if (!aa || !bb) return 0;
+  if (aa === bb) return 1;
+  if (aa.includes(bb) || bb.includes(aa)) return 0.85;
+
+  const pa = aa.split(/\s+/).filter((x) => x.length > 2);
+  const pb = bb.split(/\s+/).filter((x) => x.length > 2);
+  if (pa.length === 0 || pb.length === 0) return 0;
+
+  let matches = 0;
+  for (const tokenA of pa) {
+    if (pb.some((tokenB) => tokenA.includes(tokenB) || tokenB.includes(tokenA))) {
+      matches += 1;
+    }
+  }
+  return matches / Math.max(pa.length, pb.length);
+}
+
+export function pickCategoriaCompra(value?: string | null): string {
+  const raw = normalizeText(value);
+  if (!raw) return 'Mercado';
+  if (raw.includes('embalag')) return 'Embalagens';
+  if (raw.includes('bebid')) return 'Bebidas';
+  if (raw.includes('limpez')) return 'Materiais de Limpeza';
+  if (raw.includes('equip')) return 'Equipamentos';
+  if (raw.includes('servic')) return 'Serviços Terceirizados';
+  return value || 'Mercado';
+}
+
+export async function safeTableExists(supabase: SupabaseClient, table: string): Promise<boolean> {
+  const { error } = await supabase.from(table).select('*', { count: 'exact', head: true }).limit(1);
+  if (!error) return true;
+  return !/relation .* does not exist/i.test(error.message);
+}
+
 export async function upsertLancamentoFromBoleto(args: {
   empresaId: string;
   fornecedor: string;
@@ -86,6 +135,8 @@ export async function upsertLancamentoFromBoleto(args: {
   observacao?: string | null;
   notaFiscalId?: string | null;
   lancamentoId?: string | null;
+  categoria?: string | null;
+  origemModulo?: string | null;
 }) {
   const supabase = getSupabase();
 
@@ -96,7 +147,7 @@ export async function upsertLancamentoFromBoleto(args: {
       vencimento_real: args.vencimento,
       is_boleto_recebido: true,
       observacao: args.observacao || null,
-      updated_at: new Date().toISOString(),
+      updated_at: nowIso(),
     };
 
     if (args.linhaDigitavel !== undefined) updatePayload.linha_digitavel = args.linhaDigitavel;
@@ -104,6 +155,8 @@ export async function upsertLancamentoFromBoleto(args: {
     if (args.arquivoUrl !== undefined) updatePayload.arquivo_url_boleto = args.arquivoUrl;
     if (args.boletoId) updatePayload.boleto_dda_id = args.boletoId;
     if (args.notaFiscalId !== undefined) updatePayload.nota_fiscal_id = args.notaFiscalId;
+    if (args.categoria) updatePayload.categoria = args.categoria;
+    if (args.origemModulo) updatePayload.origem_modulo = args.origemModulo;
 
     const { data, error } = await supabase
       .from('lancamentos')
@@ -121,7 +174,7 @@ export async function upsertLancamentoFromBoleto(args: {
     empresa_id: args.empresaId,
     data_pedido: todayISO(),
     fornecedor: args.fornecedor,
-    categoria: 'Outros',
+    categoria: args.categoria || 'Outros',
     valor_previsto: args.valor,
     is_boleto_recebido: true,
     valor_real: args.valor,
@@ -132,6 +185,7 @@ export async function upsertLancamentoFromBoleto(args: {
     comprovante_url: null,
     observacao: args.observacao || null,
     is_manual: true,
+    origem_modulo: args.origemModulo || 'recebimento',
   };
 
   if (args.linhaDigitavel !== undefined) insertPayload.linha_digitavel = args.linhaDigitavel;

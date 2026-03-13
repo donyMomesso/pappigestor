@@ -29,7 +29,6 @@ import {
   Settings,
   Layers,
   CreditCard,
-  Inbox,
   Trophy,
   Clock,
   Wifi,
@@ -433,20 +432,18 @@ export default function ProtectedLayout({ children }: AppLayoutProps) {
   };
 
   return (
-    <div className="min-h-screen bg-[linear-gradient(to_bottom,rgba(255,247,237,0.95),rgba(255,255,255,1)),radial-gradient(circle_at_top_right,rgba(244,63,94,0.08),transparent_22%),radial-gradient(circle_at_top_left,rgba(249,115,22,0.10),transparent_28%)]">
-      <header className="sticky top-0 z-50 border-b border-orange-100 bg-white/90 shadow-[0_8px_30px_rgba(249,115,22,0.06)] backdrop-blur-xl">
+    <div className="min-h-screen bg-[linear-gradient(to_bottom,rgba(255,247,237,0.96),rgba(255,255,255,1)),radial-gradient(circle_at_top_right,rgba(244,63,94,0.08),transparent_22%),radial-gradient(circle_at_top_left,rgba(249,115,22,0.10),transparent_28%)]">
+      <header className="sticky top-0 z-50 border-b border-orange-100/80 bg-white/92 shadow-[0_12px_40px_rgba(249,115,22,0.08)] backdrop-blur-2xl">
         <div className="mx-auto max-w-7xl px-3 sm:px-5 lg:px-8">
-          <div className="flex h-16 items-center justify-between gap-2">
+          <div className="flex items-center justify-between gap-3 py-2 min-h-[68px]">
             <div className="flex min-w-0 items-center gap-2">
               <Link href="/app" className="flex items-center gap-2">
-                <div className="rounded-2xl bg-gradient-to-br from-orange-500 via-orange-500 to-pink-500 p-2 shadow-lg shadow-orange-500/20">
- <div className="rounded-2xl bg-white p-1.5 shadow-lg shadow-orange-500/20">
-    <img
-  src={LOGO_URL}
-  alt="Pappi Gestor"
-  className="h-7 w-7 rounded-lg object-cover"
-/>
-</div>
+                <div className="rounded-2xl bg-white p-1.5 shadow-lg shadow-orange-500/20 ring-1 ring-orange-100">
+                  <img
+                    src={LOGO_URL}
+                    alt="Pappi Gestor"
+                    className="h-8 w-8 rounded-lg object-cover"
+                  />
                 </div>
 
                 <div className="min-w-0">
@@ -461,7 +458,7 @@ export default function ProtectedLayout({ children }: AppLayoutProps) {
             </div>
 
             <nav className="hidden items-center gap-1 xl:flex">
-              <div className="flex items-center gap-1 rounded-2xl border border-orange-100 bg-orange-50/60 p-1">
+              <div className="flex items-center gap-1 rounded-2xl border border-orange-100 bg-white/85 p-1.5 shadow-sm">
                 {visibleMainItems.map((item) => {
                   const active = isPathActive(pathname, item.href);
                   const isPremium = !!item.feature && PREMIUM_FEATURES.includes(item.feature);
@@ -493,7 +490,7 @@ export default function ProtectedLayout({ children }: AppLayoutProps) {
                           ? "bg-gradient-to-r from-orange-500 via-orange-500 to-pink-500 text-white shadow-md"
                           : item.highlight
                             ? "bg-orange-100 text-orange-700 hover:bg-orange-200"
-                            : "text-gray-700 hover:bg-white hover:text-orange-700"
+                            : "text-gray-700 hover:bg-orange-50 hover:text-orange-700"
                       }`}
                     >
                       {item.icon}

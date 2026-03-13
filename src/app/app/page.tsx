@@ -1,544 +1,976 @@
 "use client";
 
-import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useAppAuthOptional } from "@/contexts/AppAuthContext";
+import { useRouter } from "next/navigation";
+import type { ElementType } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/react-app/components/ui/card";
+import { Button } from "@/react-app/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/react-app/components/ui/dialog";
+
 import {
   ShoppingCart,
-  DollarSign,
-  Package,
-  ClipboardList,
-  Sparkles,
-  Building2,
-  Settings2,
-  Gift,
-  Camera,
-  ArrowRight,
-  ChevronRight,
-  Coins,
   Calculator,
-  MessageSquare,
-  LayoutDashboard,
-  CheckCircle2,
+  BarChart3,
+  PackageCheck,
   Users,
-  X,
+  Building2,
+  Package,
+  Truck,
+  Box,
+  ClipboardList,
+  Gift,
+  Copy,
   Check,
-  Brain,
-  ShieldCheck,
-  Clock3,
+  Settings,
+  FileText,
+  MessageSquare,
+  Sparkles,
+  TrendingUp,
+  AlertCircle,
+  Clock,
+  Pencil,
+  Plus,
+  DollarSign,
 } from "lucide-react";
 
-const TODOS_MODULOS = [
+import { useAppAuthOptional } from "@/contexts/AppAuthContext";
+import { NIVEL_LABELS } from "@/react-app/types/auth";
+
+interface ModuleCard {
+  id: string;
+  title: string;
+  description: string;
+  href: string;
+  icon: ElementType;
+  gradient: string;
+  shadowColor: string;
+  bgLight: string;
+  roles: string[];
+}
+
+const ALL_MODULES: ModuleCard[] = [
   {
-    id: "fin",
-    title: "Financeiro",
-    sub: "Fluxo e boletos",
-    icon: <DollarSign size={24} />,
-    color: "text-orange-600",
-    bg: "bg-orange-50",
-    href: "/app/financeiro",
-  },
-  {
-    id: "comp",
+    id: "compras",
     title: "Compras",
-    sub: "Nova provisão",
-    icon: <ShoppingCart size={24} />,
-    color: "text-amber-600",
-    bg: "bg-amber-50",
+    description: "Nova provisão de gasto",
     href: "/app/compras",
+    icon: ShoppingCart,
+    gradient: "from-orange-500 to-amber-500",
+    shadowColor: "shadow-orange-500/30",
+    bgLight: "bg-orange-50",
+    roles: ["comprador", "admin", "dono", "super_admin", "admin_empresa"],
   },
   {
-    id: "est",
-    title: "Estoque",
-    sub: "Auditoria real",
-    icon: <Package size={24} />,
-    color: "text-rose-600",
-    bg: "bg-rose-50",
-    href: "/app/estoque",
-  },
-  {
-    id: "rec",
+    id: "recebimento",
     title: "Recebimento",
-    sub: "Bater notas",
-    icon: <ClipboardList size={24} />,
-    color: "text-pink-600",
-    bg: "bg-pink-50",
+    description: "Conferir entregas",
     href: "/app/recebimento",
+    icon: PackageCheck,
+    gradient: "from-green-500 to-emerald-500",
+    shadowColor: "shadow-green-500/30",
+    bgLight: "bg-green-50",
+    roles: ["operador", "comprador", "admin", "dono", "super_admin", "admin_empresa"],
   },
   {
-    id: "cot",
+    id: "estoque",
+    title: "Estoque",
+    description: "Auditoria de produtos",
+    href: "/app/estoque",
+    icon: Package,
+    gradient: "from-teal-500 to-cyan-500",
+    shadowColor: "shadow-teal-500/30",
+    bgLight: "bg-teal-50",
+    roles: ["operador", "comprador", "admin", "dono", "super_admin", "admin_empresa"],
+  },
+  {
+    id: "lista-compras",
+    title: "Lista Compras",
+    description: "Solicitações pendentes",
+    href: "/app/lista-compras",
+    icon: ClipboardList,
+    gradient: "from-indigo-500 to-blue-500",
+    shadowColor: "shadow-indigo-500/30",
+    bgLight: "bg-indigo-50",
+    roles: ["operador", "comprador", "admin", "dono", "super_admin", "admin_empresa"],
+  },
+  {
+    id: "financeiro",
+    title: "Financeiro",
+    description: "Boletos e pagamentos",
+    href: "/app/financeiro",
+    icon: Calculator,
+    gradient: "from-red-500 to-rose-500",
+    shadowColor: "shadow-red-500/30",
+    bgLight: "bg-red-50",
+    roles: ["financeiro", "admin", "dono", "super_admin", "admin_empresa"],
+  },
+  {
+    id: "cotacao",
     title: "Cotação",
-    sub: "Menor preço",
-    icon: <Calculator size={24} />,
-    color: "text-yellow-600",
-    bg: "bg-yellow-50",
+    description: "Comparar preços",
     href: "/app/cotacao",
+    icon: FileText,
+    gradient: "from-violet-500 to-purple-500",
+    shadowColor: "shadow-violet-500/30",
+    bgLight: "bg-violet-50",
+    roles: ["comprador", "admin", "dono", "super_admin", "admin_empresa"],
   },
   {
-    id: "forn",
+    id: "fornecedores",
     title: "Fornecedores",
-    sub: "Contatos zap",
-    icon: <MessageSquare size={24} />,
-    color: "text-green-600",
-    bg: "bg-green-50",
+    description: "Cadastro e WhatsApp",
     href: "/app/fornecedores",
+    icon: Truck,
+    gradient: "from-cyan-500 to-sky-500",
+    shadowColor: "shadow-cyan-500/30",
+    bgLight: "bg-cyan-50",
+    roles: ["comprador", "admin", "dono", "super_admin", "admin_empresa"],
   },
   {
-    id: "prod",
+    id: "produtos",
     title: "Produtos",
-    sub: "Catálogo geral",
-    icon: <Package size={24} />,
-    color: "text-indigo-600",
-    bg: "bg-indigo-50",
+    description: "Catálogo de itens",
     href: "/app/produtos",
+    icon: Box,
+    gradient: "from-pink-500 to-rose-500",
+    shadowColor: "shadow-pink-500/30",
+    bgLight: "bg-pink-50",
+    roles: ["comprador", "admin", "dono", "super_admin", "admin_empresa"],
   },
   {
-    id: "dash",
+    id: "dashboard",
     title: "Dashboard",
-    sub: "Performance",
-    icon: <LayoutDashboard size={24} />,
-    color: "text-slate-600",
-    bg: "bg-slate-50",
-    href: "/app/relatorios",
+    description: "Gráficos e relatórios",
+    href: "/app/dashboard",
+    icon: BarChart3,
+    gradient: "from-amber-500 to-yellow-500",
+    shadowColor: "shadow-amber-500/30",
+    bgLight: "bg-amber-50",
+    roles: ["financeiro", "admin", "dono", "super_admin", "admin_empresa"],
   },
   {
-    id: "ia",
+    id: "assessor-ia",
     title: "Assessor IA",
-    sub: "Análise smart",
-    icon: <Sparkles size={24} />,
-    color: "text-purple-600",
-    bg: "bg-purple-50",
+    description: "Análises inteligentes",
     href: "/app/assessor-ia",
+    icon: Sparkles,
+    gradient: "from-purple-500 to-fuchsia-500",
+    shadowColor: "shadow-purple-500/30",
+    bgLight: "bg-purple-50",
+    roles: ["financeiro", "comprador", "admin", "dono", "super_admin", "admin_empresa"],
+  },
+  {
+    id: "caixa-entrada",
+    title: "Caixa Entrada",
+    description: "Processar arquivos",
+    href: "/app/caixa-entrada",
+    icon: MessageSquare,
+    gradient: "from-emerald-500 to-green-500",
+    shadowColor: "shadow-emerald-500/30",
+    bgLight: "bg-emerald-50",
+    roles: ["comprador", "financeiro", "admin", "dono", "super_admin", "admin_empresa"],
+  },
+  {
+    id: "usuarios",
+    title: "Usuários",
+    description: "Gerenciar equipe",
+    href: "/app/usuarios",
+    icon: Users,
+    gradient: "from-blue-500 to-indigo-500",
+    shadowColor: "shadow-blue-500/30",
+    bgLight: "bg-blue-50",
+    roles: ["admin", "dono", "super_admin", "admin_empresa"],
+  },
+  {
+    id: "empresas",
+    title: "Empresas",
+    description: "Administrar contas",
+    href: "/app/empresas",
+    icon: Building2,
+    gradient: "from-slate-500 to-gray-500",
+    shadowColor: "shadow-slate-500/30",
+    bgLight: "bg-slate-50",
+    roles: ["admin", "super_admin"],
+  },
+  {
+    id: "configuracoes",
+    title: "Configurações",
+    description: "IA, DDA e assinatura",
+    href: "/app/configuracoes",
+    icon: Settings,
+    gradient: "from-gray-500 to-zinc-500",
+    shadowColor: "shadow-gray-500/30",
+    bgLight: "bg-gray-50",
+    roles: ["admin", "dono", "super_admin", "admin_empresa"],
   },
 ];
 
-export default function Dashboard() {
+const DEFAULT_SHORTCUTS = ["compras", "financeiro", "recebimento", "dashboard"];
+const STORAGE_KEY = "pappi_quick_access";
+
+interface BoletosAlerta {
+  vencidos: number;
+  totalVencidos: number;
+  vencendoHoje: number;
+  totalVencendoHoje: number;
+  vencendo7Dias: number;
+  totalVencendo7Dias: number;
+}
+
+interface ValidadeAlerta {
+  vencidos: number;
+  vencendo7Dias: number;
+  vencendo30Dias: number;
+}
+
+interface PrecoAlerta {
+  tipo: "acima" | "abaixo";
+  produto_nome: string;
+  fornecedor_nome: string;
+  variacao_percentual: number;
+  preco_atual: number;
+  preco_medio: number;
+}
+
+interface PrecosAlerta {
+  alertas: PrecoAlerta[];
+  total: number;
+  acima_media: number;
+  abaixo_media: number;
+}
+
+interface LancamentoResumo {
+  data_pagamento?: string | null;
+  is_boleto_recebido?: boolean;
+  vencimento_real?: string | null;
+  valor_real?: number | null;
+  valor_previsto?: number | null;
+  data_pedido?: string | null;
+  data_recebimento?: string | null;
+}
+
+type NeedItem = {
+  produto_id: string;
+  produto: string;
+  quantidade: number;
+  unidade: string;
+};
+
+export default function HomePage() {
+  const router = useRouter();
   const auth = useAppAuthOptional();
   const localUser = auth?.localUser ?? null;
 
-  const [favoritos, setFavoritos] = useState(TODOS_MODULOS.slice(0, 4));
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selecaoTemporaria, setSelecaoTemporaria] = useState<string[]>(
-    favoritos.map((f) => f.id),
+  const [copiado, setCopiado] = useState(false);
+  const [showEditor, setShowEditor] = useState(false);
+  const [selectedShortcuts, setSelectedShortcuts] = useState<string[]>([]);
+  const [editingSlot, setEditingSlot] = useState<number | null>(null);
+
+  const [boletosAlerta, setBoletosAlerta] = useState<BoletosAlerta | null>(null);
+  const [validadeAlerta, setValidadeAlerta] = useState<ValidadeAlerta | null>(null);
+  const [precosAlerta, setPrecosAlerta] = useState<PrecosAlerta | null>(null);
+  const [stats, setStats] = useState({ pedidosHoje: 0, aPagar: 0, entregas: 0 });
+
+  const necessidades = useMemo<NeedItem[]>(() => [], []);
+
+  const hasAnyRole = useCallback(
+    (roles: string[]) => {
+      const role = localUser?.nivel_acesso;
+      if (!role) return false;
+      return roles.includes(role);
+    },
+    [localUser?.nivel_acesso]
   );
 
-  const firstName = useMemo(
-    () => localUser?.nome?.split(" ")[0] || "Gestor",
-    [localUser?.nome],
+  const availableModules = useMemo(
+    () => ALL_MODULES.filter((m) => hasAnyRole(m.roles)),
+    [hasAnyRole]
   );
 
-  const companyName = useMemo(
-    () => localUser?.nome_empresa || "Matriz",
-    [localUser?.nome_empresa],
-  );
+  const shortcutModules = useMemo(() => {
+    const list = selectedShortcuts
+      .map((id) => ALL_MODULES.find((m) => m.id === id))
+      .filter((m): m is ModuleCard => !!m && hasAnyRole(m.roles));
 
-  const planName = useMemo(
-    () => (localUser as any)?.plano || "Plano Pro",
-    [localUser],
-  );
-
-  const toggleModulo = (id: string) => {
-    if (selecaoTemporaria.includes(id)) {
-      setSelecaoTemporaria((prev) => prev.filter((item) => item !== id));
-      return;
+    while (list.length < 4) {
+      list.push(undefined as unknown as ModuleCard);
     }
 
-    if (selecaoTemporaria.length < 4) {
-      setSelecaoTemporaria((prev) => [...prev, id]);
-    }
+    return list.slice(0, 4);
+  }, [selectedShortcuts, hasAnyRole]);
+
+  const linkIndicacao = useMemo(
+    () => `https://dqifkajp3lsn2.mocha.app/cadastro?ref=${localUser?.id || ""}`,
+    [localUser?.id]
+  );
+
+  const copiarLink = () => {
+    navigator.clipboard.writeText(linkIndicacao);
+    setCopiado(true);
+    setTimeout(() => setCopiado(false), 2000);
   };
 
-  const salvarAtalhos = () => {
-    const novosFavoritos = TODOS_MODULOS.filter((mod) =>
-      selecaoTemporaria.includes(mod.id),
+  const saveShortcuts = (shortcuts: string[]) => {
+    const cleaned = shortcuts.filter(Boolean).slice(0, 4);
+    setSelectedShortcuts(cleaned);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(cleaned));
+  };
+
+  const handleSelectModule = (moduleId: string) => {
+    if (editingSlot === null) return;
+
+    const newShortcuts = [...selectedShortcuts];
+    const existingIndex = newShortcuts.indexOf(moduleId);
+
+    if (existingIndex !== -1 && existingIndex !== editingSlot) {
+      newShortcuts[existingIndex] = newShortcuts[editingSlot] || "";
+    }
+
+    newShortcuts[editingSlot] = moduleId;
+
+    saveShortcuts(newShortcuts);
+    setEditingSlot(null);
+    setShowEditor(false);
+  };
+
+  const fetchAlertas = useCallback(async () => {
+    try {
+      const [lancRes, validadeRes, precosRes] = await Promise.all([
+        fetch("/api/lancamentos", { cache: "no-store" }),
+        fetch("/api/estoque/alertas-validade", { cache: "no-store" }),
+        fetch("/api/alertas-precos", { cache: "no-store" }),
+      ]);
+
+      if (precosRes.ok) {
+        const precosData = (await precosRes.json()) as PrecosAlerta;
+        setPrecosAlerta(precosData);
+      }
+
+      if (validadeRes.ok) {
+        const validadeData = await validadeRes.json();
+        setValidadeAlerta({
+          vencidos: Number(validadeData?.vencidos?.count || 0),
+          vencendo7Dias: Number(validadeData?.vencendo_7dias?.count || 0),
+          vencendo30Dias: Number(validadeData?.vencendo_30dias?.count || 0),
+        });
+      }
+
+      if (lancRes.ok) {
+        const lancamentos = (await lancRes.json()) as LancamentoResumo[];
+
+        const hoje = new Date();
+        hoje.setHours(0, 0, 0, 0);
+
+        const em7Dias = new Date(hoje);
+        em7Dias.setDate(em7Dias.getDate() + 7);
+
+        const naoPagos = lancamentos.filter(
+          (l) => !l.data_pagamento && !!l.is_boleto_recebido
+        );
+
+        const vencidos = naoPagos.filter((l) => {
+          if (!l.vencimento_real) return false;
+          const venc = new Date(l.vencimento_real);
+          venc.setHours(0, 0, 0, 0);
+          return venc < hoje;
+        });
+
+        const vencendoHoje = naoPagos.filter((l) => {
+          if (!l.vencimento_real) return false;
+          const venc = new Date(l.vencimento_real);
+          venc.setHours(0, 0, 0, 0);
+          return venc.getTime() === hoje.getTime();
+        });
+
+        const vencendo7Dias = naoPagos.filter((l) => {
+          if (!l.vencimento_real) return false;
+          const venc = new Date(l.vencimento_real);
+          venc.setHours(0, 0, 0, 0);
+          return venc > hoje && venc <= em7Dias;
+        });
+
+        setBoletosAlerta({
+          vencidos: vencidos.length,
+          totalVencidos: vencidos.reduce(
+            (acc, l) => acc + Number(l.valor_real || l.valor_previsto || 0),
+            0
+          ),
+          vencendoHoje: vencendoHoje.length,
+          totalVencendoHoje: vencendoHoje.reduce(
+            (acc, l) => acc + Number(l.valor_real || l.valor_previsto || 0),
+            0
+          ),
+          vencendo7Dias: vencendo7Dias.length,
+          totalVencendo7Dias: vencendo7Dias.reduce(
+            (acc, l) => acc + Number(l.valor_real || l.valor_previsto || 0),
+            0
+          ),
+        });
+
+        const hojeStr = hoje.toISOString().split("T")[0];
+        const pedidosHoje = lancamentos.filter((l) => l.data_pedido === hojeStr).length;
+        const aPagar = naoPagos.length;
+        const entregas = lancamentos.filter(
+          (l) => !l.data_recebimento && !!l.is_boleto_recebido
+        ).length;
+
+        setStats({ pedidosHoje, aPagar, entregas });
+      }
+    } catch (error) {
+      console.error("Erro ao buscar alertas:", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchAlertas();
+  }, [fetchAlertas]);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length <= 4) {
+          setSelectedShortcuts(parsed);
+          return;
+        }
+      } catch {}
+    }
+
+    const defaults = DEFAULT_SHORTCUTS.filter((id) =>
+      availableModules.some((m) => m.id === id)
     );
-    setFavoritos(novosFavoritos);
-    setIsModalOpen(false);
-  };
+
+    while (defaults.length < 4 && availableModules.length > defaults.length) {
+      const next = availableModules.find((m) => !defaults.includes(m.id));
+      if (next) defaults.push(next.id);
+    }
+
+    setSelectedShortcuts(defaults.slice(0, 4));
+  }, [availableModules]);
+
+  const currency = (value: number) =>
+    new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    }).format(value);
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500 relative">
-      <div className="bg-gradient-to-br from-orange-600 via-orange-500 to-pink-600 rounded-[40px] p-8 md:p-10 text-white shadow-2xl relative overflow-hidden border border-orange-400/30">
-        <div className="relative z-10 flex flex-col gap-8">
-          <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-8">
-            <div className="max-w-3xl">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/20 backdrop-blur-md mb-5">
-                <Sparkles size={16} />
-                <span className="text-[10px] font-black uppercase tracking-[0.25em] italic">
-                  ambiente ativo
-                </span>
-              </div>
+    <div className="space-y-6">
+      <div className="relative overflow-hidden bg-gradient-to-br from-orange-500 via-red-500 to-rose-600 rounded-3xl p-5 text-white shadow-xl shadow-orange-500/20">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
+        <div className="absolute bottom-0 left-0 w-20 h-20 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2" />
 
-              <h1 className="text-4xl md:text-5xl font-black italic uppercase tracking-tighter leading-none">
-                Olá, {firstName}
-              </h1>
-
-              <p className="mt-4 text-orange-100 text-sm md:text-base font-medium max-w-2xl leading-relaxed">
-                Seu centro de controle está pronto. Use os atalhos abaixo para
-                agir rápido e manter compras, estoque e financeiro em ordem.
-              </p>
-
-              <div className="mt-5 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/20">
-                <Clock3 size={14} />
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] italic">
-                  prioridade do dia: manter ritmo e clareza operacional
-                </span>
-              </div>
-
-              <p className="text-orange-100 text-[11px] font-black uppercase tracking-[0.24em] italic mt-5">
-                {companyName} • {planName}
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <HeroMiniCard
-                label="A pagar hoje"
-                value="R$ 1.250"
-                helper="movimentos do dia"
-              />
-              <HeroMiniCard
-                label="Alertas"
-                value="03 itens"
-                helper="pedindo atenção"
-              />
-              <HeroMiniCard
-                label="IA"
-                value="ativa"
-                helper="insights prontos"
-              />
-            </div>
+        <div className="relative flex items-center justify-between gap-4">
+          <div>
+            <h1 className="text-xl font-bold">
+              Olá, {localUser?.nome?.split(" ")[0] || "Gestor"}! 👋
+            </h1>
+            <p className="text-white/80 text-sm mt-0.5">
+              {localUser?.nivel_acesso
+                ? NIVEL_LABELS[localUser.nivel_acesso] || localUser.nivel_acesso
+                : ""}
+              {localUser?.nome_empresa ? ` • ${localUser.nome_empresa}` : ""}
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 xl:grid-cols-[1.2fr_0.8fr] gap-4">
-            <div className="rounded-[30px] bg-white/10 backdrop-blur-md border border-white/20 p-5">
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-white/15 border border-white/20 flex items-center justify-center">
-                  <Brain size={24} />
-                </div>
-
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-orange-100 italic mb-2">
-                    sugestão da ia
-                  </p>
-                  <h3 className="text-lg font-black italic uppercase tracking-tight text-white">
-                    Hoje vale revisar compras e estoque
-                  </h3>
-                  <p className="text-sm text-orange-50/90 leading-relaxed mt-2 max-w-2xl">
-                    O melhor ganho rápido costuma vir de reposição bem feita e
-                    menos desperdício na operação.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-[30px] bg-white/10 backdrop-blur-md border border-white/20 p-5">
-              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-orange-100 italic mb-4">
-                acesso direto
-              </p>
-
-              <div className="grid grid-cols-2 gap-3">
-                <QuickActionButton href="/app/compras" icon={<ShoppingCart size={16} />} label="Compras" />
-                <QuickActionButton href="/app/estoque" icon={<Package size={16} />} label="Estoque" />
-                <QuickActionButton href="/app/financeiro" icon={<DollarSign size={16} />} label="Financeiro" />
-                <QuickActionButton href="/app/assessor-ia" icon={<Sparkles size={16} />} label="Assessor IA" />
-              </div>
-            </div>
+          <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center text-lg font-bold shadow-lg">
+            {localUser?.nome?.charAt(0)?.toUpperCase() || "P"}
           </div>
         </div>
 
-        <Building2 className="absolute -left-10 -bottom-10 text-white/10 w-64 h-64 pointer-events-none" />
+        <div className="relative grid grid-cols-3 gap-2 mt-4">
+          <div className="bg-white/15 backdrop-blur-sm rounded-lg p-2.5 text-center">
+            <div className="flex items-center justify-center gap-1">
+              <TrendingUp className="w-3.5 h-3.5" />
+              <span className="text-lg font-bold">{stats.pedidosHoje}</span>
+            </div>
+            <p className="text-[10px] text-white/70">Pedidos Hoje</p>
+          </div>
+
+          <div className="bg-white/15 backdrop-blur-sm rounded-lg p-2.5 text-center">
+            <div className="flex items-center justify-center gap-1">
+              <AlertCircle className="w-3.5 h-3.5" />
+              <span className="text-lg font-bold">{stats.aPagar}</span>
+            </div>
+            <p className="text-[10px] text-white/70">A Pagar</p>
+          </div>
+
+          <div className="bg-white/15 backdrop-blur-sm rounded-lg p-2.5 text-center">
+            <div className="flex items-center justify-center gap-1">
+              <Clock className="w-3.5 h-3.5" />
+              <span className="text-lg font-bold">{stats.entregas}</span>
+            </div>
+            <p className="text-[10px] text-white/70">Entregas</p>
+          </div>
+        </div>
       </div>
 
-      <div className="space-y-4">
-        <div className="flex items-center justify-between px-1">
-          <div className="flex items-center gap-3">
-            <div className="w-2 h-6 bg-orange-500 rounded-full shadow-[0_0_10px_rgba(249,115,22,0.5)]" />
-            <h2 className="text-xl font-black italic uppercase tracking-tighter text-gray-800">
-              Acesso rápido
-            </h2>
-          </div>
+      <Card className="border-orange-200 bg-orange-50">
+        <CardHeader>
+          <CardTitle>⚠️ Itens para comprar</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {necessidades.length === 0 && (
+            <p className="text-sm text-gray-500">Estoque saudável</p>
+          )}
 
-          <button
-            onClick={() => {
-              setSelecaoTemporaria(favoritos.map((f) => f.id));
-              setIsModalOpen(true);
-            }}
-            className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-orange-500 transition-colors"
-          >
-            <Settings2 size={14} /> Editar atalhos
-          </button>
-        </div>
-
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {favoritos.map((mod) => (
-            <Link key={mod.id} href={mod.href} className="group">
-              <div className="bg-white p-6 rounded-[30px] shadow-sm border border-gray-100 hover:shadow-xl hover:border-orange-300 transition-all duration-300 flex items-center gap-4 relative overflow-hidden min-h-[108px]">
-                <div
-                  className={`${mod.bg} ${mod.color} w-14 h-14 rounded-[20px] flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-transform`}
-                >
-                  {mod.icon}
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-black text-gray-800 italic uppercase tracking-tighter leading-none group-hover:text-orange-600 transition-colors">
-                    {mod.title}
-                  </h3>
-                  <p className="text-[9px] text-gray-400 mt-1 font-black uppercase tracking-widest italic leading-tight">
-                    {mod.sub}
-                  </p>
-                </div>
-              </div>
-            </Link>
+          {necessidades.map((n) => (
+            <div key={n.produto_id} className="flex justify-between py-2 border-b">
+              <span>{n.produto}</span>
+              <span className="font-bold text-orange-600">
+                {n.quantidade} {n.unidade}
+              </span>
+            </div>
           ))}
 
-          {favoritos.length < 4 && (
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="bg-gray-50 border-2 border-dashed border-gray-200 rounded-[30px] flex flex-col items-center justify-center p-6 text-gray-400 hover:text-orange-500 hover:border-orange-300 hover:bg-orange-50/50 transition-all min-h-[108px]"
-            >
-              <Settings2 size={24} className="mb-2 opacity-50" />
-              <span className="text-[10px] font-black uppercase tracking-widest italic">
-                Adicionar
-              </span>
-            </button>
-          )}
-        </div>
-      </div>
+          <Button className="mt-4 w-full" onClick={() => router.push("/app/lista-compras")}>
+            Gerenciar compras
+          </Button>
+        </CardContent>
+      </Card>
 
-      <div className="grid md:grid-cols-2 gap-6">
-        <div className="bg-gradient-to-br from-gray-900 via-gray-900 to-black rounded-[35px] p-8 shadow-xl relative overflow-hidden group cursor-pointer border border-orange-500/20 hover:border-orange-500/50 transition-colors">
-          <div className="relative z-10 flex flex-col h-full justify-center">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-xl text-white shadow-lg shadow-orange-500/30">
-                <Coins size={20} />
-              </div>
-              <span className="text-[10px] font-black text-orange-400 uppercase tracking-[0.3em] italic">
-                recompensa ativa
-              </span>
-            </div>
+      {boletosAlerta &&
+        (boletosAlerta.vencidos > 0 ||
+          boletosAlerta.vencendoHoje > 0 ||
+          boletosAlerta.vencendo7Dias > 0) && (
+          <Card className="border-0 overflow-hidden shadow-lg">
+            <CardContent className="p-0">
+              {boletosAlerta.vencidos > 0 && (
+                <Link
+                  href="/app/financeiro"
+                  className="flex items-center gap-3 p-3 bg-gradient-to-r from-red-500 to-rose-600 text-white hover:from-red-600 hover:to-rose-700 transition-all"
+                >
+                  <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center flex-shrink-0">
+                    <AlertCircle className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-bold text-sm">
+                      🚨 {boletosAlerta.vencidos} boleto
+                      {boletosAlerta.vencidos > 1 ? "s" : ""} vencido
+                      {boletosAlerta.vencidos > 1 ? "s" : ""}!
+                    </p>
+                    <p className="text-red-100 text-xs">
+                      Total: {currency(boletosAlerta.totalVencidos)}
+                    </p>
+                  </div>
+                  <span className="text-white/80 text-xs">Ver →</span>
+                </Link>
+              )}
 
-            <h3 className="text-2xl font-black italic uppercase tracking-tighter text-white mb-2 leading-none">
-              Indique e <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500">ganhe</span>
-            </h3>
+              {boletosAlerta.vencendoHoje > 0 && (
+                <Link
+                  href="/app/financeiro"
+                  className="flex items-center gap-3 p-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600 transition-all"
+                >
+                  <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center flex-shrink-0">
+                    <Clock className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-bold text-sm">
+                      ⚠️ {boletosAlerta.vencendoHoje} boleto
+                      {boletosAlerta.vencendoHoje > 1 ? "s" : ""} vence
+                      {boletosAlerta.vencendoHoje > 1 ? "m" : ""} HOJE!
+                    </p>
+                    <p className="text-orange-100 text-xs">
+                      Total: {currency(boletosAlerta.totalVencendoHoje)}
+                    </p>
+                  </div>
+                  <span className="text-white/80 text-xs">Ver →</span>
+                </Link>
+              )}
 
-            <p className="text-sm text-gray-400 font-bold italic uppercase tracking-tight mb-6">
-              Ganhe mensalidades grátis indicando outros restaurantes para o Pappi.
-            </p>
+              {boletosAlerta.vencendo7Dias > 0 && (
+                <Link
+                  href="/app/financeiro"
+                  className="flex items-center gap-3 p-3 bg-gradient-to-r from-yellow-500 to-amber-400 text-yellow-900 hover:from-yellow-400 hover:to-amber-300 transition-all"
+                >
+                  <div className="w-10 h-10 bg-yellow-900/20 backdrop-blur-sm rounded-xl flex items-center justify-center flex-shrink-0">
+                    <Calculator className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-bold text-sm">
+                      📅 {boletosAlerta.vencendo7Dias} boleto
+                      {boletosAlerta.vencendo7Dias > 1 ? "s" : ""} nos próximos 7 dias
+                    </p>
+                    <p className="text-yellow-800 text-xs">
+                      Total: {currency(boletosAlerta.totalVencendo7Dias)}
+                    </p>
+                  </div>
+                  <span className="text-yellow-800/80 text-xs">Ver →</span>
+                </Link>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
-            <div className="flex items-center text-xs font-black uppercase italic tracking-widest text-orange-400 group-hover:text-yellow-400 transition-colors">
-              Gerar meu link
-              <ArrowRight size={14} className="ml-2 group-hover:translate-x-1 transition-transform" />
-            </div>
-          </div>
+      {validadeAlerta &&
+        (validadeAlerta.vencidos > 0 ||
+          validadeAlerta.vencendo7Dias > 0 ||
+          validadeAlerta.vencendo30Dias > 0) && (
+          <Card className="border-0 overflow-hidden shadow-lg">
+            <CardContent className="p-0">
+              {validadeAlerta.vencidos > 0 && (
+                <Link
+                  href="/app/estoque"
+                  className="flex items-center gap-3 p-3 bg-gradient-to-r from-red-600 to-pink-600 text-white hover:from-red-700 hover:to-pink-700 transition-all"
+                >
+                  <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center flex-shrink-0">
+                    <Package className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-bold text-sm">
+                      🚨 {validadeAlerta.vencidos} produto
+                      {validadeAlerta.vencidos > 1 ? "s" : ""} com validade vencida!
+                    </p>
+                    <p className="text-red-100 text-xs">Verificar estoque urgente</p>
+                  </div>
+                  <span className="text-white/80 text-xs">Ver →</span>
+                </Link>
+              )}
 
-          <Gift className="absolute -right-8 -bottom-8 w-40 h-40 text-orange-500/5 rotate-12 group-hover:text-orange-500/10 transition-colors" />
-        </div>
+              {validadeAlerta.vencendo7Dias > 0 && (
+                <Link
+                  href="/app/estoque"
+                  className="flex items-center gap-3 p-3 bg-gradient-to-r from-orange-600 to-red-500 text-white hover:from-orange-700 hover:to-red-600 transition-all"
+                >
+                  <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center flex-shrink-0">
+                    <Package className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-bold text-sm">
+                      ⚠️ {validadeAlerta.vencendo7Dias} produto
+                      {validadeAlerta.vencendo7Dias > 1 ? "s" : ""} vence
+                      {validadeAlerta.vencendo7Dias > 1 ? "m" : ""} em 7 dias
+                    </p>
+                    <p className="text-orange-100 text-xs">Priorizar consumo</p>
+                  </div>
+                  <span className="text-white/80 text-xs">Ver →</span>
+                </Link>
+              )}
 
-        <Link href="/app/assessor-ia" className="block group">
-          <div className="bg-gradient-to-br from-violet-600 via-purple-600 to-fuchsia-600 rounded-[35px] p-8 shadow-xl shadow-purple-500/20 relative overflow-hidden border border-purple-400/30 h-full hover:scale-[1.02] transition-transform duration-300">
-            <div className="relative z-10 flex flex-col h-full justify-center">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="flex items-center justify-center w-8 h-8 bg-white/20 rounded-full backdrop-blur-sm text-white">
-                  <Sparkles size={16} />
-                </div>
-                <span className="text-[10px] font-black text-purple-100 uppercase tracking-[0.3em] italic">
-                  dica exclusiva
-                </span>
-              </div>
+              {validadeAlerta.vencendo30Dias > 0 && (
+                <Link
+                  href="/app/estoque"
+                  className="flex items-center gap-3 p-3 bg-gradient-to-r from-amber-500 to-yellow-400 text-amber-900 hover:from-amber-400 hover:to-yellow-300 transition-all"
+                >
+                  <div className="w-10 h-10 bg-amber-900/20 backdrop-blur-sm rounded-xl flex items-center justify-center flex-shrink-0">
+                    <Package className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-bold text-sm">
+                      📦 {validadeAlerta.vencendo30Dias} produto
+                      {validadeAlerta.vencendo30Dias > 1 ? "s" : ""} vence
+                      {validadeAlerta.vencendo30Dias > 1 ? "m" : ""} em 30 dias
+                    </p>
+                    <p className="text-amber-800 text-xs">Atenção ao estoque</p>
+                  </div>
+                  <span className="text-amber-800/80 text-xs">Ver →</span>
+                </Link>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
-              <h3 className="text-2xl font-black italic uppercase tracking-tighter text-white mb-2 leading-none">
-                Use o Assessor IA
-              </h3>
-
-              <p className="text-sm text-purple-100 font-bold italic opacity-90 mb-6 leading-tight pr-10">
-                Tire fotos de notas fiscais e a IA extrai os dados automaticamente.
-              </p>
-
-              <div className="inline-flex items-center px-5 py-2.5 bg-white text-purple-600 rounded-full text-[10px] font-black uppercase italic tracking-widest shadow-lg group-hover:bg-gray-50 transition-colors w-fit">
-                <Camera size={14} className="mr-2" />
-                Experimentar agora
-                <ChevronRight size={14} className="ml-1" />
-              </div>
-            </div>
-
-            <div className="absolute -right-10 -top-10 w-48 h-48 bg-white/10 rounded-full blur-2xl" />
-            <div className="absolute right-10 bottom-10 w-24 h-24 bg-fuchsia-400/30 rounded-full blur-xl" />
-          </div>
-        </Link>
-      </div>
-
-      <div className="grid md:grid-cols-3 gap-6">
-        <SoftInfoCard
-          icon={<ShieldCheck size={20} />}
-          title="Ambiente seguro"
-          desc="Seu acesso está organizado por empresa e pronto para escalar com a operação."
-        />
-        <SoftInfoCard
-          icon={<Users size={20} />}
-          title="Equipe depois"
-          desc="Você pode começar simples e depois adicionar outras pessoas da operação."
-        />
-        <SoftInfoCard
-          icon={<CheckCircle2 size={20} />}
-          title="Base pronta"
-          desc="Compras, estoque e financeiro já têm um ponto de entrada mais claro para evoluir."
-        />
-      </div>
-
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-sm p-4 animate-in fade-in">
-          <div className="bg-white w-full max-w-2xl rounded-[40px] shadow-2xl overflow-hidden border border-gray-100 flex flex-col max-h-[90vh]">
-            <div className="p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
-              <div>
-                <h3 className="text-2xl font-black italic uppercase tracking-tighter text-gray-900">
-                  Personalizar dashboard
-                </h3>
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest italic mt-1">
-                  Selecione até 4 módulos para acesso rápido ({selecaoTemporaria.length}/4)
-                </p>
-              </div>
-
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-gray-400 hover:text-red-500 shadow-sm border border-gray-100 transition-colors"
+      {precosAlerta && precosAlerta.total > 0 && (
+        <Card className="border-0 overflow-hidden shadow-lg">
+          <CardContent className="p-0">
+            {precosAlerta.acima_media > 0 && (
+              <Link
+                href="/app/ranking-fornecedores"
+                className="flex items-center gap-3 p-3 bg-gradient-to-r from-red-500 to-orange-500 text-white hover:from-red-600 hover:to-orange-600 transition-all"
               >
-                <X size={20} />
-              </button>
+                <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center flex-shrink-0">
+                  <DollarSign className="w-5 h-5" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-bold text-sm">
+                    📈 {precosAlerta.acima_media} produto
+                    {precosAlerta.acima_media > 1 ? "s" : ""} acima da média!
+                  </p>
+                  <p className="text-red-100 text-xs">
+                    {precosAlerta.alertas.find((a) => a.tipo === "acima")?.produto_nome || "Produto"}:
+                    {" +"}
+                    {precosAlerta.alertas.find((a) => a.tipo === "acima")?.variacao_percentual || 0}%
+                  </p>
+                </div>
+                <span className="text-white/80 text-xs">Ver →</span>
+              </Link>
+            )}
+
+            {precosAlerta.abaixo_media > 0 && (
+              <Link
+                href="/app/ranking-fornecedores"
+                className="flex items-center gap-3 p-3 bg-gradient-to-r from-emerald-500 to-green-500 text-white hover:from-emerald-600 hover:to-green-600 transition-all"
+              >
+                <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center flex-shrink-0">
+                  <TrendingUp className="w-5 h-5" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-bold text-sm">
+                    💰 {precosAlerta.abaixo_media} oportunidade
+                    {precosAlerta.abaixo_media > 1 ? "s" : ""} de economia!
+                  </p>
+                  <p className="text-green-100 text-xs">
+                    {precosAlerta.alertas.find((a) => a.tipo === "abaixo")?.produto_nome || "Produto"}:
+                    {" "}
+                    {precosAlerta.alertas.find((a) => a.tipo === "abaixo")?.variacao_percentual || 0}%
+                  </p>
+                </div>
+                <span className="text-white/80 text-xs">Ver →</span>
+              </Link>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-base font-bold text-gray-800">Acesso Rápido</h2>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setShowEditor(true);
+              setEditingSlot(null);
+            }}
+            className="text-gray-500 hover:text-gray-700 gap-1.5 h-8"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+            Editar
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          {shortcutModules.slice(0, 4).map((card, index) => {
+            if (!card) {
+              return (
+                <button
+                  key={`empty-${index}`}
+                  onClick={() => {
+                    setShowEditor(true);
+                    setEditingSlot(index);
+                  }}
+                  className="border-2 border-dashed border-gray-200 rounded-2xl p-4 flex flex-col items-center justify-center min-h-[120px] hover:border-gray-300 hover:bg-gray-50 transition-all"
+                >
+                  <Plus className="w-8 h-8 text-gray-300" />
+                  <span className="text-xs text-gray-400 mt-2">Adicionar</span>
+                </button>
+              );
+            }
+
+            const Icon = card.icon;
+
+            return (
+              <Link
+                key={card.id}
+                href={card.href}
+                className={`${card.bgLight} group relative overflow-hidden rounded-2xl p-4 border-2 border-transparent hover:border-gray-200 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg active:scale-[0.98] min-h-[120px]`}
+              >
+                <div
+                  className={`w-12 h-12 bg-gradient-to-br ${card.gradient} rounded-xl flex items-center justify-center shadow-lg ${card.shadowColor} mb-3 group-hover:scale-110 transition-transform duration-300`}
+                >
+                  <Icon className="w-6 h-6 text-white" />
+                </div>
+                <h3 className="font-semibold text-gray-800">{card.title}</h3>
+                <p className="text-xs text-gray-500 mt-0.5">{card.description}</p>
+
+                <div
+                  className={`absolute inset-0 bg-gradient-to-br ${card.gradient} opacity-0 group-hover:opacity-5 transition-opacity duration-300 rounded-2xl`}
+                />
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+
+      <button
+        onClick={() => {
+          setShowEditor(true);
+          setEditingSlot(null);
+        }}
+        className="flex items-center justify-center gap-2 text-sm text-gray-500 hover:text-gray-700 py-2 w-full"
+      >
+        Ver todos os {availableModules.length} módulos →
+      </button>
+
+      <Card className="border-0 bg-gradient-to-r from-emerald-500 to-green-600 text-white shadow-lg shadow-emerald-500/20 overflow-hidden">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center flex-shrink-0">
+              <Gift className="w-5 h-5 text-white" />
             </div>
 
-            <div className="p-8 overflow-y-auto flex-1">
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {TODOS_MODULOS.map((mod) => {
-                  const isSelected = selecaoTemporaria.includes(mod.id);
-                  const isDisabled =
-                    !isSelected && selecaoTemporaria.length >= 4;
+            <div className="flex-1 min-w-0">
+              <h3 className="text-sm font-bold">Indique e Ganhe R$ 20!</h3>
+              <p className="text-emerald-100 text-xs">
+                Convide comerciantes e ganhe crédito
+              </p>
+            </div>
+
+            <Button
+              onClick={copiarLink}
+              size="sm"
+              className="bg-white text-emerald-600 hover:bg-emerald-50 font-semibold px-3 flex-shrink-0"
+            >
+              {copiado ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-purple-200 bg-gradient-to-br from-purple-50 to-fuchsia-50">
+        <CardContent className="p-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-fuchsia-500 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg shadow-purple-500/30">
+              <Sparkles className="w-5 h-5 text-white" />
+            </div>
+
+            <div>
+              <h3 className="font-bold text-gray-900 text-sm">
+                💡 Dica: Use o Assessor IA
+              </h3>
+              <p className="text-xs text-gray-600 mt-1">
+                Tire fotos de notas fiscais e a IA extrai os dados automaticamente!
+              </p>
+              <Link
+                href="/app/assessor-ia"
+                className="inline-flex items-center gap-1 text-xs font-semibold text-purple-600 hover:text-purple-700 mt-1"
+              >
+                Experimentar →
+              </Link>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Dialog open={showEditor} onOpenChange={setShowEditor}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Settings className="w-5 h-5" />
+              {editingSlot !== null ? "Escolher Módulo" : "Todos os Módulos"}
+            </DialogTitle>
+          </DialogHeader>
+
+          {editingSlot === null && (
+            <div className="mb-4">
+              <p className="text-sm text-gray-500 mb-2">Seus atalhos atuais:</p>
+
+              <div className="grid grid-cols-4 gap-2">
+                {[0, 1, 2, 3].map((index) => {
+                  const moduleId = selectedShortcuts[index];
+                  const module = ALL_MODULES.find((m) => m.id === moduleId);
 
                   return (
-                    <div
-                      key={mod.id}
-                      onClick={() => !isDisabled && toggleModulo(mod.id)}
-                      className={`relative p-5 rounded-[25px] border-2 cursor-pointer transition-all duration-200 flex flex-col items-center text-center gap-3 ${
-                        isSelected
-                          ? "border-orange-500 bg-orange-50 shadow-md"
-                          : "border-gray-100 bg-white hover:border-orange-200"
-                      } ${
-                        isDisabled ? "opacity-50 cursor-not-allowed grayscale" : ""
-                      }`}
+                    <button
+                      key={index}
+                      onClick={() => setEditingSlot(index)}
+                      className={`relative p-2 rounded-xl border-2 ${
+                        editingSlot === index
+                          ? "border-orange-500 bg-orange-50"
+                          : "border-gray-200 hover:border-gray-300"
+                      } transition-all`}
                     >
-                      {isSelected && (
-                        <div className="absolute top-3 right-3 w-5 h-5 bg-orange-500 rounded-full flex items-center justify-center text-white shadow-sm">
-                          <Check size={12} strokeWidth={4} />
+                      {module ? (
+                        <div className="flex flex-col items-center">
+                          <div
+                            className={`w-8 h-8 bg-gradient-to-br ${module.gradient} rounded-lg flex items-center justify-center`}
+                          >
+                            <module.icon className="w-4 h-4 text-white" />
+                          </div>
+                          <span className="text-[10px] text-gray-600 mt-1 truncate w-full text-center">
+                            {module.title}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center py-1">
+                          <Plus className="w-6 h-6 text-gray-300" />
+                          <span className="text-[10px] text-gray-400 mt-1">Vazio</span>
                         </div>
                       )}
 
-                      <div
-                        className={`${mod.color} ${mod.bg} w-12 h-12 rounded-2xl flex items-center justify-center`}
-                      >
-                        {mod.icon}
+                      <div className="absolute -top-1 -right-1 w-4 h-4 bg-orange-500 rounded-full flex items-center justify-center">
+                        <Pencil className="w-2 h-2 text-white" />
                       </div>
-
-                      <div>
-                        <h4 className="font-black italic uppercase tracking-tighter text-gray-800 leading-none">
-                          {mod.title}
-                        </h4>
-                      </div>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
-            </div>
 
-            <div className="p-6 border-t border-gray-50 bg-white flex justify-end gap-3">
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest text-gray-500 hover:bg-gray-50 transition-colors"
-              >
-                Cancelar
-              </button>
-
-              <button
-                onClick={salvarAtalhos}
-                className="px-8 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-full text-[10px] font-black uppercase tracking-widest italic shadow-lg hover:shadow-orange-500/25 hover:scale-105 transition-all"
-              >
-                Salvar atalhos
-              </button>
+              <p className="text-xs text-gray-400 mt-2 text-center">
+                Clique em um atalho para trocar
+              </p>
             </div>
+          )}
+
+          <div className="space-y-2">
+            {editingSlot !== null && (
+              <p className="text-sm text-gray-500 mb-2">
+                Escolha o módulo para a posição {editingSlot + 1}:
+              </p>
+            )}
+
+            {availableModules.map((module) => {
+              const Icon = module.icon;
+              const isSelected = selectedShortcuts.includes(module.id);
+              const slotIndex = selectedShortcuts.indexOf(module.id);
+
+              return (
+                <button
+                  key={module.id}
+                  onClick={() => {
+                    if (editingSlot !== null) {
+                      handleSelectModule(module.id);
+                    } else {
+                      if (!isSelected && selectedShortcuts.length < 4) {
+                        saveShortcuts([...selectedShortcuts, module.id].slice(0, 4));
+                      } else if (isSelected) {
+                        saveShortcuts(selectedShortcuts.filter((id) => id !== module.id));
+                      }
+                    }
+                  }}
+                  className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-all ${
+                    isSelected
+                      ? "border-orange-300 bg-orange-50"
+                      : "border-gray-100 hover:border-gray-200 hover:bg-gray-50"
+                  }`}
+                >
+                  <div
+                    className={`w-10 h-10 bg-gradient-to-br ${module.gradient} rounded-lg flex items-center justify-center shadow ${module.shadowColor}`}
+                  >
+                    <Icon className="w-5 h-5 text-white" />
+                  </div>
+
+                  <div className="flex-1 text-left">
+                    <h4 className="font-medium text-gray-800 text-sm">{module.title}</h4>
+                    <p className="text-xs text-gray-500">{module.description}</p>
+                  </div>
+
+                  {isSelected && (
+                    <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                      {slotIndex + 1}
+                    </div>
+                  )}
+                </button>
+              );
+            })}
           </div>
-        </div>
-      )}
-    </div>
-  );
-}
 
-function HeroMiniCard({
-  label,
-  value,
-  helper,
-}: {
-  label: string;
-  value: string;
-  helper: string;
-}) {
-  return (
-    <div className="bg-white/10 backdrop-blur-md border border-white/20 p-5 rounded-[25px] min-w-[140px] shadow-xl">
-      <p className="text-[9px] text-orange-100 uppercase tracking-[0.2em] font-black italic mb-1">
-        {label}
-      </p>
-      <p className="text-2xl font-black italic uppercase tracking-tighter text-white">
-        {value}
-      </p>
-      <p className="text-[10px] text-orange-100/80 uppercase tracking-[0.14em] font-bold italic mt-2">
-        {helper}
-      </p>
-    </div>
-  );
-}
-
-function QuickActionButton({
-  href,
-  icon,
-  label,
-}: {
-  href: string;
-  icon: React.ReactNode;
-  label: string;
-}) {
-  return (
-    <Link
-      href={href}
-      className="rounded-2xl border border-white/20 bg-white/10 hover:bg-white/15 transition-all px-4 py-4 text-left"
-    >
-      <div className="flex items-center gap-2 text-orange-100 mb-2">
-        {icon}
-        <span className="text-[10px] font-black uppercase tracking-[0.18em] italic">
-          ir para
-        </span>
-      </div>
-      <p className="text-sm font-black italic uppercase tracking-tight text-white">
-        {label}
-      </p>
-    </Link>
-  );
-}
-
-function SoftInfoCard({
-  icon,
-  title,
-  desc,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  desc: string;
-}) {
-  return (
-    <div className="bg-white border border-gray-100 rounded-[30px] p-6 shadow-sm">
-      <div className="w-12 h-12 rounded-2xl bg-orange-50 text-orange-600 flex items-center justify-center mb-4">
-        {icon}
-      </div>
-      <h3 className="text-lg font-black italic uppercase tracking-tight text-gray-900">
-        {title}
-      </h3>
-      <p className="text-sm text-gray-500 leading-relaxed mt-2">{desc}</p>
+          {editingSlot !== null && (
+            <Button
+              variant="outline"
+              onClick={() => setEditingSlot(null)}
+              className="w-full mt-2"
+            >
+              Cancelar
+            </Button>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

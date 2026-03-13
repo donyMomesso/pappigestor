@@ -1,11 +1,7 @@
 "use client";
 
-import dynamic from "next/dynamic";
-
-const CompradorPage = dynamic(() => import("@/react-app/pages/Comprador"), {
-  ssr: false,
-});
+import LegacyPage from "@/react-app/pages/Comprador";
 
 export default function Page() {
-  return <CompradorPage />;
+  return <LegacyPage />;
 }

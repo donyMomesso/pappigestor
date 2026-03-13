@@ -64,6 +64,11 @@ function onlyDigits(value: string): string {
   return value.replace(/\D/g, "");
 }
 
+function getLocalStorageValue(key: string): string {
+  if (typeof window === "undefined") return "";
+  return localStorage.getItem(key) || "";
+}
+
 export default function OpenFinance() {
   const { localUser } = useAppAuth();
 
@@ -87,21 +92,39 @@ export default function OpenFinance() {
   const [responsibleCpf, setResponsibleCpf] = useState<string>("");
   const [docError, setDocError] = useState<string | null>(null);
 
-  const empresaId =
-    localUser?.empresa_id ||
-    localStorage.getItem("empresa_id") ||
-    localStorage.getItem("pId") ||
-    localStorage.getItem("pizzariaId") ||
-    "";
+  const [empresaId, setEmpresaId] = useState<string>("");
+  const [userEmail, setUserEmail] = useState<string>("");
 
-  const userEmail = localUser?.email || localStorage.getItem("userEmail") || "";
+  useEffect(() => {
+    const resolvedEmpresaId =
+      localUser?.empresa_id ||
+      getLocalStorageValue("empresa_id") ||
+      getLocalStorageValue("pId") ||
+      getLocalStorageValue("pizzariaId") ||
+      "";
+
+    const resolvedUserEmail =
+      localUser?.email ||
+      getLocalStorageValue("userEmail") ||
+      getLocalStorageValue("user_email") ||
+      getLocalStorageValue("email") ||
+      "";
+
+    setEmpresaId(resolvedEmpresaId);
+    setUserEmail(resolvedUserEmail);
+  }, [localUser]);
 
   const getHeaders = useCallback(
     (withJson = true): HeadersInit => {
-      const headers: Record<string, string> = {
-        "x-empresa-id": empresaId,
-        "x-user-email": userEmail,
-      };
+      const headers: Record<string, string> = {};
+
+      if (empresaId) {
+        headers["x-empresa-id"] = empresaId;
+      }
+
+      if (userEmail) {
+        headers["x-user-email"] = userEmail;
+      }
 
       if (withJson) {
         headers["Content-Type"] = "application/json";
@@ -113,6 +136,12 @@ export default function OpenFinance() {
   );
 
   const fetchConexoes = useCallback(async () => {
+    if (!empresaId || !userEmail) {
+      setConexoes([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
 
@@ -132,9 +161,14 @@ export default function OpenFinance() {
     } finally {
       setLoading(false);
     }
-  }, [getHeaders]);
+  }, [empresaId, userEmail, getHeaders]);
 
   const fetchConnectors = useCallback(async () => {
+    if (!empresaId || !userEmail) {
+      setConnectors([]);
+      return;
+    }
+
     setLoadingConnectors(true);
     setSelectedConnector(null);
 
@@ -155,7 +189,7 @@ export default function OpenFinance() {
     } finally {
       setLoadingConnectors(false);
     }
-  }, [getHeaders]);
+  }, [empresaId, userEmail, getHeaders]);
 
   useEffect(() => {
     void fetchConexoes();
@@ -378,10 +412,10 @@ export default function OpenFinance() {
               <>
                 <CheckCircle className="h-5 w-5 text-green-600" />
                 <span className="text-green-800">
-  Sincronização concluída. {syncResult.importados || 0} boleto(s) importado(s)
-  {syncResult.duplicados ? `, ${syncResult.duplicados} duplicado(s)` : ""}
-  {" total" in syncResult && syncResult.total ? ` de ${syncResult.total}` : ""}
-</span>
+                  Sincronização concluída. {syncResult.importados || 0} boleto(s) importado(s)
+                  {syncResult.duplicados ? `, ${syncResult.duplicados} duplicado(s)` : ""}
+                  {" total" in syncResult && syncResult.total ? ` de ${syncResult.total}` : ""}
+                </span>
               </>
             ) : (
               <>

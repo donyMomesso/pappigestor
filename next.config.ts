@@ -1,19 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  async rewrites() {
-    return [
-      {
-        // Intercepta tudo o que o frontend mandar para /api/
-        source: '/api/:path*',
-        
-        // Redireciona magicamente para o Worker (Local ou Produção)
-        destination: process.env.NODE_ENV === 'development' 
-          ? 'http://127.0.0.1:8787/api/:path*' 
-          : 'https://pappi-worker.pappigestor.workers.dev/api/:path*',
-      },
-    ];
-  },
+  // As rotas /api do Next devem permanecer locais.
+  // O projeto já possui route handlers em src/app/api/*.
+  // Rewrites globais para /api quebravam o NextAuth,
+  // mandando /api/auth/* para o Worker.
 };
 
 export default nextConfig;

@@ -1,42 +1,69 @@
 'use server'
 
-/** * Solução para o erro persistente de módulo:
- * 1. Forçamos o TypeScript a ignorar o erro visual no editor.
- * 2. Usamos o alias @/ que está definido no seu tsconfig.json.
- */
-// @ts-ignore
-import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+// @ts-ignore
+import { createClient } from "@/utils/supabase/server";
 
 export async function cadastrarItemEstoque(formData: FormData) {
   const supabase = await createClient();
 
-  // 1. Pegar os dados do usuário logado
-  const { data: { user } } = await supabase.auth.getUser();
-  
-  // 2. Buscar o pizzaria_id vinculado ao perfil da Pappi do usuário logado
-  const { data: perfil } = await supabase
-    .from('perfis_usuarios')
-    .select('pizzaria_id')
-    .eq('email', user?.email)
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user?.email) {
+    return { error: "Usuário não autenticado." };
+  }
+
+  const { data: perfil, error: perfilError } = await supabase
+    .from("perfis_usuarios")
+    .select("empresa_id, pizzaria_id")
+    .eq("email", user.email)
     .single();
 
-  if (!perfil) throw new Error("Perfil não encontrado.");
+  if (perfilError || !perfil) {
+    return { error: "Perfil do usuário não encontrado." };
+  }
 
-  // 3. Inserir no estoque respeitando as colunas identificadas
+  const produtoId = Number(formData.get("produto_id"));
+  const quantidadeAtual = Number(formData.get("quantidade"));
+  const estoqueMinimo = Number(formData.get("minimo"));
+
+  if (!produtoId || Number.isNaN(produtoId)) {
+    return { error: "Produto inválido." };
+  }
+
+  if (Number.isNaN(quantidadeAtual)) {
+    return { error: "Quantidade inválida." };
+  }
+
+  if (Number.isNaN(estoqueMinimo)) {
+    return { error: "Estoque mínimo inválido." };
+  }
+
+  const empresaId = perfil.empresa_id ?? perfil.pizzaria_id;
+
+  if (!empresaId) {
+    return { error: "Empresa do usuário não identificada." };
+  }
+
   const novoItem = {
-    produto_id: formData.get('produto_id'), 
-    quantidade_atual: Number(formData.get('quantidade')),
-    estoque_minimo: Number(formData.get('minimo')),
-    pizzaria_id: perfil.pizzaria_id, 
-    ultima_atualizacao: new Date().toISOString()
+    produto_id: produtoId,
+    quantidade_atual: quantidadeAtual,
+    estoque_minimo: estoqueMinimo,
+    empresa_id: empresaId,
+    pizzaria_id: empresaId,
+    ultima_atualizacao: new Date().toISOString(),
   };
 
-  const { error } = await supabase.from('estoque').insert(novoItem);
+  const { error } = await supabase.from("estoque").insert(novoItem);
 
-  if (error) return { error: error.message };
+  if (error) {
+    return { error: error.message };
+  }
 
-  revalidatePath('/app/estoque');
-  redirect('/app/estoque');
+  revalidatePath("/app/estoque");
+  redirect("/app/estoque");
 }

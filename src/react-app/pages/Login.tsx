@@ -7,8 +7,8 @@ import type { LocalUser } from "@/react-app/types/auth";
 import { Button } from "@/react-app/components/ui/button";
 import { UserPlus, LogIn } from "lucide-react";
 
-const LOGO_URL =
-  "https://019c7b56-2054-7d0b-9c55-e7a603c40ba8.mochausercontent.com/1771799343659.png";
+
+  const LOGO_URL = "/logo.png";
 
 export default function LoginPage() {
   const { localUser, setLocalUser } = useAppAuth();

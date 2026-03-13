@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/react-app/components
 import { ArrowLeft, TrendingUp, TrendingDown, DollarSign, FileText, Clock, Check } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from 'recharts';
 
-const LOGO_URL = 'https://019c7b56-2054-7d0b-9c55-e7a603c40ba8.mochausercontent.com/1771799343659.png';
+const LOGO_URL = "/logo.png";
 
 interface DashboardData {
   totais: {

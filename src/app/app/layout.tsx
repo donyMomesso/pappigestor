@@ -57,8 +57,7 @@ interface NavGroup {
   items: NavItem[];
 }
 
-const LOGO_URL =
-  "https://019c7b56-2054-7d0b-9c55-e7a603c40ba8.mochausercontent.com/1771799343659.png";
+const LOGO_URL = "/logo.png";
 
 const mainNavItems: NavItem[] = [
   {
@@ -68,15 +67,21 @@ const mainNavItems: NavItem[] = [
     roles: ["operador", "comprador", "financeiro", "admin", "dono", "viewer"],
   },
   {
-    label: "Dashboard",
-    href: "/app/dashboard",
-    icon: <BarChart3 className="w-4 h-4" />,
-    roles: ["financeiro", "admin", "dono"],
+    label: "Compras",
+    href: "/app/compras",
+    icon: <ShoppingCart className="w-4 h-4" />,
+    roles: ["comprador", "admin", "dono"],
   },
   {
     label: "Financeiro",
     href: "/app/financeiro",
     icon: <DollarSign className="w-4 h-4" />,
+    roles: ["financeiro", "admin", "dono"],
+  },
+  {
+    label: "Dashboard",
+    href: "/app/dashboard",
+    icon: <BarChart3 className="w-4 h-4" />,
     roles: ["financeiro", "admin", "dono"],
   },
   {
@@ -435,11 +440,13 @@ export default function ProtectedLayout({ children }: AppLayoutProps) {
             <div className="flex min-w-0 items-center gap-2">
               <Link href="/app" className="flex items-center gap-2">
                 <div className="rounded-2xl bg-gradient-to-br from-orange-500 via-orange-500 to-pink-500 p-2 shadow-lg shadow-orange-500/20">
-                  <img
-                    src={LOGO_URL}
-                    alt="Pappi Gestor"
-                    className="h-6 w-6 object-contain brightness-0 invert"
-                  />
+ <div className="rounded-2xl bg-white p-1.5 shadow-lg shadow-orange-500/20">
+    <img
+  src={LOGO_URL}
+  alt="Pappi Gestor"
+  className="h-7 w-7 rounded-lg object-cover"
+/>
+</div>
                 </div>
 
                 <div className="min-w-0">

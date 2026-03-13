@@ -66,8 +66,7 @@ const NIVEL_LABELS: Record<string, string> = {
   super_admin: "Super Admin",
 };
 
-const LOGO_URL =
-  "https://019c7b56-2054-7d0b-9c55-e7a603c40ba8.mochausercontent.com/1771799343659.png";
+const LOGO_URL = "/logo.png";
 
 interface NavItem {
   label: string;

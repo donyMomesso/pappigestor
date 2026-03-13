@@ -9,7 +9,7 @@ import { Home, ShoppingCart, DollarSign, Package, LayoutDashboard, LogOut, Spark
 export default function AppLayout({ children }: { children: ReactNode }) {
   const { localUser, signOut } = useAppAuth();
   const pathname = usePathname();
-  const LOGO_URL = "https://019c7b56-2054-7d0b-9c55-e7a603c40ba8.mochausercontent.com/1771799343659.png";
+ const LOGO_URL = "/logo.png";
 
   return (
     <div className="min-h-screen bg-white">

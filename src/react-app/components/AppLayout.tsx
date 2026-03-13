@@ -25,9 +25,7 @@ import {
   X,
 } from "lucide-react";
 
-const LOGO_URL =
-  "https://019c7b56-2054-7d0b-9c55-e7a603c40ba8.mochausercontent.com/1771799343659.png";
-
+const LOGO_URL = "/logo.png";
 const BANNER_URL = "/banner.png";
 
 interface AppLayoutProps {
@@ -375,11 +373,11 @@ export default function AppLayout({ children }: AppLayoutProps) {
       <header className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200/50 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
           <Link href="/app" className="flex items-center gap-2 group shrink-0">
-            <img
-              src={LOGO_URL}
-              alt="Pappi"
-              className="h-8 w-8 group-hover:scale-110 transition-transform"
-            />
+          <img
+  src={LOGO_URL}
+  alt="Pappi Gestor"
+  className="h-7 w-7 rounded-lg object-cover"
+/>
             <span className="font-black italic uppercase text-gray-900 dark:text-white">
               Pappi<span className="text-orange-600">Gestor</span>
             </span>

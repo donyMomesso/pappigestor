@@ -98,6 +98,21 @@ export default function RecebimentoPage() {
 
   const { localUser } = useAppAuth();
 
+  const empresaId =
+    localUser?.empresa_id ||
+    localStorage.getItem("empresa_id") ||
+    localStorage.getItem("pId") ||
+    localStorage.getItem("pizzariaId") ||
+    "";
+
+  const userEmail = localUser?.email || localStorage.getItem("userEmail") || "";
+
+  const getAuthHeaders = (extra?: Record<string, string>): HeadersInit => ({
+    "x-empresa-id": empresaId,
+    "x-user-email": userEmail,
+    ...extra,
+  });
+
   useEffect(() => {
     fetchLancamentos();
   }, []);
@@ -108,12 +123,12 @@ export default function RecebimentoPage() {
 
   const fetchLancamentos = async () => {
     try {
-      const res = await fetch("/api/lancamentos");
+      const res = await fetch("/api/lancamentos", { headers: getAuthHeaders() });
       const data = await res.json();
 
       const lancamentosComItens: LancamentoComItens[] = await Promise.all(
         (Array.isArray(data) ? data : []).map(async (l: Lancamento) => {
-          const detalhes = await fetch(`/api/lancamentos/${l.id}`).then((r) =>
+          const detalhes = await fetch(`/api/lancamentos/${l.id}`, { headers: getAuthHeaders() }).then((r) =>
             r.json()
           );
           return detalhes as LancamentoComItens;
@@ -175,6 +190,7 @@ export default function RecebimentoPage() {
 
       const res = await fetch("/api/upload", {
         method: "POST",
+        headers: getAuthHeaders(),
         body: formData,
       });
 
@@ -206,7 +222,7 @@ export default function RecebimentoPage() {
     try {
       const res = await fetch("/api/ia/ler-nota", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ image_url: notaFiscal.arquivo_url }),
       });
 
@@ -252,6 +268,7 @@ export default function RecebimentoPage() {
 
       const res = await fetch("/api/upload", {
         method: "POST",
+        headers: getAuthHeaders(),
         body: formData,
       });
 
@@ -278,6 +295,7 @@ export default function RecebimentoPage() {
 
       const uploadRes = await fetch("/api/upload", {
         method: "POST",
+        headers: getAuthHeaders(),
         body: formData,
       });
 
@@ -286,7 +304,7 @@ export default function RecebimentoPage() {
 
       const res = await fetch("/api/ia/ler-nota", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           image_url: uploadData.url,
           extrair_apenas: "chave_acesso",
@@ -347,7 +365,7 @@ export default function RecebimentoPage() {
           try {
             const res = await fetch(`/api/itens/${item.id}`, {
               method: "PATCH",
-              headers: { "Content-Type": "application/json" },
+              headers: getAuthHeaders({ "Content-Type": "application/json" }),
               body: JSON.stringify({ quantidade_recebida: parseFloat(qtd) }),
             });
 
@@ -362,16 +380,19 @@ export default function RecebimentoPage() {
       }
 
       // 2) Registrar Nota Fiscal
+      let notaFiscalRegistrada: any = null;
       if (notaFiscal.numero_nota) {
         try {
           const res = await fetch("/api/notas-fiscais", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: getAuthHeaders({ "Content-Type": "application/json" }),
             body: JSON.stringify({
               lancamento_id: selectedLancamento.id,
+              fornecedor: selectedLancamento.fornecedor || null,
               numero_nota: notaFiscal.numero_nota,
               data_emissao: notaFiscal.data_emissao || null,
               chave_acesso: notaFiscal.chave_acesso || null,
+              valor_total: boleto.valor_real ? parseFloat(boleto.valor_real) : null,
               arquivo_url: notaFiscal.arquivo_url || null,
             }),
           });
@@ -379,22 +400,29 @@ export default function RecebimentoPage() {
           if (!res.ok) {
             const err = await res.json().catch(() => ({ error: "Erro desconhecido" }));
             erros.push(`Nota Fiscal: ${err.error || "Erro ao registrar"}`);
+          } else {
+            notaFiscalRegistrada = await res.json();
           }
         } catch {
           erros.push("Nota Fiscal: Erro de conexão");
         }
       }
 
-      // 3) Registrar Boleto
+      // 3) Registrar Boleto + vínculo no financeiro
       if (boleto.valor_real && boleto.vencimento_real) {
         try {
-          const res = await fetch(`/api/lancamentos/${selectedLancamento.id}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
+          const res = await fetch(`/api/boletos-dda`, {
+            method: "POST",
+            headers: getAuthHeaders({ "Content-Type": "application/json" }),
             body: JSON.stringify({
-              is_boleto_recebido: true,
-              valor_real: parseFloat(boleto.valor_real),
-              vencimento_real: boleto.vencimento_real,
+              fornecedor_nome: selectedLancamento.fornecedor || "Fornecedor",
+              valor: parseFloat(boleto.valor_real),
+              vencimento: boleto.vencimento_real,
+              linha_digitavel: boleto.linha_digitavel || null,
+              arquivo_url: boleto.arquivo_url || null,
+              lancamento_id: selectedLancamento.id,
+              nota_fiscal_id: notaFiscalRegistrada?.id || null,
+              observacao: notaFiscal.numero_nota ? `NF ${notaFiscal.numero_nota} vinculada no recebimento` : "Boleto vinculado no recebimento",
             }),
           });
 
@@ -462,6 +490,7 @@ export default function RecebimentoPage() {
     try {
       const res = await fetch(`/api/lancamentos/${deletingId}`, {
         method: "DELETE",
+        headers: getAuthHeaders(),
       });
 
       if (!res.ok) {

@@ -1,228 +1,58 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import type { ElementType } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
-
-import { Card, CardContent, CardHeader, CardTitle } from "@/react-app/components/ui/card";
+import { useEffect, useMemo, useState } from "react";
+import { useAppAuth } from "@/contexts/AppAuthContext";
+import { Card, CardContent } from "@/react-app/components/ui/card";
 import { Button } from "@/react-app/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/react-app/components/ui/dialog";
-
 import {
-  ShoppingCart,
-  Calculator,
-  BarChart3,
-  PackageCheck,
-  Users,
-  Building2,
-  Package,
-  Truck,
-  Box,
-  ClipboardList,
-  Gift,
-  Copy,
-  Check,
-  Settings,
-  FileText,
-  MessageSquare,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/react-app/components/ui/dialog";
+import {
+  ArrowRight,
   Sparkles,
   TrendingUp,
-  AlertCircle,
-  Clock,
+  AlertTriangle,
+  DollarSign,
+  ShoppingCart,
+  Package,
+  Inbox,
+  Brain,
+  BarChart3,
+  ClipboardCheck,
+  Clock3,
+  ShieldCheck,
+  Trophy,
+  CheckCircle2,
+  Zap,
+  Crown,
+  ChevronRight,
+  Truck,
+  Boxes,
+  Settings,
+  Users,
+  CreditCard,
   Pencil,
   Plus,
-  DollarSign,
+  QrCode,
+  ListTodo,
+  FileSearch,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import type { Feature, NivelAcesso } from "@/react-app/types/auth";
+import { PREMIUM_FEATURES } from "@/react-app/types/auth";
 
-import { useAppAuthOptional } from "@/contexts/AppAuthContext";
-import { NIVEL_LABELS } from "@/react-app/types/auth";
-
-interface ModuleCard {
-  id: string;
-  title: string;
-  description: string;
-  href: string;
-  icon: ElementType;
-  gradient: string;
-  shadowColor: string;
-  bgLight: string;
-  roles: string[];
-}
-
-const ALL_MODULES: ModuleCard[] = [
-  {
-    id: "compras",
-    title: "Compras",
-    description: "Nova provisão de gasto",
-    href: "/app/compras",
-    icon: ShoppingCart,
-    gradient: "from-orange-500 to-amber-500",
-    shadowColor: "shadow-orange-500/30",
-    bgLight: "bg-orange-50",
-    roles: ["comprador", "admin", "dono", "super_admin", "admin_empresa"],
-  },
-  {
-    id: "recebimento",
-    title: "Recebimento",
-    description: "Conferir entregas",
-    href: "/app/recebimento",
-    icon: PackageCheck,
-    gradient: "from-green-500 to-emerald-500",
-    shadowColor: "shadow-green-500/30",
-    bgLight: "bg-green-50",
-    roles: ["operador", "comprador", "admin", "dono", "super_admin", "admin_empresa"],
-  },
-  {
-    id: "estoque",
-    title: "Estoque",
-    description: "Auditoria de produtos",
-    href: "/app/estoque",
-    icon: Package,
-    gradient: "from-teal-500 to-cyan-500",
-    shadowColor: "shadow-teal-500/30",
-    bgLight: "bg-teal-50",
-    roles: ["operador", "comprador", "admin", "dono", "super_admin", "admin_empresa"],
-  },
-  {
-    id: "lista-compras",
-    title: "Lista Compras",
-    description: "Solicitações pendentes",
-    href: "/app/lista-compras",
-    icon: ClipboardList,
-    gradient: "from-indigo-500 to-blue-500",
-    shadowColor: "shadow-indigo-500/30",
-    bgLight: "bg-indigo-50",
-    roles: ["operador", "comprador", "admin", "dono", "super_admin", "admin_empresa"],
-  },
-  {
-    id: "financeiro",
-    title: "Financeiro",
-    description: "Boletos e pagamentos",
-    href: "/app/financeiro",
-    icon: Calculator,
-    gradient: "from-red-500 to-rose-500",
-    shadowColor: "shadow-red-500/30",
-    bgLight: "bg-red-50",
-    roles: ["financeiro", "admin", "dono", "super_admin", "admin_empresa"],
-  },
-  {
-    id: "cotacao",
-    title: "Cotação",
-    description: "Comparar preços",
-    href: "/app/cotacao",
-    icon: FileText,
-    gradient: "from-violet-500 to-purple-500",
-    shadowColor: "shadow-violet-500/30",
-    bgLight: "bg-violet-50",
-    roles: ["comprador", "admin", "dono", "super_admin", "admin_empresa"],
-  },
-  {
-    id: "fornecedores",
-    title: "Fornecedores",
-    description: "Cadastro e WhatsApp",
-    href: "/app/fornecedores",
-    icon: Truck,
-    gradient: "from-cyan-500 to-sky-500",
-    shadowColor: "shadow-cyan-500/30",
-    bgLight: "bg-cyan-50",
-    roles: ["comprador", "admin", "dono", "super_admin", "admin_empresa"],
-  },
-  {
-    id: "produtos",
-    title: "Produtos",
-    description: "Catálogo de itens",
-    href: "/app/produtos",
-    icon: Box,
-    gradient: "from-pink-500 to-rose-500",
-    shadowColor: "shadow-pink-500/30",
-    bgLight: "bg-pink-50",
-    roles: ["comprador", "admin", "dono", "super_admin", "admin_empresa"],
-  },
-  {
-    id: "dashboard",
-    title: "Dashboard",
-    description: "Gráficos e relatórios",
-    href: "/app/dashboard",
-    icon: BarChart3,
-    gradient: "from-amber-500 to-yellow-500",
-    shadowColor: "shadow-amber-500/30",
-    bgLight: "bg-amber-50",
-    roles: ["financeiro", "admin", "dono", "super_admin", "admin_empresa"],
-  },
-  {
-    id: "assessor-ia",
-    title: "Assessor IA",
-    description: "Análises inteligentes",
-    href: "/app/assessor-ia",
-    icon: Sparkles,
-    gradient: "from-purple-500 to-fuchsia-500",
-    shadowColor: "shadow-purple-500/30",
-    bgLight: "bg-purple-50",
-    roles: ["financeiro", "comprador", "admin", "dono", "super_admin", "admin_empresa"],
-  },
-  {
-    id: "caixa-entrada",
-    title: "Caixa Entrada",
-    description: "Processar arquivos",
-    href: "/app/caixa-entrada",
-    icon: MessageSquare,
-    gradient: "from-emerald-500 to-green-500",
-    shadowColor: "shadow-emerald-500/30",
-    bgLight: "bg-emerald-50",
-    roles: ["comprador", "financeiro", "admin", "dono", "super_admin", "admin_empresa"],
-  },
-  {
-    id: "usuarios",
-    title: "Usuários",
-    description: "Gerenciar equipe",
-    href: "/app/usuarios",
-    icon: Users,
-    gradient: "from-blue-500 to-indigo-500",
-    shadowColor: "shadow-blue-500/30",
-    bgLight: "bg-blue-50",
-    roles: ["admin", "dono", "super_admin", "admin_empresa"],
-  },
-  {
-    id: "empresas",
-    title: "Empresas",
-    description: "Administrar contas",
-    href: "/app/empresas",
-    icon: Building2,
-    gradient: "from-slate-500 to-gray-500",
-    shadowColor: "shadow-slate-500/30",
-    bgLight: "bg-slate-50",
-    roles: ["admin", "super_admin"],
-  },
-  {
-    id: "configuracoes",
-    title: "Configurações",
-    description: "IA, DDA e assinatura",
-    href: "/app/configuracoes",
-    icon: Settings,
-    gradient: "from-gray-500 to-zinc-500",
-    shadowColor: "shadow-gray-500/30",
-    bgLight: "bg-gray-50",
-    roles: ["admin", "dono", "super_admin", "admin_empresa"],
-  },
-];
-
-const DEFAULT_SHORTCUTS = ["compras", "financeiro", "recebimento", "dashboard"];
-const STORAGE_KEY = "pappi_quick_access";
-
-interface BoletosAlerta {
-  vencidos: number;
-  totalVencidos: number;
-  vencendoHoje: number;
-  totalVencendoHoje: number;
-  vencendo7Dias: number;
-  totalVencendo7Dias: number;
-}
-
-interface ValidadeAlerta {
-  vencidos: number;
-  vencendo7Dias: number;
-  vencendo30Dias: number;
+interface LancamentoResumo {
+  data_pagamento?: string | null;
+  is_boleto_recebido?: boolean;
+  vencimento_real?: string | null;
+  valor_real?: number | null;
+  valor_previsto?: number | null;
+  data_pedido?: string | null;
+  data_recebimento?: string | null;
 }
 
 interface PrecoAlerta {
@@ -241,736 +71,796 @@ interface PrecosAlerta {
   abaixo_media: number;
 }
 
-interface LancamentoResumo {
-  data_pagamento?: string | null;
-  is_boleto_recebido?: boolean;
-  vencimento_real?: string | null;
-  valor_real?: number | null;
-  valor_previsto?: number | null;
-  data_pedido?: string | null;
-  data_recebimento?: string | null;
+interface ValidadeAlerta {
+  vencidos: number;
+  vencendo7Dias: number;
+  vencendo30Dias: number;
 }
 
-type NeedItem = {
-  produto_id: string;
-  produto: string;
-  quantidade: number;
-  unidade: string;
-};
+interface BoletosAlerta {
+  vencidos: number;
+  totalVencidos: number;
+  vencendoHoje: number;
+  totalVencendoHoje: number;
+  vencendo7Dias: number;
+  totalVencendo7Dias: number;
+}
 
-export default function HomePage() {
-  const router = useRouter();
-  const auth = useAppAuthOptional();
-  const localUser = auth?.localUser ?? null;
+interface SpotlightCard {
+  title: string;
+  description: string;
+  href: string;
+  icon: LucideIcon;
+  roles: NivelAcesso[];
+  feature?: Feature;
+  badge?: string;
+}
 
-  const [copiado, setCopiado] = useState(false);
-  const [showEditor, setShowEditor] = useState(false);
-  const [selectedShortcuts, setSelectedShortcuts] = useState<string[]>([]);
-  const [editingSlot, setEditingSlot] = useState<number | null>(null);
+interface QuickModule {
+  id: string;
+  title: string;
+  href: string;
+  icon: LucideIcon;
+  roles: NivelAcesso[];
+  feature?: Feature;
+  color: string;
+}
 
-  const [boletosAlerta, setBoletosAlerta] = useState<BoletosAlerta | null>(null);
-  const [validadeAlerta, setValidadeAlerta] = useState<ValidadeAlerta | null>(null);
-  const [precosAlerta, setPrecosAlerta] = useState<PrecosAlerta | null>(null);
-  const [stats, setStats] = useState({ pedidosHoje: 0, aPagar: 0, entregas: 0 });
+const spotlightCards: SpotlightCard[] = [
+  {
+    title: "Caixa de Entrada",
+    description: "Arquivos, documentos e entradas organizadas em um fluxo prático.",
+    href: "/app/caixa-entrada",
+    icon: Inbox,
+    roles: ["comprador", "financeiro", "admin", "dono"],
+    feature: "caixa_entrada",
+    badge: "Fluxo",
+  },
+  {
+    title: "Assessor IA",
+    description: "Análises rápidas, inteligência aplicada e apoio para decidir melhor.",
+    href: "/app/assessor-ia",
+    icon: Brain,
+    roles: ["comprador", "financeiro", "admin", "dono"],
+    feature: "assessor_ia",
+    badge: "IA",
+  },
+  {
+    title: "Nova Compra",
+    description: "Comece uma compra e acelere o giro da operação.",
+    href: "/app/comprador",
+    icon: ShoppingCart,
+    roles: ["comprador", "admin", "dono"],
+    badge: "Ação",
+  },
+  {
+    title: "Precificação",
+    description: "Entenda margem, ajuste preço e proteja resultado.",
+    href: "/app/precificacao",
+    icon: BarChart3,
+    roles: ["financeiro", "admin", "dono"],
+    badge: "Margem",
+  },
+];
 
-  const necessidades = useMemo<NeedItem[]>(() => [], []);
+const ALL_QUICK_MODULES: QuickModule[] = [
+  {
+    id: "comprador",
+    title: "Comprar",
+    href: "/app/comprador",
+    icon: ShoppingCart,
+    roles: ["comprador", "admin", "dono"],
+    color: "bg-orange-50 text-orange-600",
+  },
+  {
+    id: "recebimento",
+    title: "Receber",
+    href: "/app/recebimento",
+    icon: Truck,
+    roles: ["operador", "comprador", "admin", "dono"],
+    color: "bg-emerald-50 text-emerald-600",
+  },
+  {
+    id: "financeiro",
+    title: "Financeiro",
+    href: "/app/financeiro",
+    icon: DollarSign,
+    roles: ["financeiro", "admin", "dono"],
+    color: "bg-rose-50 text-rose-600",
+  },
+  {
+    id: "estoque",
+    title: "Estoque",
+    href: "/app/estoque",
+    icon: Boxes,
+    roles: ["operador", "comprador", "admin", "dono"],
+    color: "bg-amber-50 text-amber-600",
+  },
+  {
+    id: "precificacao",
+    title: "Precificação",
+    href: "/app/precificacao",
+    icon: BarChart3,
+    roles: ["financeiro", "admin", "dono"],
+    color: "bg-fuchsia-50 text-fuchsia-600",
+  },
+  {
+    id: "usuarios",
+    title: "Usuários",
+    href: "/app/usuarios",
+    icon: Users,
+    roles: ["admin", "dono"],
+    color: "bg-blue-50 text-blue-600",
+  },
+  {
+    id: "configuracoes",
+    title: "Configurações",
+    href: "/app/configuracoes",
+    icon: Settings,
+    roles: ["admin", "dono"],
+    color: "bg-slate-50 text-slate-700",
+  },
+  {
+    id: "boletos-dda",
+    title: "Boletos DDA",
+    href: "/app/boletos-dda",
+    icon: CreditCard,
+    roles: ["financeiro", "admin", "dono"],
+    feature: "dda",
+    color: "bg-violet-50 text-violet-600",
+  },
+  {
+    id: "caixa-entrada",
+    title: "Entrada",
+    href: "/app/caixa-entrada",
+    icon: Inbox,
+    roles: ["comprador", "financeiro", "admin", "dono"],
+    feature: "caixa_entrada",
+    color: "bg-green-50 text-green-600",
+  },
+  {
+    id: "lista-compras",
+    title: "Lista Compras",
+    href: "/app/lista-compras",
+    icon: ListTodo,
+    roles: ["operador", "comprador", "admin", "dono"],
+    color: "bg-indigo-50 text-indigo-600",
+  },
+  {
+    id: "compra-mercado",
+    title: "Compra Mercado",
+    href: "/app/compra-mercado",
+    icon: QrCode,
+    roles: ["operador", "comprador", "admin", "dono"],
+    color: "bg-cyan-50 text-cyan-600",
+  },
+  {
+    id: "cotacao",
+    title: "Cotações",
+    href: "/app/cotacao",
+    icon: FileSearch,
+    roles: ["comprador", "admin", "dono"],
+    feature: "cotacao",
+    color: "bg-purple-50 text-purple-600",
+  },
+  {
+    id: "dashboard",
+    title: "Dashboard",
+    href: "/app/dashboard",
+    icon: TrendingUp,
+    roles: ["financeiro", "admin", "dono"],
+    color: "bg-orange-50 text-orange-600",
+  },
+  {
+    id: "equipe",
+    title: "Equipe",
+    href: "/app/equipe",
+    icon: Users,
+    roles: ["admin", "dono"],
+    color: "bg-blue-50 text-blue-600",
+  },
+];
 
-  const hasAnyRole = useCallback(
-    (roles: string[]) => {
-      const role = localUser?.nivel_acesso;
-      if (!role) return false;
-      return roles.includes(role);
-    },
-    [localUser?.nivel_acesso]
-  );
+function currency(value: number) {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(value);
+}
 
-  const availableModules = useMemo(
-    () => ALL_MODULES.filter((m) => hasAnyRole(m.roles)),
-    [hasAnyRole]
-  );
+function hasPremiumBadge(feature?: Feature) {
+  return !!feature && PREMIUM_FEATURES.includes(feature);
+}
 
-  const shortcutModules = useMemo(() => {
-    const list = selectedShortcuts
-      .map((id) => ALL_MODULES.find((m) => m.id === id))
-      .filter((m): m is ModuleCard => !!m && hasAnyRole(m.roles));
+function getDefaultShortcutsByRole(role?: NivelAcesso): string[] {
+  switch (role) {
+    case "comprador":
+      return ["comprador", "recebimento", "estoque", "cotacao"];
+    case "financeiro":
+      return ["financeiro", "boletos-dda", "dashboard", "precificacao"];
+    case "operador":
+      return ["recebimento", "estoque", "lista-compras", "compra-mercado"];
+    case "admin":
+    case "dono":
+      return ["dashboard", "financeiro", "usuarios", "configuracoes"];
+    default:
+      return ["dashboard", "estoque", "financeiro", "configuracoes"];
+  }
+}
 
-    while (list.length < 4) {
-      list.push(undefined as unknown as ModuleCard);
-    }
+export default function AppHomePage() {
+  const { localUser, hasRole, hasFeature } = useAppAuth();
 
-    return list.slice(0, 4);
-  }, [selectedShortcuts, hasAnyRole]);
+  const [stats, setStats] = useState({
+    pedidosHoje: 0,
+    aPagar: 0,
+    entregasPendentes: 0,
+  });
 
-  const linkIndicacao = useMemo(
-    () => `https://dqifkajp3lsn2.mocha.app/cadastro?ref=${localUser?.id || ""}`,
-    [localUser?.id]
-  );
+  const [boletos, setBoletos] = useState<BoletosAlerta | null>(null);
+  const [validade, setValidade] = useState<ValidadeAlerta | null>(null);
+  const [precos, setPrecos] = useState<PrecosAlerta | null>(null);
 
-  const copiarLink = () => {
-    navigator.clipboard.writeText(linkIndicacao);
-    setCopiado(true);
-    setTimeout(() => setCopiado(false), 2000);
-  };
+  const [showShortcutEditor, setShowShortcutEditor] = useState(false);
+  const [quickShortcutIds, setQuickShortcutIds] = useState<string[]>([]);
 
-  const saveShortcuts = (shortcuts: string[]) => {
-    const cleaned = shortcuts.filter(Boolean).slice(0, 4);
-    setSelectedShortcuts(cleaned);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(cleaned));
-  };
+  const role = localUser?.nivel_acesso;
+  const storageKey = `pappi_home_shortcuts_${localUser?.id || "anon"}`;
 
-  const handleSelectModule = (moduleId: string) => {
-    if (editingSlot === null) return;
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [lancRes, validadeRes, precosRes] = await Promise.all([
+          fetch("/api/lancamentos", { cache: "no-store" }),
+          fetch("/api/estoque/alertas-validade", { cache: "no-store" }),
+          fetch("/api/alertas-precos", { cache: "no-store" }),
+        ]);
 
-    const newShortcuts = [...selectedShortcuts];
-    const existingIndex = newShortcuts.indexOf(moduleId);
+        if (validadeRes.ok) {
+          const validadeData = await validadeRes.json();
+          setValidade({
+            vencidos: Number(validadeData?.vencidos?.count || 0),
+            vencendo7Dias: Number(validadeData?.vencendo_7dias?.count || 0),
+            vencendo30Dias: Number(validadeData?.vencendo_30dias?.count || 0),
+          });
+        }
 
-    if (existingIndex !== -1 && existingIndex !== editingSlot) {
-      newShortcuts[existingIndex] = newShortcuts[editingSlot] || "";
-    }
+        if (precosRes.ok) {
+          const precosData = (await precosRes.json()) as PrecosAlerta;
+          setPrecos(precosData);
+        }
 
-    newShortcuts[editingSlot] = moduleId;
+        if (lancRes.ok) {
+          const lancamentos = (await lancRes.json()) as LancamentoResumo[];
 
-    saveShortcuts(newShortcuts);
-    setEditingSlot(null);
-    setShowEditor(false);
-  };
+          const hoje = new Date();
+          hoje.setHours(0, 0, 0, 0);
 
-  const fetchAlertas = useCallback(async () => {
-    try {
-      const [lancRes, validadeRes, precosRes] = await Promise.all([
-        fetch("/api/lancamentos", { cache: "no-store" }),
-        fetch("/api/estoque/alertas-validade", { cache: "no-store" }),
-        fetch("/api/alertas-precos", { cache: "no-store" }),
-      ]);
+          const em7Dias = new Date(hoje);
+          em7Dias.setDate(em7Dias.getDate() + 7);
 
-      if (precosRes.ok) {
-        const precosData = (await precosRes.json()) as PrecosAlerta;
-        setPrecosAlerta(precosData);
+          const naoPagos = lancamentos.filter(
+            (l) => !l.data_pagamento && !!l.is_boleto_recebido
+          );
+
+          const vencidos = naoPagos.filter((l) => {
+            if (!l.vencimento_real) return false;
+            const venc = new Date(l.vencimento_real);
+            venc.setHours(0, 0, 0, 0);
+            return venc < hoje;
+          });
+
+          const vencendoHoje = naoPagos.filter((l) => {
+            if (!l.vencimento_real) return false;
+            const venc = new Date(l.vencimento_real);
+            venc.setHours(0, 0, 0, 0);
+            return venc.getTime() === hoje.getTime();
+          });
+
+          const vencendo7Dias = naoPagos.filter((l) => {
+            if (!l.vencimento_real) return false;
+            const venc = new Date(l.vencimento_real);
+            venc.setHours(0, 0, 0, 0);
+            return venc > hoje && venc <= em7Dias;
+          });
+
+          setBoletos({
+            vencidos: vencidos.length,
+            totalVencidos: vencidos.reduce(
+              (acc, l) => acc + Number(l.valor_real || l.valor_previsto || 0),
+              0
+            ),
+            vencendoHoje: vencendoHoje.length,
+            totalVencendoHoje: vencendoHoje.reduce(
+              (acc, l) => acc + Number(l.valor_real || l.valor_previsto || 0),
+              0
+            ),
+            vencendo7Dias: vencendo7Dias.length,
+            totalVencendo7Dias: vencendo7Dias.reduce(
+              (acc, l) => acc + Number(l.valor_real || l.valor_previsto || 0),
+              0
+            ),
+          });
+
+          const hojeStr = hoje.toISOString().split("T")[0];
+          setStats({
+            pedidosHoje: lancamentos.filter((l) => l.data_pedido === hojeStr).length,
+            aPagar: naoPagos.length,
+            entregasPendentes: lancamentos.filter(
+              (l) => !l.data_recebimento && !!l.is_boleto_recebido
+            ).length,
+          });
+        }
+      } catch (error) {
+        console.error("Erro ao carregar home:", error);
       }
+    };
 
-      if (validadeRes.ok) {
-        const validadeData = await validadeRes.json();
-        setValidadeAlerta({
-          vencidos: Number(validadeData?.vencidos?.count || 0),
-          vencendo7Dias: Number(validadeData?.vencendo_7dias?.count || 0),
-          vencendo30Dias: Number(validadeData?.vencendo_30dias?.count || 0),
-        });
-      }
-
-      if (lancRes.ok) {
-        const lancamentos = (await lancRes.json()) as LancamentoResumo[];
-
-        const hoje = new Date();
-        hoje.setHours(0, 0, 0, 0);
-
-        const em7Dias = new Date(hoje);
-        em7Dias.setDate(em7Dias.getDate() + 7);
-
-        const naoPagos = lancamentos.filter(
-          (l) => !l.data_pagamento && !!l.is_boleto_recebido
-        );
-
-        const vencidos = naoPagos.filter((l) => {
-          if (!l.vencimento_real) return false;
-          const venc = new Date(l.vencimento_real);
-          venc.setHours(0, 0, 0, 0);
-          return venc < hoje;
-        });
-
-        const vencendoHoje = naoPagos.filter((l) => {
-          if (!l.vencimento_real) return false;
-          const venc = new Date(l.vencimento_real);
-          venc.setHours(0, 0, 0, 0);
-          return venc.getTime() === hoje.getTime();
-        });
-
-        const vencendo7Dias = naoPagos.filter((l) => {
-          if (!l.vencimento_real) return false;
-          const venc = new Date(l.vencimento_real);
-          venc.setHours(0, 0, 0, 0);
-          return venc > hoje && venc <= em7Dias;
-        });
-
-        setBoletosAlerta({
-          vencidos: vencidos.length,
-          totalVencidos: vencidos.reduce(
-            (acc, l) => acc + Number(l.valor_real || l.valor_previsto || 0),
-            0
-          ),
-          vencendoHoje: vencendoHoje.length,
-          totalVencendoHoje: vencendoHoje.reduce(
-            (acc, l) => acc + Number(l.valor_real || l.valor_previsto || 0),
-            0
-          ),
-          vencendo7Dias: vencendo7Dias.length,
-          totalVencendo7Dias: vencendo7Dias.reduce(
-            (acc, l) => acc + Number(l.valor_real || l.valor_previsto || 0),
-            0
-          ),
-        });
-
-        const hojeStr = hoje.toISOString().split("T")[0];
-        const pedidosHoje = lancamentos.filter((l) => l.data_pedido === hojeStr).length;
-        const aPagar = naoPagos.length;
-        const entregas = lancamentos.filter(
-          (l) => !l.data_recebimento && !!l.is_boleto_recebido
-        ).length;
-
-        setStats({ pedidosHoje, aPagar, entregas });
-      }
-    } catch (error) {
-      console.error("Erro ao buscar alertas:", error);
-    }
+    fetchData();
   }, []);
 
-  useEffect(() => {
-    fetchAlertas();
-  }, [fetchAlertas]);
+  const availableQuickModules = useMemo(() => {
+    return ALL_QUICK_MODULES.filter((item) => {
+      if (!hasRole(item.roles)) return false;
+      if (item.feature && !hasFeature(item.feature)) return false;
+      return true;
+    });
+  }, [hasRole, hasFeature]);
 
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const saved = localStorage.getItem(storageKey);
 
     if (saved) {
       try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length <= 4) {
-          setSelectedShortcuts(parsed);
+        const parsed = JSON.parse(saved) as string[];
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setQuickShortcutIds(parsed);
           return;
         }
       } catch {}
     }
 
-    const defaults = DEFAULT_SHORTCUTS.filter((id) =>
-      availableModules.some((m) => m.id === id)
+    const defaults = getDefaultShortcutsByRole(role).filter((id) =>
+      availableQuickModules.some((m) => m.id === id)
     );
 
-    while (defaults.length < 4 && availableModules.length > defaults.length) {
-      const next = availableModules.find((m) => !defaults.includes(m.id));
-      if (next) defaults.push(next.id);
+    const fallback = [...defaults];
+    for (const mod of availableQuickModules) {
+      if (fallback.length >= 4) break;
+      if (!fallback.includes(mod.id)) fallback.push(mod.id);
     }
 
-    setSelectedShortcuts(defaults.slice(0, 4));
-  }, [availableModules]);
+    setQuickShortcutIds(fallback.slice(0, 4));
+  }, [storageKey, role, availableQuickModules]);
 
-  const currency = (value: number) =>
-    new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(value);
+  const quickModules = useMemo(() => {
+    const modules = quickShortcutIds
+      .map((id) => availableQuickModules.find((m) => m.id === id))
+      .filter((m): m is QuickModule => !!m);
+
+    return modules.slice(0, 4);
+  }, [quickShortcutIds, availableQuickModules]);
+
+  const saveShortcuts = (ids: string[]) => {
+    const next = ids.slice(0, 4);
+    setQuickShortcutIds(next);
+    localStorage.setItem(storageKey, JSON.stringify(next));
+  };
+
+  const toggleShortcut = (id: string) => {
+    const exists = quickShortcutIds.includes(id);
+
+    if (exists) {
+      saveShortcuts(quickShortcutIds.filter((x) => x !== id));
+      return;
+    }
+
+    if (quickShortcutIds.length < 4) {
+      saveShortcuts([...quickShortcutIds, id]);
+      return;
+    }
+
+    saveShortcuts([...quickShortcutIds.slice(1), id]);
+  };
+
+  const nome = localUser?.nome?.split(" ")[0] || "Gestor";
+  const empresaNome = localUser?.nome_empresa || "Pappi Gestor";
+
+  const spotlightVisible = useMemo(() => {
+    return spotlightCards.filter((item) => {
+      if (!hasRole(item.roles)) return false;
+      if (item.feature && !hasFeature(item.feature)) return false;
+      return true;
+    });
+  }, [hasRole, hasFeature]);
+
+  const prioridadeFinanceira = useMemo(() => {
+    if (!boletos) return null;
+    if (boletos.vencidos > 0) {
+      return {
+        title: "Atenção no financeiro",
+        description: `${boletos.vencidos} vencido(s) • ${currency(boletos.totalVencidos)}`,
+        href: "/app/financeiro",
+        color: "from-red-500 to-red-600",
+        icon: AlertTriangle,
+      };
+    }
+    if (boletos.vencendoHoje > 0) {
+      return {
+        title: "Pagamentos vencem hoje",
+        description: `${boletos.vencendoHoje} boleto(s) • ${currency(boletos.totalVencendoHoje)}`,
+        href: "/app/financeiro",
+        color: "from-orange-500 via-orange-500 to-pink-500",
+        icon: Clock3,
+      };
+    }
+    return {
+      title: "Financeiro sob controle",
+      description: "Sem urgência crítica no momento.",
+      href: "/app/financeiro",
+      color: "from-emerald-500 to-green-600",
+      icon: ShieldCheck,
+    };
+  }, [boletos]);
+
+  const operacaoInsight = useMemo(() => {
+    if (validade && validade.vencidos > 0) {
+      return {
+        title: "Produtos vencidos",
+        description: `${validade.vencidos} item(ns) precisam de ação.`,
+        href: "/app/estoque",
+        icon: Package,
+      };
+    }
+
+    if (validade && validade.vencendo7Dias > 0) {
+      return {
+        title: "Giro de estoque",
+        description: `${validade.vencendo7Dias} item(ns) vencem em até 7 dias.`,
+        href: "/app/estoque",
+        icon: ClipboardCheck,
+      };
+    }
+
+    if (precos && precos.abaixo_media > 0) {
+      return {
+        title: "Economia detectada",
+        description: `${precos.abaixo_media} oportunidade(s) abaixo da média.`,
+        href: "/app/ranking-fornecedores",
+        icon: Trophy,
+      };
+    }
+
+    return {
+      title: "Operação estável",
+      description: "Sem alertas críticos agora.",
+      href: "/app/dashboard",
+      icon: CheckCircle2,
+    };
+  }, [validade, precos]);
 
   return (
-    <div className="space-y-6">
-      <div className="relative overflow-hidden bg-gradient-to-br from-orange-500 via-red-500 to-rose-600 rounded-3xl p-5 text-white shadow-xl shadow-orange-500/20">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
-        <div className="absolute bottom-0 left-0 w-20 h-20 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2" />
+    <div className="space-y-4">
+      <section className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-gray-950 via-orange-600 to-pink-500 text-white shadow-xl shadow-orange-500/20">
+        <div className="absolute right-0 top-0 h-28 w-28 rounded-full bg-white/10 blur-2xl" />
+        <div className="absolute bottom-0 left-0 h-20 w-20 rounded-full bg-white/10 blur-2xl" />
 
-        <div className="relative flex items-center justify-between gap-4">
-          <div>
-            <h1 className="text-xl font-bold">
-              Olá, {localUser?.nome?.split(" ")[0] || "Gestor"}! 👋
+        <div className="relative space-y-4 p-4 sm:p-5">
+          <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-orange-50">
+            <Sparkles className="h-3.5 w-3.5" />
+            operação inteligente
+          </div>
+
+          <div className="space-y-1">
+            <h1 className="text-2xl font-black leading-tight sm:text-3xl">
+              Olá, {nome}.
             </h1>
-            <p className="text-white/80 text-sm mt-0.5">
-              {localUser?.nivel_acesso
-                ? NIVEL_LABELS[localUser.nivel_acesso] || localUser.nivel_acesso
-                : ""}
-              {localUser?.nome_empresa ? ` • ${localUser.nome_empresa}` : ""}
+            <p className="max-w-xl text-sm text-orange-50/90">
+              Controle mais, perca menos e descubra oportunidades antes que elas passem.
             </p>
           </div>
 
-          <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center text-lg font-bold shadow-lg">
-            {localUser?.nome?.charAt(0)?.toUpperCase() || "P"}
+          <div className="grid grid-cols-3 gap-2">
+            <div className="rounded-2xl bg-white/15 p-3 backdrop-blur-sm">
+              <div className="flex items-center gap-1 text-orange-100">
+                <TrendingUp className="h-4 w-4" />
+              </div>
+              <div className="mt-1 text-xl font-black">{stats.pedidosHoje}</div>
+              <p className="text-[10px] text-orange-100/90">Pedidos</p>
+            </div>
+
+            <div className="rounded-2xl bg-white/15 p-3 backdrop-blur-sm">
+              <div className="flex items-center gap-1 text-orange-100">
+                <DollarSign className="h-4 w-4" />
+              </div>
+              <div className="mt-1 text-xl font-black">{stats.aPagar}</div>
+              <p className="text-[10px] text-orange-100/90">A pagar</p>
+            </div>
+
+            <div className="rounded-2xl bg-white/15 p-3 backdrop-blur-sm">
+              <div className="flex items-center gap-1 text-orange-100">
+                <Truck className="h-4 w-4" />
+              </div>
+              <div className="mt-1 text-xl font-black">{stats.entregasPendentes}</div>
+              <p className="text-[10px] text-orange-100/90">Entregas</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 text-[11px] text-orange-50/85">
+            <CheckCircle2 className="h-4 w-4" />
+            <span>{empresaNome} com visão central da operação.</span>
           </div>
         </div>
+      </section>
 
-        <div className="relative grid grid-cols-3 gap-2 mt-4">
-          <div className="bg-white/15 backdrop-blur-sm rounded-lg p-2.5 text-center">
-            <div className="flex items-center justify-center gap-1">
-              <TrendingUp className="w-3.5 h-3.5" />
-              <span className="text-lg font-bold">{stats.pedidosHoje}</span>
-            </div>
-            <p className="text-[10px] text-white/70">Pedidos Hoje</p>
-          </div>
-
-          <div className="bg-white/15 backdrop-blur-sm rounded-lg p-2.5 text-center">
-            <div className="flex items-center justify-center gap-1">
-              <AlertCircle className="w-3.5 h-3.5" />
-              <span className="text-lg font-bold">{stats.aPagar}</span>
-            </div>
-            <p className="text-[10px] text-white/70">A Pagar</p>
-          </div>
-
-          <div className="bg-white/15 backdrop-blur-sm rounded-lg p-2.5 text-center">
-            <div className="flex items-center justify-center gap-1">
-              <Clock className="w-3.5 h-3.5" />
-              <span className="text-lg font-bold">{stats.entregas}</span>
-            </div>
-            <p className="text-[10px] text-white/70">Entregas</p>
-          </div>
-        </div>
-      </div>
-
-      <Card className="border-orange-200 bg-orange-50">
-        <CardHeader>
-          <CardTitle>⚠️ Itens para comprar</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {necessidades.length === 0 && (
-            <p className="text-sm text-gray-500">Estoque saudável</p>
-          )}
-
-          {necessidades.map((n) => (
-            <div key={n.produto_id} className="flex justify-between py-2 border-b">
-              <span>{n.produto}</span>
-              <span className="font-bold text-orange-600">
-                {n.quantidade} {n.unidade}
-              </span>
-            </div>
-          ))}
-
-          <Button className="mt-4 w-full" onClick={() => router.push("/app/lista-compras")}>
-            Gerenciar compras
-          </Button>
-        </CardContent>
-      </Card>
-
-      {boletosAlerta &&
-        (boletosAlerta.vencidos > 0 ||
-          boletosAlerta.vencendoHoje > 0 ||
-          boletosAlerta.vencendo7Dias > 0) && (
-          <Card className="border-0 overflow-hidden shadow-lg">
-            <CardContent className="p-0">
-              {boletosAlerta.vencidos > 0 && (
-                <Link
-                  href="/app/financeiro"
-                  className="flex items-center gap-3 p-3 bg-gradient-to-r from-red-500 to-rose-600 text-white hover:from-red-600 hover:to-rose-700 transition-all"
-                >
-                  <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center flex-shrink-0">
-                    <AlertCircle className="w-5 h-5" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-bold text-sm">
-                      🚨 {boletosAlerta.vencidos} boleto
-                      {boletosAlerta.vencidos > 1 ? "s" : ""} vencido
-                      {boletosAlerta.vencidos > 1 ? "s" : ""}!
+      <section className="grid gap-3 md:grid-cols-2">
+        {prioridadeFinanceira && (
+          <Link href={prioridadeFinanceira.href}>
+            <Card className="border-0 shadow-md">
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-orange-400">
+                      prioridade
                     </p>
-                    <p className="text-red-100 text-xs">
-                      Total: {currency(boletosAlerta.totalVencidos)}
+                    <h2 className="mt-1 text-base font-black text-gray-900">
+                      {prioridadeFinanceira.title}
+                    </h2>
+                    <p className="mt-1 text-sm text-gray-500">
+                      {prioridadeFinanceira.description}
                     </p>
                   </div>
-                  <span className="text-white/80 text-xs">Ver →</span>
-                </Link>
-              )}
 
-              {boletosAlerta.vencendoHoje > 0 && (
-                <Link
-                  href="/app/financeiro"
-                  className="flex items-center gap-3 p-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600 transition-all"
-                >
-                  <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center flex-shrink-0">
-                    <Clock className="w-5 h-5" />
+                  <div
+                    className={`rounded-2xl bg-gradient-to-br ${prioridadeFinanceira.color} p-3 text-white shadow-md`}
+                  >
+                    <prioridadeFinanceira.icon className="h-5 w-5" />
                   </div>
-                  <div className="flex-1">
-                    <p className="font-bold text-sm">
-                      ⚠️ {boletosAlerta.vencendoHoje} boleto
-                      {boletosAlerta.vencendoHoje > 1 ? "s" : ""} vence
-                      {boletosAlerta.vencendoHoje > 1 ? "m" : ""} HOJE!
-                    </p>
-                    <p className="text-orange-100 text-xs">
-                      Total: {currency(boletosAlerta.totalVencendoHoje)}
-                    </p>
-                  </div>
-                  <span className="text-white/80 text-xs">Ver →</span>
-                </Link>
-              )}
+                </div>
 
-              {boletosAlerta.vencendo7Dias > 0 && (
-                <Link
-                  href="/app/financeiro"
-                  className="flex items-center gap-3 p-3 bg-gradient-to-r from-yellow-500 to-amber-400 text-yellow-900 hover:from-yellow-400 hover:to-amber-300 transition-all"
-                >
-                  <div className="w-10 h-10 bg-yellow-900/20 backdrop-blur-sm rounded-xl flex items-center justify-center flex-shrink-0">
-                    <Calculator className="w-5 h-5" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-bold text-sm">
-                      📅 {boletosAlerta.vencendo7Dias} boleto
-                      {boletosAlerta.vencendo7Dias > 1 ? "s" : ""} nos próximos 7 dias
-                    </p>
-                    <p className="text-yellow-800 text-xs">
-                      Total: {currency(boletosAlerta.totalVencendo7Dias)}
-                    </p>
-                  </div>
-                  <span className="text-yellow-800/80 text-xs">Ver →</span>
-                </Link>
-              )}
-            </CardContent>
-          </Card>
+                <div className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-orange-600">
+                  Abrir
+                  <ChevronRight className="h-4 w-4" />
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
         )}
 
-      {validadeAlerta &&
-        (validadeAlerta.vencidos > 0 ||
-          validadeAlerta.vencendo7Dias > 0 ||
-          validadeAlerta.vencendo30Dias > 0) && (
-          <Card className="border-0 overflow-hidden shadow-lg">
-            <CardContent className="p-0">
-              {validadeAlerta.vencidos > 0 && (
-                <Link
-                  href="/app/estoque"
-                  className="flex items-center gap-3 p-3 bg-gradient-to-r from-red-600 to-pink-600 text-white hover:from-red-700 hover:to-pink-700 transition-all"
-                >
-                  <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center flex-shrink-0">
-                    <Package className="w-5 h-5" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-bold text-sm">
-                      🚨 {validadeAlerta.vencidos} produto
-                      {validadeAlerta.vencidos > 1 ? "s" : ""} com validade vencida!
-                    </p>
-                    <p className="text-red-100 text-xs">Verificar estoque urgente</p>
-                  </div>
-                  <span className="text-white/80 text-xs">Ver →</span>
-                </Link>
-              )}
+        <Link href={operacaoInsight.href}>
+          <Card className="border-0 shadow-md">
+            <CardContent className="p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-orange-400">
+                    insight
+                  </p>
+                  <h2 className="mt-1 text-base font-black text-gray-900">
+                    {operacaoInsight.title}
+                  </h2>
+                  <p className="mt-1 text-sm text-gray-500">
+                    {operacaoInsight.description}
+                  </p>
+                </div>
 
-              {validadeAlerta.vencendo7Dias > 0 && (
-                <Link
-                  href="/app/estoque"
-                  className="flex items-center gap-3 p-3 bg-gradient-to-r from-orange-600 to-red-500 text-white hover:from-orange-700 hover:to-red-600 transition-all"
-                >
-                  <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center flex-shrink-0">
-                    <Package className="w-5 h-5" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-bold text-sm">
-                      ⚠️ {validadeAlerta.vencendo7Dias} produto
-                      {validadeAlerta.vencendo7Dias > 1 ? "s" : ""} vence
-                      {validadeAlerta.vencendo7Dias > 1 ? "m" : ""} em 7 dias
-                    </p>
-                    <p className="text-orange-100 text-xs">Priorizar consumo</p>
-                  </div>
-                  <span className="text-white/80 text-xs">Ver →</span>
-                </Link>
-              )}
+                <div className="rounded-2xl bg-orange-50 p-3 text-orange-600">
+                  <operacaoInsight.icon className="h-5 w-5" />
+                </div>
+              </div>
 
-              {validadeAlerta.vencendo30Dias > 0 && (
-                <Link
-                  href="/app/estoque"
-                  className="flex items-center gap-3 p-3 bg-gradient-to-r from-amber-500 to-yellow-400 text-amber-900 hover:from-amber-400 hover:to-yellow-300 transition-all"
-                >
-                  <div className="w-10 h-10 bg-amber-900/20 backdrop-blur-sm rounded-xl flex items-center justify-center flex-shrink-0">
-                    <Package className="w-5 h-5" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-bold text-sm">
-                      📦 {validadeAlerta.vencendo30Dias} produto
-                      {validadeAlerta.vencendo30Dias > 1 ? "s" : ""} vence
-                      {validadeAlerta.vencendo30Dias > 1 ? "m" : ""} em 30 dias
-                    </p>
-                    <p className="text-amber-800 text-xs">Atenção ao estoque</p>
-                  </div>
-                  <span className="text-amber-800/80 text-xs">Ver →</span>
-                </Link>
-              )}
+              <div className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-orange-600">
+                Explorar
+                <ChevronRight className="h-4 w-4" />
+              </div>
             </CardContent>
           </Card>
-        )}
+        </Link>
+      </section>
 
-      {precosAlerta && precosAlerta.total > 0 && (
-        <Card className="border-0 overflow-hidden shadow-lg">
-          <CardContent className="p-0">
-            {precosAlerta.acima_media > 0 && (
-              <Link
-                href="/app/ranking-fornecedores"
-                className="flex items-center gap-3 p-3 bg-gradient-to-r from-red-500 to-orange-500 text-white hover:from-red-600 hover:to-orange-600 transition-all"
-              >
-                <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center flex-shrink-0">
-                  <DollarSign className="w-5 h-5" />
-                </div>
-                <div className="flex-1">
-                  <p className="font-bold text-sm">
-                    📈 {precosAlerta.acima_media} produto
-                    {precosAlerta.acima_media > 1 ? "s" : ""} acima da média!
-                  </p>
-                  <p className="text-red-100 text-xs">
-                    {precosAlerta.alertas.find((a) => a.tipo === "acima")?.produto_nome || "Produto"}:
-                    {" +"}
-                    {precosAlerta.alertas.find((a) => a.tipo === "acima")?.variacao_percentual || 0}%
-                  </p>
-                </div>
-                <span className="text-white/80 text-xs">Ver →</span>
-              </Link>
-            )}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between px-1">
+          <div>
+            <h2 className="text-base font-black text-gray-900">Acesso rápido</h2>
+            <p className="text-sm text-gray-500">
+              Personalizado por usuário e nível de acesso.
+            </p>
+          </div>
 
-            {precosAlerta.abaixo_media > 0 && (
-              <Link
-                href="/app/ranking-fornecedores"
-                className="flex items-center gap-3 p-3 bg-gradient-to-r from-emerald-500 to-green-500 text-white hover:from-emerald-600 hover:to-green-600 transition-all"
-              >
-                <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center flex-shrink-0">
-                  <TrendingUp className="w-5 h-5" />
-                </div>
-                <div className="flex-1">
-                  <p className="font-bold text-sm">
-                    💰 {precosAlerta.abaixo_media} oportunidade
-                    {precosAlerta.abaixo_media > 1 ? "s" : ""} de economia!
-                  </p>
-                  <p className="text-green-100 text-xs">
-                    {precosAlerta.alertas.find((a) => a.tipo === "abaixo")?.produto_nome || "Produto"}:
-                    {" "}
-                    {precosAlerta.alertas.find((a) => a.tipo === "abaixo")?.variacao_percentual || 0}%
-                  </p>
-                </div>
-                <span className="text-white/80 text-xs">Ver →</span>
-              </Link>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-base font-bold text-gray-800">Acesso Rápido</h2>
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => {
-              setShowEditor(true);
-              setEditingSlot(null);
-            }}
-            className="text-gray-500 hover:text-gray-700 gap-1.5 h-8"
+            onClick={() => setShowShortcutEditor(true)}
+            className="gap-1.5 text-orange-600 hover:bg-orange-50 hover:text-orange-700"
           >
-            <Pencil className="w-3.5 h-3.5" />
+            <Pencil className="h-4 w-4" />
             Editar
           </Button>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          {shortcutModules.slice(0, 4).map((card, index) => {
-            if (!card) {
-              return (
-                <button
-                  key={`empty-${index}`}
-                  onClick={() => {
-                    setShowEditor(true);
-                    setEditingSlot(index);
-                  }}
-                  className="border-2 border-dashed border-gray-200 rounded-2xl p-4 flex flex-col items-center justify-center min-h-[120px] hover:border-gray-300 hover:bg-gray-50 transition-all"
-                >
-                  <Plus className="w-8 h-8 text-gray-300" />
-                  <span className="text-xs text-gray-400 mt-2">Adicionar</span>
-                </button>
-              );
-            }
+          {quickModules.map((item) => (
+            <Link key={item.id} href={item.href}>
+              <Card className="border-0 shadow-sm transition-all hover:shadow-md">
+                <CardContent className="p-4">
+                  <div className={`inline-flex rounded-2xl p-3 ${item.color}`}>
+                    <item.icon className="h-5 w-5" />
+                  </div>
+                  <h3 className="mt-3 text-sm font-black text-gray-900">{item.title}</h3>
+                  <div className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-orange-600">
+                    Entrar
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
 
-            const Icon = card.icon;
-
-            return (
-              <Link
-                key={card.id}
-                href={card.href}
-                className={`${card.bgLight} group relative overflow-hidden rounded-2xl p-4 border-2 border-transparent hover:border-gray-200 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg active:scale-[0.98] min-h-[120px]`}
+          {quickModules.length < 4 &&
+            Array.from({ length: 4 - quickModules.length }).map((_, index) => (
+              <button
+                key={`empty-${index}`}
+                onClick={() => setShowShortcutEditor(true)}
+                className="rounded-2xl border-2 border-dashed border-orange-200 bg-orange-50/50 p-4 text-left transition-all hover:border-orange-300 hover:bg-orange-50"
               >
-                <div
-                  className={`w-12 h-12 bg-gradient-to-br ${card.gradient} rounded-xl flex items-center justify-center shadow-lg ${card.shadowColor} mb-3 group-hover:scale-110 transition-transform duration-300`}
-                >
-                  <Icon className="w-6 h-6 text-white" />
+                <div className="inline-flex rounded-2xl bg-white p-3 text-orange-500 shadow-sm">
+                  <Plus className="h-5 w-5" />
                 </div>
-                <h3 className="font-semibold text-gray-800">{card.title}</h3>
-                <p className="text-xs text-gray-500 mt-0.5">{card.description}</p>
-
-                <div
-                  className={`absolute inset-0 bg-gradient-to-br ${card.gradient} opacity-0 group-hover:opacity-5 transition-opacity duration-300 rounded-2xl`}
-                />
-              </Link>
-            );
-          })}
+                <h3 className="mt-3 text-sm font-black text-gray-800">Adicionar</h3>
+                <div className="mt-2 text-xs font-semibold text-orange-600">
+                  Escolher atalho
+                </div>
+              </button>
+            ))}
         </div>
-      </div>
+      </section>
 
-      <button
-        onClick={() => {
-          setShowEditor(true);
-          setEditingSlot(null);
-        }}
-        className="flex items-center justify-center gap-2 text-sm text-gray-500 hover:text-gray-700 py-2 w-full"
-      >
-        Ver todos os {availableModules.length} módulos →
-      </button>
+      <section className="space-y-3">
+        <div className="px-1">
+          <h2 className="text-base font-black text-gray-900">Explore o potencial do app</h2>
+          <p className="text-sm text-gray-500">
+            Áreas com mais valor percebido e mais impacto na rotina.
+          </p>
+        </div>
 
-      <Card className="border-0 bg-gradient-to-r from-emerald-500 to-green-600 text-white shadow-lg shadow-emerald-500/20 overflow-hidden">
-        <CardContent className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center flex-shrink-0">
-              <Gift className="w-5 h-5 text-white" />
+        <div className="grid gap-3">
+          {spotlightVisible.map((item) => (
+            <Link key={item.title} href={item.href}>
+              <Card className="border-0 shadow-sm transition-all hover:shadow-md">
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="rounded-2xl bg-orange-50 p-3 text-orange-600">
+                      <item.icon className="h-5 w-5" />
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-sm font-black text-gray-900">{item.title}</h3>
+
+                        {item.badge && (
+                          <span className="rounded-full bg-orange-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-orange-600">
+                            {item.badge}
+                          </span>
+                        )}
+
+                        {hasPremiumBadge(item.feature) && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 px-2 py-0.5 text-[10px] font-bold text-white">
+                            <Crown className="h-3 w-3" />
+                            PRO
+                          </span>
+                        )}
+                      </div>
+
+                      <p className="mt-1 text-sm text-gray-500">{item.description}</p>
+
+                      <div className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-orange-600">
+                        Acessar
+                        <ChevronRight className="h-3.5 w-3.5" />
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <section className="grid gap-3 md:grid-cols-3">
+        <Card className="border-0 bg-orange-50 shadow-sm">
+          <CardContent className="p-4">
+            <div className="w-fit rounded-2xl bg-white p-3 text-orange-600 shadow-sm">
+              <BarChart3 className="h-5 w-5" />
             </div>
+            <h3 className="mt-3 text-sm font-black text-gray-900">Mais clareza</h3>
+            <p className="mt-1 text-sm text-gray-600">
+              O cliente entende rápido o que precisa fazer.
+            </p>
+          </CardContent>
+        </Card>
 
-            <div className="flex-1 min-w-0">
-              <h3 className="text-sm font-bold">Indique e Ganhe R$ 20!</h3>
-              <p className="text-emerald-100 text-xs">
-                Convide comerciantes e ganhe crédito
-              </p>
+        <Card className="border-0 bg-orange-50 shadow-sm">
+          <CardContent className="p-4">
+            <div className="w-fit rounded-2xl bg-white p-3 text-orange-600 shadow-sm">
+              <Zap className="h-5 w-5" />
             </div>
+            <h3 className="mt-3 text-sm font-black text-gray-900">Mais ação</h3>
+            <p className="mt-1 text-sm text-gray-600">
+              Menos confusão e mais velocidade operacional.
+            </p>
+          </CardContent>
+        </Card>
 
-            <Button
-              onClick={copiarLink}
-              size="sm"
-              className="bg-white text-emerald-600 hover:bg-emerald-50 font-semibold px-3 flex-shrink-0"
-            >
-              {copiado ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="border-purple-200 bg-gradient-to-br from-purple-50 to-fuchsia-50">
-        <CardContent className="p-4">
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-fuchsia-500 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg shadow-purple-500/30">
-              <Sparkles className="w-5 h-5 text-white" />
+        <Card className="border-0 bg-orange-50 shadow-sm">
+          <CardContent className="p-4">
+            <div className="w-fit rounded-2xl bg-white p-3 text-orange-600 shadow-sm">
+              <ShieldCheck className="h-5 w-5" />
             </div>
+            <h3 className="mt-3 text-sm font-black text-gray-900">Mais segurança</h3>
+            <p className="mt-1 text-sm text-gray-600">
+              Riscos e oportunidades ficam visíveis mais cedo.
+            </p>
+          </CardContent>
+        </Card>
+      </section>
 
-            <div>
-              <h3 className="font-bold text-gray-900 text-sm">
-                💡 Dica: Use o Assessor IA
-              </h3>
-              <p className="text-xs text-gray-600 mt-1">
-                Tire fotos de notas fiscais e a IA extrai os dados automaticamente!
-              </p>
-              <Link
-                href="/app/assessor-ia"
-                className="inline-flex items-center gap-1 text-xs font-semibold text-purple-600 hover:text-purple-700 mt-1"
-              >
-                Experimentar →
-              </Link>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Dialog open={showEditor} onOpenChange={setShowEditor}>
+      <Dialog open={showShortcutEditor} onOpenChange={setShowShortcutEditor}>
         <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Settings className="w-5 h-5" />
-              {editingSlot !== null ? "Escolher Módulo" : "Todos os Módulos"}
-            </DialogTitle>
+            <DialogTitle>Editar acesso rápido</DialogTitle>
           </DialogHeader>
 
-          {editingSlot === null && (
-            <div className="mb-4">
-              <p className="text-sm text-gray-500 mb-2">Seus atalhos atuais:</p>
-
-              <div className="grid grid-cols-4 gap-2">
-                {[0, 1, 2, 3].map((index) => {
-                  const moduleId = selectedShortcuts[index];
-                  const module = ALL_MODULES.find((m) => m.id === moduleId);
-
-                  return (
-                    <button
-                      key={index}
-                      onClick={() => setEditingSlot(index)}
-                      className={`relative p-2 rounded-xl border-2 ${
-                        editingSlot === index
-                          ? "border-orange-500 bg-orange-50"
-                          : "border-gray-200 hover:border-gray-300"
-                      } transition-all`}
-                    >
-                      {module ? (
-                        <div className="flex flex-col items-center">
-                          <div
-                            className={`w-8 h-8 bg-gradient-to-br ${module.gradient} rounded-lg flex items-center justify-center`}
-                          >
-                            <module.icon className="w-4 h-4 text-white" />
-                          </div>
-                          <span className="text-[10px] text-gray-600 mt-1 truncate w-full text-center">
-                            {module.title}
-                          </span>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col items-center py-1">
-                          <Plus className="w-6 h-6 text-gray-300" />
-                          <span className="text-[10px] text-gray-400 mt-1">Vazio</span>
-                        </div>
-                      )}
-
-                      <div className="absolute -top-1 -right-1 w-4 h-4 bg-orange-500 rounded-full flex items-center justify-center">
-                        <Pencil className="w-2 h-2 text-white" />
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-
-              <p className="text-xs text-gray-400 mt-2 text-center">
-                Clique em um atalho para trocar
-              </p>
-            </div>
-          )}
-
           <div className="space-y-2">
-            {editingSlot !== null && (
-              <p className="text-sm text-gray-500 mb-2">
-                Escolha o módulo para a posição {editingSlot + 1}:
-              </p>
-            )}
-
-            {availableModules.map((module) => {
-              const Icon = module.icon;
-              const isSelected = selectedShortcuts.includes(module.id);
-              const slotIndex = selectedShortcuts.indexOf(module.id);
+            {availableQuickModules.map((item) => {
+              const selected = quickShortcutIds.includes(item.id);
+              const isPremium = hasPremiumBadge(item.feature);
 
               return (
                 <button
-                  key={module.id}
-                  onClick={() => {
-                    if (editingSlot !== null) {
-                      handleSelectModule(module.id);
-                    } else {
-                      if (!isSelected && selectedShortcuts.length < 4) {
-                        saveShortcuts([...selectedShortcuts, module.id].slice(0, 4));
-                      } else if (isSelected) {
-                        saveShortcuts(selectedShortcuts.filter((id) => id !== module.id));
-                      }
-                    }
-                  }}
-                  className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-all ${
-                    isSelected
+                  key={item.id}
+                  onClick={() => toggleShortcut(item.id)}
+                  className={`w-full flex items-center justify-between gap-3 rounded-2xl border px-3 py-3 transition-all ${
+                    selected
                       ? "border-orange-300 bg-orange-50"
-                      : "border-gray-100 hover:border-gray-200 hover:bg-gray-50"
+                      : "border-gray-200 bg-white hover:border-orange-200 hover:bg-orange-50/40"
                   }`}
                 >
-                  <div
-                    className={`w-10 h-10 bg-gradient-to-br ${module.gradient} rounded-lg flex items-center justify-center shadow ${module.shadowColor}`}
-                  >
-                    <Icon className="w-5 h-5 text-white" />
-                  </div>
-
-                  <div className="flex-1 text-left">
-                    <h4 className="font-medium text-gray-800 text-sm">{module.title}</h4>
-                    <p className="text-xs text-gray-500">{module.description}</p>
-                  </div>
-
-                  {isSelected && (
-                    <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                      {slotIndex + 1}
+                  <div className="flex items-center gap-3">
+                    <div className={`inline-flex rounded-xl p-2.5 ${item.color}`}>
+                      <item.icon className="h-4 w-4" />
                     </div>
-                  )}
+
+                    <div className="text-left">
+                      <p className="text-sm font-bold text-gray-900">{item.title}</p>
+                      <p className="text-xs text-gray-500">{item.href}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {isPremium && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 px-2 py-0.5 text-[10px] font-bold text-white">
+                        <Crown className="h-3 w-3" />
+                        PRO
+                      </span>
+                    )}
+
+                    {selected ? (
+                      <span className="rounded-full bg-orange-500 px-2 py-1 text-[10px] font-bold text-white">
+                        ATIVO
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-gray-100 px-2 py-1 text-[10px] font-bold text-gray-500">
+                        ADICIONAR
+                      </span>
+                    )}
+                  </div>
                 </button>
               );
             })}
           </div>
-
-          {editingSlot !== null && (
-            <Button
-              variant="outline"
-              onClick={() => setEditingSlot(null)}
-              className="w-full mt-2"
-            >
-              Cancelar
-            </Button>
-          )}
         </DialogContent>
       </Dialog>
+
+      <div className="pb-6" />
     </div>
   );
 }

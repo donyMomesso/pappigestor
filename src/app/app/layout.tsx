@@ -24,7 +24,7 @@ import {
   ListTodo,
   FileSearch,
   Database,
-  Bot,
+  Brain,
   Home,
   Settings,
   Layers,
@@ -36,6 +36,7 @@ import {
   QrCode,
   Crown,
   Sparkles,
+  ChevronRight,
 } from "lucide-react";
 
 interface AppLayoutProps {
@@ -48,6 +49,7 @@ interface NavItem {
   icon: ReactNode;
   roles: NivelAcesso[];
   feature?: Feature;
+  highlight?: boolean;
 }
 
 interface NavGroup {
@@ -67,7 +69,7 @@ const mainNavItems: NavItem[] = [
     roles: ["operador", "comprador", "financeiro", "admin", "dono", "viewer"],
   },
   {
-    label: "Caixa de Entrada",
+    label: "Entrada",
     href: "/app/caixa-entrada",
     icon: <Inbox className="w-4 h-4" />,
     roles: ["comprador", "financeiro", "admin", "dono"],
@@ -82,9 +84,10 @@ const mainNavItems: NavItem[] = [
   {
     label: "Assessor IA",
     href: "/app/assessor-ia",
-    icon: <Bot className="w-4 h-4" />,
-    roles: ["financeiro", "comprador", "admin", "dono"],
+    icon: <Brain className="w-4 h-4" />,
+    roles: ["comprador", "financeiro", "admin", "dono"],
     feature: "assessor_ia",
+    highlight: true,
   },
 ];
 
@@ -162,6 +165,12 @@ const navGroups: NavGroup[] = [
         roles: ["financeiro", "admin", "dono"],
         feature: "dda",
       },
+      {
+        label: "Precificação",
+        href: "/app/precificacao",
+        icon: <BarChart3 className="w-4 h-4" />,
+        roles: ["financeiro", "admin", "dono"],
+      },
     ],
   },
   {
@@ -188,6 +197,12 @@ const navGroups: NavGroup[] = [
         feature: "produtos_master",
       },
       {
+        label: "Catálogo Global",
+        href: "/app/catalogo-global",
+        icon: <Database className="w-4 h-4" />,
+        roles: ["admin", "dono"],
+      },
+      {
         label: "Estoque",
         href: "/app/estoque",
         icon: <ClipboardCheck className="w-4 h-4" />,
@@ -206,15 +221,27 @@ const navGroups: NavGroup[] = [
         roles: ["admin", "dono"],
       },
       {
-        label: "Configurações",
-        href: "/app/configuracoes",
-        icon: <Settings className="w-4 h-4" />,
+        label: "Equipe",
+        href: "/app/equipe",
+        icon: <Users className="w-4 h-4" />,
         roles: ["admin", "dono"],
       },
       {
         label: "Usuários",
         href: "/app/usuarios",
         icon: <Users className="w-4 h-4" />,
+        roles: ["admin", "dono"],
+      },
+      {
+        label: "Configurações",
+        href: "/app/configuracoes",
+        icon: <Settings className="w-4 h-4" />,
+        roles: ["admin", "dono"],
+      },
+      {
+        label: "Onboarding",
+        href: "/app/onboarding",
+        icon: <Sparkles className="w-4 h-4" />,
         roles: ["admin", "dono"],
       },
       {
@@ -247,85 +274,100 @@ function DropdownMenu({
   const ref = useRef<HTMLDivElement>(null);
 
   const visibleItems = group.items.filter((item) => hasRole(item.roles));
-  const isGroupActive = visibleItems.some((item) => isPathActive(pathname, item.href));
+  const activeGroup = visibleItems.some((item) => isPathActive(pathname, item.href));
 
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
   }, []);
 
-  if (visibleItems.length === 0) return null;
+  if (!visibleItems.length) return null;
 
   return (
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-          isGroupActive
+        className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold transition-all ${
+          activeGroup
             ? "bg-orange-100 text-orange-700"
-            : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+            : "text-gray-600 hover:bg-orange-50 hover:text-orange-700"
         }`}
       >
         {group.icon}
-        <span className="hidden lg:inline">{group.label}</span>
-        <ChevronDown className={`w-3 h-3 transition-transform ${open ? "rotate-180" : ""}`} />
+        <span className="hidden xl:inline">{group.label}</span>
+        <ChevronDown className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
 
       {open && (
-        <div className="absolute top-full left-0 mt-1 w-56 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-          {visibleItems.map((item) => {
-            const active = isPathActive(pathname, item.href);
-            const isPremium = !!item.feature && PREMIUM_FEATURES.includes(item.feature);
-            const allowed = !item.feature || hasFeature(item.feature);
+        <div className="absolute left-0 top-full z-50 mt-2 w-72 overflow-hidden rounded-2xl border border-orange-100 bg-white p-2 shadow-2xl">
+          <div className="mb-1 flex items-center gap-2 px-3 py-2">
+            <div className="rounded-xl bg-orange-50 p-2 text-orange-600">{group.icon}</div>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-orange-400">
+                módulo
+              </p>
+              <p className="text-sm font-black text-gray-900">{group.label}</p>
+            </div>
+          </div>
 
-            if (!allowed) {
+          <div className="space-y-1">
+            {visibleItems.map((item) => {
+              const active = isPathActive(pathname, item.href);
+              const isPremium = !!item.feature && PREMIUM_FEATURES.includes(item.feature);
+              const allowed = !item.feature || hasFeature(item.feature);
+
+              if (!allowed) {
+                return (
+                  <Link
+                    key={item.href}
+                    href="/app/configuracoes?tab=assinatura"
+                    onClick={() => setOpen(false)}
+                    className="flex items-center justify-between rounded-xl px-3 py-3 text-sm hover:bg-purple-50"
+                  >
+                    <span className="flex items-center gap-3 text-gray-500">
+                      {item.icon}
+                      {item.label}
+                    </span>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 px-2 py-0.5 text-[10px] font-bold text-white">
+                      <Crown className="h-3 w-3" />
+                      PRO
+                    </span>
+                  </Link>
+                );
+              }
+
               return (
                 <Link
                   key={item.href}
-                  href="/app/configuracoes?tab=assinatura"
+                  href={item.href}
                   onClick={() => setOpen(false)}
-                  className="flex items-center justify-between gap-2 px-3 py-2 text-sm text-gray-400 hover:bg-purple-50 transition-colors"
+                  className={`flex items-center justify-between rounded-xl px-3 py-3 text-sm transition-all ${
+                    active
+                      ? "bg-gradient-to-r from-orange-500 via-orange-500 to-pink-500 text-white"
+                      : "text-gray-700 hover:bg-orange-50"
+                  }`}
                 >
-                  <span className="flex items-center gap-2">
+                  <span className="flex items-center gap-3">
                     {item.icon}
-                    {item.label}
+                    <span className="font-medium">{item.label}</span>
                   </span>
-                  <span className="flex items-center gap-1 px-1.5 py-0.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-[10px] font-bold rounded">
-                    <Crown className="w-3 h-3" />
-                    PRO
-                  </span>
+
+                  <div className="flex items-center gap-2">
+                    {isPremium && !active && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 px-2 py-0.5 text-[10px] font-bold text-white">
+                        <Crown className="h-3 w-3" />
+                        PRO
+                      </span>
+                    )}
+                    <ChevronRight className={`h-4 w-4 ${active ? "text-white" : "text-gray-400"}`} />
+                  </div>
                 </Link>
               );
-            }
-
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setOpen(false)}
-                className={`flex items-center justify-between gap-2 px-3 py-2 text-sm transition-colors ${
-                  active
-                    ? "bg-orange-50 text-orange-700 font-medium"
-                    : "text-gray-700 hover:bg-gray-50"
-                }`}
-              >
-                <span className="flex items-center gap-2">
-                  {item.icon}
-                  {item.label}
-                </span>
-                {isPremium && (
-                  <span className="px-1.5 py-0.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-[10px] font-bold rounded">
-                    PRO
-                  </span>
-                )}
-              </Link>
-            );
-          })}
+            })}
+          </div>
         </div>
       )}
     </div>
@@ -335,35 +377,39 @@ function DropdownMenu({
 export default function ProtectedLayout({ children }: AppLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const { localUser, signOut, hasRole, hasFeature, isLoading } = useAppAuth();
 
-  const {
-    localUser,
-    signOut,
-    hasRole,
-    hasFeature,
-    isLoading,
-  } = useAppAuth();
-
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   const empresaNome = localUser?.nome_empresa || "Pappi Gestor";
 
-  const visibleMainItems = useMemo(() => {
-    return mainNavItems.filter((item) => hasRole(item.roles));
-  }, [hasRole]);
+  const visibleMainItems = useMemo(
+    () => mainNavItems.filter((item) => hasRole(item.roles)),
+    [hasRole]
+  );
 
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
       if (!userMenuRef.current) return;
-      if (!userMenuRef.current.contains(e.target as Node)) {
+      if (!userMenuRef.current.contains(e.target as Node)) setUserMenuOpen(false);
+    };
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
         setUserMenuOpen(false);
+        setMobileOpen(false);
       }
     };
 
     document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
   }, []);
 
   useEffect(() => {
@@ -381,140 +427,33 @@ export default function ProtectedLayout({ children }: AppLayoutProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-orange-50/30">
-      <header className="bg-white/80 backdrop-blur-md border-b border-gray-200/50 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-14 gap-2">
-            <Link href="/app" className="flex items-center gap-2 group flex-shrink-0">
-              <div className="relative">
-                <img
-                  src={LOGO_URL}
-                  alt="Pappi Gestor"
-                  className="h-8 w-8 sm:h-9 sm:w-9 object-contain transition-transform group-hover:scale-105"
-                />
-                <div className="absolute inset-0 bg-orange-500/20 rounded-full blur-lg opacity-0 group-hover:opacity-100 transition-opacity" />
-              </div>
-              <span className="font-bold text-gray-900 hidden md:block">
-                {empresaNome}
-              </span>
-            </Link>
+    <div className="min-h-screen bg-[linear-gradient(to_bottom,rgba(255,247,237,0.95),rgba(255,255,255,1)),radial-gradient(circle_at_top_right,rgba(244,63,94,0.08),transparent_22%),radial-gradient(circle_at_top_left,rgba(249,115,22,0.10),transparent_28%)]">
+      <header className="sticky top-0 z-50 border-b border-orange-100 bg-white/90 shadow-[0_8px_30px_rgba(249,115,22,0.06)] backdrop-blur-xl">
+        <div className="mx-auto max-w-7xl px-3 sm:px-5 lg:px-8">
+          <div className="flex h-16 items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-2">
+              <Link href="/app" className="flex items-center gap-2">
+                <div className="rounded-2xl bg-gradient-to-br from-orange-500 via-orange-500 to-pink-500 p-2 shadow-lg shadow-orange-500/20">
+                  <img
+                    src={LOGO_URL}
+                    alt="Pappi Gestor"
+                    className="h-6 w-6 object-contain brightness-0 invert"
+                  />
+                </div>
 
-            <nav className="hidden lg:flex items-center gap-1">
-              {visibleMainItems.map((item) => {
-                const active = isPathActive(pathname, item.href);
-                const isPremium = !!item.feature && PREMIUM_FEATURES.includes(item.feature);
-                const allowed = !item.feature || hasFeature(item.feature);
-
-                if (!allowed) {
-                  return (
-                    <Link
-                      key={item.href}
-                      href="/app/configuracoes?tab=assinatura"
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-400 hover:bg-purple-50 transition-all"
-                    >
-                      {item.icon}
-                      <span className="hidden lg:inline">{item.label}</span>
-                      <span className="flex items-center gap-0.5 px-1.5 py-0.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-[10px] font-bold rounded">
-                        <Crown className="w-3 h-3" />
-                        PRO
-                      </span>
-                    </Link>
-                  );
-                }
-
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                      active
-                        ? "bg-orange-100 text-orange-700"
-                        : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-                    }`}
-                  >
-                    {item.icon}
-                    <span className="hidden lg:inline">{item.label}</span>
-                    {isPremium && (
-                      <span className="px-1 py-0.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-[9px] font-bold rounded">
-                        PRO
-                      </span>
-                    )}
-                  </Link>
-                );
-              })}
-
-              <div className="w-px h-6 bg-gray-200 mx-1" />
-
-              {navGroups.map((group) => (
-                <DropdownMenu
-                  key={group.label}
-                  group={group}
-                  pathname={pathname}
-                  hasRole={hasRole}
-                  hasFeature={hasFeature}
-                />
-              ))}
-            </nav>
-
-            <div className="flex items-center gap-2">
-              <div className="relative" ref={userMenuRef}>
-                <button
-                  onClick={() => setUserMenuOpen((v) => !v)}
-                  className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
-                >
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center shadow-sm">
-                    <span className="text-white font-semibold text-sm">
-                      {localUser?.nome?.charAt(0).toUpperCase() || "U"}
-                    </span>
-                  </div>
-                  <ChevronDown className="w-3 h-3 text-gray-400 hidden sm:block" />
-                </button>
-
-                {userMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-20 animate-in fade-in slide-in-from-top-2 duration-200">
-                    <div className="px-4 py-3 border-b border-gray-100">
-                      <p className="font-semibold text-gray-900">{localUser?.nome || "Usuário"}</p>
-                      <p className="text-sm text-gray-500 truncate">{localUser?.email || ""}</p>
-                      <div className="flex items-center gap-2 mt-2">
-                        <span className="px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 text-xs font-medium">
-                          {localUser?.nivel_acesso || "perfil"}
-                        </span>
-                        <span className="text-xs text-gray-400">•</span>
-                        <span className="text-xs text-gray-500 truncate">
-                          {empresaNome}
-                        </span>
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={handleLogout}
-                      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                    >
-                      <LogOut className="w-4 h-4" />
-                      Sair da conta
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              <button
-                onClick={() => setMobileMenuOpen((v) => !v)}
-                className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors flex-shrink-0"
-              >
-                {mobileMenuOpen ? (
-                  <X className="w-5 h-5 text-gray-600" />
-                ) : (
-                  <Menu className="w-5 h-5 text-gray-600" />
-                )}
-              </button>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-black text-gray-900 sm:text-base">
+                    {empresaNome}
+                  </p>
+                  <p className="hidden text-[9px] font-bold uppercase tracking-[0.22em] text-orange-500 sm:block">
+                    central inteligente
+                  </p>
+                </div>
+              </Link>
             </div>
-          </div>
-        </div>
 
-        {mobileMenuOpen && (
-          <div className="lg:hidden border-t border-gray-200 bg-white/95 backdrop-blur-md animate-in slide-in-from-top-2 duration-200">
-            <nav className="px-3 py-3 max-h-[70vh] overflow-auto">
-              <div className="space-y-1 mb-3">
+            <nav className="hidden items-center gap-1 xl:flex">
+              <div className="flex items-center gap-1 rounded-2xl border border-orange-100 bg-orange-50/60 p-1">
                 {visibleMainItems.map((item) => {
                   const active = isPathActive(pathname, item.href);
                   const isPremium = !!item.feature && PREMIUM_FEATURES.includes(item.feature);
@@ -525,15 +464,12 @@ export default function ProtectedLayout({ children }: AppLayoutProps) {
                       <Link
                         key={item.href}
                         href="/app/configuracoes?tab=assinatura"
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-400 hover:bg-purple-50 transition-colors"
+                        className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-purple-700 transition-all hover:bg-purple-50"
                       >
-                        <span className="flex items-center gap-3">
-                          {item.icon}
-                          {item.label}
-                        </span>
-                        <span className="flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-[10px] font-bold rounded">
-                          <Crown className="w-3 h-3" />
+                        {item.icon}
+                        <span className="hidden 2xl:inline">{item.label}</span>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 px-2 py-0.5 text-[10px] font-bold text-white">
+                          <Crown className="h-3 w-3" />
                           PRO
                         </span>
                       </Link>
@@ -544,19 +480,185 @@ export default function ProtectedLayout({ children }: AppLayoutProps) {
                     <Link
                       key={item.href}
                       href={item.href}
-                      onClick={() => setMobileMenuOpen(false)}
-                      className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                      className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition-all ${
                         active
-                          ? "bg-orange-100 text-orange-700"
-                          : "text-gray-600 hover:bg-gray-100"
+                          ? "bg-gradient-to-r from-orange-500 via-orange-500 to-pink-500 text-white shadow-md"
+                          : item.highlight
+                            ? "bg-orange-100 text-orange-700 hover:bg-orange-200"
+                            : "text-gray-700 hover:bg-white hover:text-orange-700"
+                      }`}
+                    >
+                      {item.icon}
+                      <span className="hidden 2xl:inline">{item.label}</span>
+                      {isPremium && !active && (
+                        <span className="hidden 2xl:inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 px-2 py-0.5 text-[10px] font-bold text-white">
+                          <Crown className="h-3 w-3" />
+                          PRO
+                        </span>
+                      )}
+                    </Link>
+                  );
+                })}
+
+                <div className="mx-1 h-5 w-px bg-orange-200" />
+
+                {navGroups.map((group) => (
+                  <DropdownMenu
+                    key={group.label}
+                    group={group}
+                    pathname={pathname}
+                    hasRole={hasRole}
+                    hasFeature={hasFeature}
+                  />
+                ))}
+              </div>
+            </nav>
+
+            <div className="flex items-center gap-2">
+              {hasFeature("assessor_ia") && (
+                <Link
+                  href="/app/assessor-ia"
+                  className="hidden lg:inline-flex items-center gap-2 rounded-xl bg-orange-100 px-3 py-2 text-sm font-bold text-orange-700 hover:bg-orange-200"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  IA
+                </Link>
+              )}
+
+              <div className="relative" ref={userMenuRef}>
+                <button
+                  onClick={() => setUserMenuOpen((v) => !v)}
+                  className="flex items-center gap-2 rounded-xl border border-orange-100 bg-white px-2 py-1.5 shadow-sm"
+                >
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 via-orange-500 to-pink-500 text-sm font-black text-white">
+                    {localUser?.nome?.charAt(0).toUpperCase() || "U"}
+                  </div>
+
+                  <div className="hidden text-left md:block">
+                    <p className="max-w-[120px] truncate text-xs font-black text-gray-900">
+                      {localUser?.nome || "Usuário"}
+                    </p>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-orange-500">
+                      {localUser?.nivel_acesso || "perfil"}
+                    </p>
+                  </div>
+
+                  <ChevronDown className="hidden h-4 w-4 text-gray-400 md:block" />
+                </button>
+
+                {userMenuOpen && (
+                  <div className="absolute right-0 top-full z-50 mt-2 w-72 overflow-hidden rounded-2xl border border-orange-100 bg-white shadow-2xl">
+                    <div className="bg-gradient-to-r from-orange-500 via-orange-500 to-pink-500 p-4 text-white">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/15 text-lg font-black">
+                          {localUser?.nome?.charAt(0).toUpperCase() || "U"}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-black">{localUser?.nome || "Usuário"}</p>
+                          <p className="truncate text-xs text-orange-100">{localUser?.email || ""}</p>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <span className="rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em]">
+                          {localUser?.nivel_acesso || "perfil"}
+                        </span>
+                        <span className="rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em]">
+                          {empresaNome}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="p-2">
+                      <Link
+                        href="/app/configuracoes"
+                        onClick={() => setUserMenuOpen(false)}
+                        className="flex items-center justify-between rounded-xl px-4 py-3 text-sm font-medium text-gray-700 hover:bg-orange-50"
+                      >
+                        <span className="flex items-center gap-3">
+                          <Settings className="h-4 w-4" />
+                          Configurações
+                        </span>
+                        <ChevronRight className="h-4 w-4 text-gray-400" />
+                      </Link>
+
+                      <button
+                        onClick={handleLogout}
+                        className="flex w-full items-center justify-between rounded-xl px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50"
+                      >
+                        <span className="flex items-center gap-3">
+                          <LogOut className="h-4 w-4" />
+                          Sair da conta
+                        </span>
+                        <ChevronRight className="h-4 w-4 text-red-300" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <button
+                onClick={() => setMobileOpen((v) => !v)}
+                className="rounded-xl border border-orange-100 bg-white p-2.5 shadow-sm xl:hidden"
+                aria-label="Abrir menu"
+              >
+                {mobileOpen ? (
+                  <X className="h-5 w-5 text-gray-700" />
+                ) : (
+                  <Menu className="h-5 w-5 text-gray-700" />
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {mobileOpen && (
+          <div className="border-t border-orange-100 bg-white xl:hidden">
+            <div className="mx-auto max-w-7xl px-3 py-3 sm:px-5 lg:px-8">
+              <div className="space-y-2">
+                {visibleMainItems.map((item) => {
+                  const active = isPathActive(pathname, item.href);
+                  const isPremium = !!item.feature && PREMIUM_FEATURES.includes(item.feature);
+                  const allowed = !item.feature || hasFeature(item.feature);
+
+                  if (!allowed) {
+                    return (
+                      <Link
+                        key={item.href}
+                        href="/app/configuracoes?tab=assinatura"
+                        onClick={() => setMobileOpen(false)}
+                        className="flex items-center justify-between rounded-xl border border-purple-200 bg-purple-50 px-4 py-3 text-sm font-semibold text-purple-700"
+                      >
+                        <span className="flex items-center gap-3">
+                          {item.icon}
+                          {item.label}
+                        </span>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 px-2 py-0.5 text-[10px] font-bold text-white">
+                          <Crown className="h-3 w-3" />
+                          PRO
+                        </span>
+                      </Link>
+                    );
+                  }
+
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setMobileOpen(false)}
+                      className={`flex items-center justify-between rounded-xl px-4 py-3 text-sm font-semibold ${
+                        active
+                          ? "bg-gradient-to-r from-orange-500 via-orange-500 to-pink-500 text-white"
+                          : "bg-orange-50 text-gray-800"
                       }`}
                     >
                       <span className="flex items-center gap-3">
                         {item.icon}
                         {item.label}
                       </span>
-                      {isPremium && (
-                        <span className="px-1.5 py-0.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-[10px] font-bold rounded">
+                      {isPremium && !active && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 px-2 py-0.5 text-[10px] font-bold text-white">
+                          <Crown className="h-3 w-3" />
                           PRO
                         </span>
                       )}
@@ -565,88 +667,105 @@ export default function ProtectedLayout({ children }: AppLayoutProps) {
                 })}
               </div>
 
-              {navGroups.map((group) => {
-                const visibleItems = group.items.filter((item) => hasRole(item.roles));
-                if (visibleItems.length === 0) return null;
+              <div className="mt-3 space-y-3">
+                {navGroups.map((group) => {
+                  const visibleItems = group.items.filter((item) => hasRole(item.roles));
+                  if (!visibleItems.length) return null;
 
-                return (
-                  <div key={group.label} className="mb-3">
-                    <div className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider">
-                      {group.icon}
-                      {group.label}
-                    </div>
+                  return (
+                    <div
+                      key={group.label}
+                      className="overflow-hidden rounded-2xl border border-orange-100 bg-white shadow-sm"
+                    >
+                      <div className="flex items-center gap-2 border-b border-orange-100 px-4 py-3">
+                        <div className="rounded-xl bg-orange-50 p-2 text-orange-600">
+                          {group.icon}
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-orange-400">
+                            módulo
+                          </p>
+                          <p className="text-sm font-black text-gray-900">{group.label}</p>
+                        </div>
+                      </div>
 
-                    <div className="space-y-1 pl-2 border-l-2 border-gray-200 ml-4">
-                      {visibleItems.map((item) => {
-                        const active = isPathActive(pathname, item.href);
-                        const isPremium = !!item.feature && PREMIUM_FEATURES.includes(item.feature);
-                        const allowed = !item.feature || hasFeature(item.feature);
+                      <div className="p-2">
+                        {visibleItems.map((item) => {
+                          const active = isPathActive(pathname, item.href);
+                          const isPremium = !!item.feature && PREMIUM_FEATURES.includes(item.feature);
+                          const allowed = !item.feature || hasFeature(item.feature);
 
-                        if (!allowed) {
+                          if (!allowed) {
+                            return (
+                              <Link
+                                key={item.href}
+                                href="/app/configuracoes?tab=assinatura"
+                                onClick={() => setMobileOpen(false)}
+                                className="flex items-center justify-between rounded-xl px-3 py-3 text-sm text-gray-500 hover:bg-purple-50"
+                              >
+                                <span className="flex items-center gap-3">
+                                  {item.icon}
+                                  {item.label}
+                                </span>
+                                <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 px-2 py-0.5 text-[10px] font-bold text-white">
+                                  <Crown className="h-3 w-3" />
+                                  PRO
+                                </span>
+                              </Link>
+                            );
+                          }
+
                           return (
                             <Link
                               key={item.href}
-                              href="/app/configuracoes?tab=assinatura"
-                              onClick={() => setMobileMenuOpen(false)}
-                              className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-400 hover:bg-purple-50 transition-colors"
+                              href={item.href}
+                              onClick={() => setMobileOpen(false)}
+                              className={`flex items-center justify-between rounded-xl px-3 py-3 text-sm ${
+                                active
+                                  ? "bg-gradient-to-r from-orange-500 via-orange-500 to-pink-500 text-white"
+                                  : "text-gray-700 hover:bg-orange-50"
+                              }`}
                             >
                               <span className="flex items-center gap-3">
                                 {item.icon}
-                                {item.label}
+                                <span className="font-medium">{item.label}</span>
                               </span>
-                              <span className="flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-[10px] font-bold rounded">
-                                <Crown className="w-3 h-3" />
-                                PRO
-                              </span>
+
+                              <div className="flex items-center gap-2">
+                                {isPremium && !active && (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 px-2 py-0.5 text-[10px] font-bold text-white">
+                                    <Crown className="h-3 w-3" />
+                                    PRO
+                                  </span>
+                                )}
+                                <ChevronRight className={`h-4 w-4 ${active ? "text-white" : "text-gray-400"}`} />
+                              </div>
                             </Link>
                           );
-                        }
-
-                        return (
-                          <Link
-                            key={item.href}
-                            href={item.href}
-                            onClick={() => setMobileMenuOpen(false)}
-                            className={`flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                              active
-                                ? "bg-orange-100 text-orange-700"
-                                : "text-gray-600 hover:bg-gray-100"
-                            }`}
-                          >
-                            <span className="flex items-center gap-3">
-                              {item.icon}
-                              {item.label}
-                            </span>
-                            {isPremium && (
-                              <span className="px-1.5 py-0.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-[10px] font-bold rounded">
-                                PRO
-                              </span>
-                            )}
-                          </Link>
-                        );
-                      })}
+                        })}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </nav>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         )}
       </header>
 
-      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
+      <main className="mx-auto max-w-7xl px-3 py-4 sm:px-5 lg:px-8 lg:py-5">
         {children}
       </main>
 
       {hasFeature("assessor_ia") && (
         <Link
           href="/app/assessor-ia"
-          className="fixed bottom-8 right-8 md:bottom-10 md:right-10 group z-50"
+          className="group fixed bottom-5 right-5 z-50 md:bottom-7 md:right-7"
         >
-          <div className="absolute inset-0 bg-orange-500 blur-3xl opacity-20 group-hover:opacity-40 transition-all" />
-          <button className="relative w-16 h-16 bg-gradient-to-br from-orange-600 to-pink-600 rounded-[22px] shadow-2xl flex items-center justify-center text-white border-2 border-white/20 hover:rotate-6 transition-transform hover:scale-110 active:scale-90">
-            <Sparkles size={28} className="animate-pulse" />
-            <span className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full" />
+          <div className="absolute inset-0 rounded-2xl bg-orange-500 blur-2xl opacity-20 transition-all group-hover:opacity-35" />
+          <button className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500 via-orange-500 to-pink-500 text-white shadow-xl shadow-orange-500/25 transition-all hover:scale-105 active:scale-95">
+            <Sparkles className="h-6 w-6 animate-pulse" />
+            <span className="absolute -right-1 -top-1 h-3.5 w-3.5 rounded-full border-2 border-white bg-emerald-500" />
           </button>
         </Link>
       )}

@@ -53,6 +53,13 @@ interface ModuleCard {
   featured?: boolean;
 }
 
+type NeedItem = {
+  produto_id: string;
+  produto: string;
+  quantidade: number;
+  unidade: string;
+};
+
 const ALL_MODULES: ModuleCard[] = [
   {
     id: "dashboard",
@@ -276,7 +283,7 @@ const ALL_MODULES: ModuleCard[] = [
     icon: Building2,
     gradient: "from-slate-500 to-gray-500",
     shadowColor: "shadow-slate-500/30",
-    roles: ["admin"],
+    roles: ["admin", "dono"],
   },
   {
     id: "configuracoes",
@@ -307,11 +314,7 @@ function getDefaultShortcutsByRole(role?: string | null): string[] {
   }
 }
 
-function ModuleGridCard({
-  module,
-}: {
-  module: ModuleCard;
-}) {
+function ModuleGridCard({ module }: { module: ModuleCard }) {
   const Icon = module.icon;
 
   return (
@@ -662,6 +665,10 @@ export default function HomePage() {
 
   return (
     <div className="space-y-5">
+      <div className="rounded-2xl bg-red-600 p-4 text-white text-xl font-black">
+        TESTE HOME NOVA PAPPI
+      </div>
+
       <section className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-orange-500 via-red-500 to-pink-600 p-5 text-white shadow-[0_20px_60px_rgba(249,115,22,0.28)]">
         <div className="absolute -right-10 -top-10 h-28 w-28 rounded-full bg-white/10 blur-2xl" />
         <div className="absolute -bottom-10 -left-10 h-28 w-28 rounded-full bg-white/10 blur-2xl" />

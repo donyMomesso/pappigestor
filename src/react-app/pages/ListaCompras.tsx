@@ -49,16 +49,16 @@ import { Textarea } from "@/react-app/components/ui/textarea";
 import { DialogFooter } from "@/react-app/components/ui/dialog";
 
 interface Produto {
-  id: number;
+  id: string | number;
   nome_produto: string;
   categoria_produto: string;
   unidade_medida: string;
   ultimo_preco_pago: number | null;
-  fornecedor_preferencial_id?: number | null;
+  fornecedor_preferencial_id?: string | number | null;
 }
 
 interface Fornecedor {
-  id: number;
+  id: string | number;
   nome_fantasia: string;
   telefone_whatsapp: string;
   categoria_principal: string;
@@ -66,8 +66,8 @@ interface Fornecedor {
 }
 
 interface Estoque {
-  id: number;
-  produto_id: number;
+  id: string | number;
+  produto_id: string | number;
   quantidade_atual: number;
   estoque_minimo: number;
   produto_nome: string;
@@ -75,12 +75,12 @@ interface Estoque {
 }
 
 interface ItemListaCompras {
-  id: number;
-  produto_id: number;
+  id: string | number;
+  produto_id: string | number;
   quantidade_solicitada: number;
   status_solicitacao: string;
   data_solicitacao: string;
-  usuario_solicitante_id: number;
+  usuario_solicitante_id: string | number;
   produto_nome?: string;
   unidade_medida?: string;
   solicitante_nome?: string;
@@ -88,6 +88,19 @@ interface ItemListaCompras {
 
 const CATEGORIAS = ["Insumos", "Embalagens", "Bebidas", "Mercado", "Limpeza", "Outros"];
 const UNIDADES = ["un", "kg", "g", "L", "ml", "cx", "pct", "fd"];
+
+function getEmpresaHeaders(): HeadersInit {
+  if (typeof window === "undefined") return {};
+  const empresaId = localStorage.getItem("empresa_id") || localStorage.getItem("pId") || "";
+  const email = localStorage.getItem("user_email") || localStorage.getItem("email") || "";
+  return empresaId
+    ? {
+        "x-empresa-id": empresaId,
+        "x-pizzaria-id": empresaId,
+        ...(email ? { "x-user-email": email } : {}),
+      }
+    : {};
+}
 
 const STATUS_LABELS: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   pendente: {
@@ -125,7 +138,7 @@ export default function ListaComprasPage() {
   const [isNewProductDialogOpen, setIsNewProductDialogOpen] = useState(false);
   const [isWhatsAppDialogOpen, setIsWhatsAppDialogOpen] = useState(false);
   const [isImportTextDialogOpen, setIsImportTextDialogOpen] = useState(false);
-  const [selectedItems, setSelectedItems] = useState<number[]>([]);
+  const [selectedItems, setSelectedItems] = useState<Array<string | number>>([]);
   
   // Import text states
   const [importText, setImportText] = useState("");
@@ -135,12 +148,12 @@ export default function ListaComprasPage() {
   
   
   // Estados para edição inline de quantidade
-  const [editingQtdId, setEditingQtdId] = useState<number | null>(null);
+  const [editingQtdId, setEditingQtdId] = useState<string | number | null>(null);
   const [editingQtdValue, setEditingQtdValue] = useState("");
   
   // Estados para seleção múltipla de produtos
-  const [selectedProdutos, setSelectedProdutos] = useState<number[]>([]);
-  const [produtoQtds, setProdutoQtds] = useState<Record<number, string>>({});
+  const [selectedProdutos, setSelectedProdutos] = useState<Array<string | number>>([]);
+  const [produtoQtds, setProdutoQtds] = useState<Record<string, string>>({});
   const [produtoSearch, setProdutoSearch] = useState("");
   const [addStep, setAddStep] = useState<"select" | "quantity">("select");
   
@@ -165,7 +178,7 @@ export default function ListaComprasPage() {
 
   const fetchItens = async () => {
     try {
-      const res = await fetch("/api/lista-compras");
+      const res = await fetch("/api/lista-compras", { headers: getEmpresaHeaders() });
       if (res.ok) {
         const data = await res.json();
         setItens(data);
@@ -179,7 +192,7 @@ export default function ListaComprasPage() {
 
   const fetchProdutos = async () => {
     try {
-      const res = await fetch("/api/produtos");
+      const res = await fetch("/api/produtos", { headers: getEmpresaHeaders() });
       if (res.ok) {
         const data = await res.json();
         setProdutos(data);
@@ -191,7 +204,7 @@ export default function ListaComprasPage() {
 
   const fetchFornecedores = async () => {
     try {
-      const res = await fetch("/api/fornecedores");
+      const res = await fetch("/api/fornecedores", { headers: getEmpresaHeaders() });
       if (res.ok) {
         const data = await res.json();
         setFornecedores(data.filter((f: Fornecedor) => f.telefone_whatsapp));
@@ -203,7 +216,7 @@ export default function ListaComprasPage() {
 
   const fetchEstoqueBaixo = async () => {
     try {
-      const res = await fetch("/api/estoque");
+      const res = await fetch("/api/estoque", { headers: getEmpresaHeaders() });
       if (res.ok) {
         const data: Estoque[] = await res.json();
         setEstoqueBaixo(data.filter((e) => e.quantidade_atual <= e.estoque_minimo));
@@ -233,7 +246,7 @@ export default function ListaComprasPage() {
       
       setIsSearchingOFF(true);
       try {
-        const res = await fetch(`/api/openfoodfacts/search?q=${encodeURIComponent(query)}`);
+        const res = await fetch(`/api/openfoodfacts/search?q=${encodeURIComponent(query)}`, { headers: getEmpresaHeaders() });
         const data = await res.json();
         setOffSuggestions(data.products || []);
         setShowSuggestions(true);
@@ -267,11 +280,11 @@ export default function ListaComprasPage() {
     try {
       const res = await fetch("/api/produtos", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...getEmpresaHeaders(), "Content-Type": "application/json" },
         body: JSON.stringify({
           ...newProductForm,
           fornecedor_preferencial_id: newProductForm.fornecedor_preferencial_id && newProductForm.fornecedor_preferencial_id !== "none"
-            ? parseInt(newProductForm.fornecedor_preferencial_id) 
+            ? newProductForm.fornecedor_preferencial_id 
             : null,
         }),
       });
@@ -308,7 +321,7 @@ export default function ListaComprasPage() {
     try {
       const res = await fetch("/api/lista-compras", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...getEmpresaHeaders(), "Content-Type": "application/json" },
         body: JSON.stringify({
           produto_id: estoque.produto_id,
           quantidade_solicitada: Math.max(1, quantidade),
@@ -332,7 +345,7 @@ export default function ListaComprasPage() {
     try {
       const res = await fetch("/api/ia/interpretar-lista", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...getEmpresaHeaders(), "Content-Type": "application/json" },
         body: JSON.stringify({ texto: importText }),
       });
 
@@ -358,7 +371,7 @@ export default function ListaComprasPage() {
           // Adiciona à lista de compras
           const addRes = await fetch("/api/lista-compras", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { ...getEmpresaHeaders(), "Content-Type": "application/json" },
             body: JSON.stringify({
               produto_id: produtoExistente.id,
               quantidade_solicitada: item.quantidade || 1,
@@ -390,11 +403,11 @@ export default function ListaComprasPage() {
     }
   };
 
-  const handleUpdateStatus = async (id: number, status: string) => {
+  const handleUpdateStatus = async (id: string | number, status: string) => {
     try {
       const res = await fetch(`/api/lista-compras/${id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...getEmpresaHeaders(), "Content-Type": "application/json" },
         body: JSON.stringify({ status_solicitacao: status }),
       });
 
@@ -406,7 +419,7 @@ export default function ListaComprasPage() {
     }
   };
 
-  const handleUpdateQuantidade = async (id: number, quantidade: string) => {
+  const handleUpdateQuantidade = async (id: string | number, quantidade: string) => {
     const qtd = parseFloat(quantidade);
     if (isNaN(qtd) || qtd <= 0) {
       setEditingQtdId(null);
@@ -416,7 +429,7 @@ export default function ListaComprasPage() {
     try {
       const res = await fetch(`/api/lista-compras/${id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...getEmpresaHeaders(), "Content-Type": "application/json" },
         body: JSON.stringify({ quantidade_solicitada: qtd }),
       });
 
@@ -430,15 +443,16 @@ export default function ListaComprasPage() {
     }
   };
 
-  const toggleProdutoSelection = (produtoId: number) => {
+  const toggleProdutoSelection = (produtoId: string | number) => {
+    const key = String(produtoId);
     if (selectedProdutos.includes(produtoId)) {
       setSelectedProdutos(selectedProdutos.filter(id => id !== produtoId));
       const newQtds = { ...produtoQtds };
-      delete newQtds[produtoId];
+      delete newQtds[key];
       setProdutoQtds(newQtds);
     } else {
       setSelectedProdutos([...selectedProdutos, produtoId]);
-      setProdutoQtds({ ...produtoQtds, [produtoId]: "1" });
+      setProdutoQtds({ ...produtoQtds, [key]: "1" });
     }
   };
 
@@ -446,12 +460,12 @@ export default function ListaComprasPage() {
     let addedCount = 0;
     
     for (const produtoId of selectedProdutos) {
-      const quantidade = parseFloat(produtoQtds[produtoId] || "1");
+      const quantidade = parseFloat(produtoQtds[String(produtoId)] || "1");
       if (quantidade > 0) {
         try {
           const res = await fetch("/api/lista-compras", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { ...getEmpresaHeaders(), "Content-Type": "application/json" },
             body: JSON.stringify({
               produto_id: produtoId,
               quantidade_solicitada: quantidade,
@@ -480,7 +494,7 @@ export default function ListaComprasPage() {
     p.categoria_produto?.toLowerCase().includes(produtoSearch.toLowerCase())
   );
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: string | number) => {
     if (!confirm("Remover este item da lista?")) return;
 
     try {
@@ -497,7 +511,7 @@ export default function ListaComprasPage() {
     }
   };
 
-  const toggleSelectItem = (id: number) => {
+  const toggleSelectItem = (id: string | number) => {
     if (selectedItems.includes(id)) {
       setSelectedItems(selectedItems.filter(i => i !== id));
     } else {
@@ -528,7 +542,7 @@ export default function ListaComprasPage() {
     return encodeURIComponent(message);
   };
 
-  const openWhatsApp = (telefone: string, fornecedorId?: number) => {
+  const openWhatsApp = (telefone: string, fornecedorId?: string | number) => {
     const phone = telefone.replace(/\D/g, '');
     
     // Verifica se o fornecedor tem mensagem padrão de cotação
@@ -1005,8 +1019,8 @@ export default function ListaComprasPage() {
                         type="number"
                         min="0.01"
                         step="0.01"
-                        value={produtoQtds[prodId] || "1"}
-                        onChange={(e) => setProdutoQtds({ ...produtoQtds, [prodId]: e.target.value })}
+                        value={produtoQtds[String(prodId)] || "1"}
+                        onChange={(e) => setProdutoQtds({ ...produtoQtds, [String(prodId)]: e.target.value })}
                         className="w-24 text-center dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                       />
                     </div>

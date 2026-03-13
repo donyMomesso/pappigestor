@@ -33,7 +33,6 @@ import {
   Trophy,
   Clock,
   Wifi,
-  QrCode,
   Crown,
   Sparkles,
   ChevronRight,
@@ -69,16 +68,15 @@ const mainNavItems: NavItem[] = [
     roles: ["operador", "comprador", "financeiro", "admin", "dono", "viewer"],
   },
   {
-    label: "Entrada",
-    href: "/app/caixa-entrada",
-    icon: <Inbox className="w-4 h-4" />,
-    roles: ["comprador", "financeiro", "admin", "dono"],
-    feature: "caixa_entrada",
-  },
-  {
     label: "Dashboard",
     href: "/app/dashboard",
     icon: <BarChart3 className="w-4 h-4" />,
+    roles: ["financeiro", "admin", "dono"],
+  },
+  {
+    label: "Financeiro",
+    href: "/app/financeiro",
+    icon: <DollarSign className="w-4 h-4" />,
     roles: ["financeiro", "admin", "dono"],
   },
   {
@@ -117,7 +115,7 @@ const navGroups: NavGroup[] = [
       {
         label: "Compra Mercado",
         href: "/app/compra-mercado",
-        icon: <QrCode className="w-4 h-4" />,
+        icon: <ShoppingCart className="w-4 h-4" />,
         roles: ["operador", "comprador", "admin", "dono"],
       },
       {
@@ -248,7 +246,7 @@ const navGroups: NavGroup[] = [
         label: "Empresas",
         href: "/app/empresas",
         icon: <Building2 className="w-4 h-4" />,
-        roles: ["admin"],
+        roles: ["admin", "dono"],
       },
     ],
   },
@@ -383,7 +381,10 @@ export default function ProtectedLayout({ children }: AppLayoutProps) {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
-  const empresaNome = localUser?.nome_empresa || "Pappi Gestor";
+  const empresaNome =
+    localUser?.nome_empresa ||
+    (localUser as any)?.empresa_nome ||
+    "Pappi Gestor";
 
   const visibleMainItems = useMemo(
     () => mainNavItems.filter((item) => hasRole(item.roles)),

@@ -43,6 +43,19 @@ interface ItemCompra {
 
 const UNIDADES = ["un", "kg", "g", "L", "ml", "cx", "pct", "fd"];
 
+function getEmpresaHeaders(): HeadersInit {
+  if (typeof window === "undefined") return {};
+  const empresaId = localStorage.getItem("empresa_id") || localStorage.getItem("pId") || "";
+  const email = localStorage.getItem("user_email") || localStorage.getItem("email") || "";
+  return empresaId
+    ? {
+        "x-empresa-id": empresaId,
+        "x-pizzaria-id": empresaId,
+        ...(email ? { "x-user-email": email } : {}),
+      }
+    : {};
+}
+
 export default function CompradorPage() {
   const router = useRouter();
 
@@ -91,7 +104,7 @@ export default function CompradorPage() {
   useEffect(() => {
     const fetchFornecedores = async () => {
       try {
-        const res = await fetch("/api/fornecedores");
+        const res = await fetch("/api/fornecedores", { headers: getEmpresaHeaders() });
         if (res.ok) {
           const data = await res.json();
           setFornecedores(data);
@@ -121,6 +134,7 @@ export default function CompradorPage() {
 
       const response = await fetch("/api/ia/ler-nota", {
         method: "POST",
+        headers: getEmpresaHeaders(),
         body: data,
       });
 
@@ -189,7 +203,7 @@ if (categoriaMatch) {
     try {
       const response = await fetch("/api/ia/interpretar-lista", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...getEmpresaHeaders(), "Content-Type": "application/json" },
         body: JSON.stringify({ texto: textoLista }),
       });
 
@@ -337,7 +351,7 @@ if (categoriaMatch) {
       );
       if (selectedFile) data.append("anexo", selectedFile);
 
-      const response = await fetch("/api/lancamentos", { method: "POST", body: data });
+      const response = await fetch("/api/lancamentos", { method: "POST", headers: getEmpresaHeaders(), body: data });
       if (!response.ok) throw new Error("Erro ao salvar");
 
       setSuccess(true);

@@ -27,6 +27,6 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
     "**/*.mts"
-, "src/react-app/pages/..Estoque.tsx"  ],
+, "src/react-app/pages/Estoque.tsx"  ],
   "exclude": ["node_modules"]
 }

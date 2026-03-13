@@ -1,25 +1,20 @@
 "use client";
 
 import FinanceiroOverview from "@/components/financeiro/FinanceiroOverview";
-import LegacyFinanceiroPage from "@/react-app/pages/Financeiro";
 import { Card, CardContent, CardHeader, CardTitle } from "@/react-app/components/ui/card";
 
 export default function Page() {
   return (
     <div className="space-y-6">
-      <FinanceiroOverview />
-
       <Card className="border-zinc-200 shadow-sm">
         <CardHeader>
-          <CardTitle>Operação financeira</CardTitle>
+          <CardTitle>Central de insights</CardTitle>
           <p className="text-sm text-zinc-500">
-            A página antiga continua ativa aqui dentro, agora organizada pela nova central premium.
+            Resumo executivo, alertas e próximas ações recomendadas com base nos dados do financeiro.
           </p>
         </CardHeader>
-        <CardContent className="p-0">
-          <LegacyFinanceiroPage />
-        </CardContent>
       </Card>
+      <FinanceiroOverview />
     </div>
   );
 }

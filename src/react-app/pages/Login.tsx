@@ -23,16 +23,32 @@ export default function LoginPage() {
 
   const handleGoogleLogin = () => {
     // ✅ Mock local só pra não quebrar o build (troca pelo login real do Supabase depois)
-    const mockUser: LocalUser = {
-      id: "user_123",
-      nome: "Dony Momesso",
-      email: "dony@local.dev",
-      nivel_acesso: "admin",
-      empresa_id: "local_company",
-      nome_empresa: "Pappi Gestor (Local)",
-      plano: "gratis",
-      features: [],
+const mockUser: LocalUser = {
+  id: "user_123",
+  nome: "Dony Momesso",
+  email: "donyconfcargo@gmail.com",
+  nivel_acesso: "dono",
+  empresa_id: "local_company",
+  nome_empresa: "Pappi Gestor (Local)",
+  plano: "profissional",
+  features: [
+    "compras",
+    "recebimento",
+    "financeiro_basico",
+    "estoque",
+    "fornecedores",
+    "produtos",
+    "dashboard_basico",
+    "assessor_ia",
+    "caixa_entrada",
+    "cotacao",
+    "dda",
+    "dashboard_avancado",
+    "produtos_master",
+  ],
 };
+
+;
     setLocalUser(mockUser);
     navigate("/app");
   };

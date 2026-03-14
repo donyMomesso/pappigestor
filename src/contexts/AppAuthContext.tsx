@@ -17,6 +17,7 @@ import type {
   PlanoEmpresa,
 } from "@/react-app/types/auth";
 import { PLANO_FEATURES } from "@/react-app/types/auth";
+import { setEmpresaId } from "@/react-app/lib/empresa";
 
 type MatchMode = "ANY" | "ALL";
 
@@ -210,6 +211,12 @@ export function AppAuthProvider({ children }: { children: ReactNode }) {
     const baseImage = String(session.user.image || fallback?.foto || "");
 
     try {
+      let appSession: Record<string, unknown> | null = null;
+      const appSessionResponse = await fetch("/api/app/session", { cache: "no-store" }).catch(() => null);
+      if (appSessionResponse?.ok) {
+        appSession = await appSessionResponse.json().catch(() => null);
+      }
+
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -222,30 +229,37 @@ export function AppAuthProvider({ children }: { children: ReactNode }) {
         profile = await response.json().catch(() => null);
       }
 
+      const empresaAtual = (appSession?.empresaAtual as Record<string, unknown> | undefined) ?? null;
+      const sessionUser = (appSession?.user as Record<string, unknown> | undefined) ?? null;
+      const membership = (appSession?.membership as Record<string, unknown> | undefined) ?? null;
+
       const empresaId =
-        (profile?.empresa_id as string | null | undefined) ??
-        fallback?.empresa_id ??
-        null;
-      const role = normalizeRole(profile?.role || fallback?.nivel_acesso || "operador");
-      const plano = normalizePlan(fallback?.plano || "profissional");
+        String(empresaAtual?.id || profile?.empresa_id || fallback?.empresa_id || "").trim() || null;
+      const role = normalizeRole(membership?.role || profile?.role || fallback?.nivel_acesso || "operador");
+      const plano = normalizePlan(empresaAtual?.plano || profile?.plano || fallback?.plano || "profissional");
       const nomeEmpresa =
-        String(profile?.nome_empresa || fallback?.nome_empresa || "Minha Empresa");
+        String(empresaAtual?.nome || profile?.nome_empresa || fallback?.nome_empresa || "Minha Empresa");
+      const sessionFeatures = Array.isArray(empresaAtual?.features) ? (empresaAtual?.features as Feature[]) : [];
       const features =
-        fallback?.features && fallback.features.length
+        sessionFeatures.length
+          ? sessionFeatures
+          : fallback?.features && fallback.features.length
           ? fallback.features
           : PLANO_FEATURES[plano];
 
+      if (empresaId) setEmpresaId(empresaId);
+
       setLocalUser({
-        id: String((session.user as { id?: string })?.id || fallback?.id || baseEmail),
+        id: String((session.user as { id?: string })?.id || sessionUser?.id || fallback?.id || baseEmail),
         email: baseEmail,
-        nome: String(profile?.nome || baseName),
+        nome: String(sessionUser?.nome || profile?.nome || baseName),
         nivel_acesso: role,
         empresa_id: empresaId,
         nome_empresa: nomeEmpresa,
         plano,
-        permissoes: fallback?.permissoes || [],
+        permissoes: sessionPerms.length ? sessionPerms : fallback?.permissoes || [],
         features,
-        foto: baseImage,
+        foto: String(sessionUser?.foto || baseImage),
       });
       setError(null);
     } catch (err) {

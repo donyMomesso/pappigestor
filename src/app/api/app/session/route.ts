@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabaseServer";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import {
+  ROLE_PERMISSIONS,
   canAccessFeature,
+  getAssignableRoles,
   getPlanFeatures,
   getPlanLimits,
   isSubscriptionBlocked,
@@ -105,6 +107,8 @@ export async function GET() {
         empresaUsuarioId: (membership as any)?.id ? String((membership as any).id) : null,
         role,
         status: ((membership as any)?.status || "ativo") as any,
+        permissoes: ROLE_PERMISSIONS[role] ?? [],
+        rolesPermitidos: getAssignableRoles({ plan, currentRole: role }),
       },
       empresaAtual: {
         id: companyId ? String(companyId) : null,

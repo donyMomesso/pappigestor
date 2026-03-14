@@ -59,6 +59,60 @@ const PLAN_FEATURES: Record<PlanoEmpresa, Feature[]> = {
   ],
 };
 
+export const ROLE_LABELS: Record<NivelAcesso, string> = {
+  dono: "Dono",
+  admin: "Administrador",
+  financeiro: "Financeiro",
+  comprador: "Comprador",
+  operador: "Operador",
+  viewer: "Visualizador",
+};
+
+export const ROLE_PERMISSIONS: Record<NivelAcesso, string[]> = {
+  dono: ["*"],
+  admin: [
+    "usuarios.read",
+    "usuarios.write",
+    "convites.write",
+    "configuracoes.write",
+    "compras.write",
+    "estoque.write",
+    "financeiro.read",
+    "fornecedores.write",
+    "produtos.write",
+    "dashboard.read",
+  ],
+  financeiro: [
+    "financeiro.read",
+    "financeiro.write",
+    "recebimento.read",
+    "dashboard.read",
+    "fornecedores.read",
+  ],
+  comprador: [
+    "compras.read",
+    "compras.write",
+    "cotacao.read",
+    "cotacao.write",
+    "fornecedores.read",
+    "fornecedores.write",
+    "produtos.read",
+    "produtos.write",
+    "estoque.read",
+    "dashboard.read",
+  ],
+  operador: [
+    "estoque.read",
+    "estoque.write",
+    "recebimento.read",
+    "recebimento.write",
+    "produtos.read",
+    "compras.read",
+    "dashboard.read",
+  ],
+  viewer: ["dashboard.read", "compras.read", "estoque.read", "financeiro.read", "produtos.read", "fornecedores.read"],
+};
+
 export function normalizePlan(raw: unknown): PlanoEmpresa {
   const value = String(raw ?? "").trim().toLowerCase();
   if (value === "grátis" || value === "gratis") return "gratis";
@@ -76,8 +130,13 @@ export function normalizeRole(raw: unknown): NivelAcesso {
   if (value === "admin") return "admin";
   if (value === "financeiro") return "financeiro";
   if (value === "comprador") return "comprador";
-  if (value === "viewer") return "viewer";
+  if (value === "viewer" || value === "visualizador") return "viewer";
   return "operador";
+}
+
+export function storageRoleForDb(role: NivelAcesso): string {
+  if (role === "dono") return "admin_empresa";
+  return role;
 }
 
 export function normalizeAssinaturaStatus(raw: unknown): AssinaturaStatus {
@@ -96,6 +155,48 @@ export function getPlanLimits(plan: PlanoEmpresa): PlanoLimites {
 
 export function getPlanFeatures(plan: PlanoEmpresa): Feature[] {
   return PLAN_FEATURES[plan] ?? PLAN_FEATURES.basico;
+}
+
+export function getAllowedRolesForPlan(plan: PlanoEmpresa): NivelAcesso[] {
+  switch (plan) {
+    case "gratis":
+      return ["dono", "operador"];
+    case "basico":
+      return ["dono", "admin", "operador", "comprador", "viewer"];
+    case "profissional":
+    case "enterprise":
+      return ["dono", "admin", "financeiro", "comprador", "operador", "viewer"];
+    default:
+      return ["dono", "operador"];
+  }
+}
+
+export function getAssignableRoles(args: { plan: PlanoEmpresa; currentRole: NivelAcesso; isSuperAdmin?: boolean }): NivelAcesso[] {
+  if (args.isSuperAdmin) return ["dono", "admin", "financeiro", "comprador", "operador", "viewer"];
+  const allowed = getAllowedRolesForPlan(args.plan);
+  if (args.currentRole === "dono") return allowed;
+  if (args.currentRole === "admin") return allowed.filter((role) => !["dono", "admin"].includes(role));
+  return [];
+}
+
+export function canAssignRole(args: {
+  plan: PlanoEmpresa;
+  currentRole: NivelAcesso;
+  nextRole: NivelAcesso;
+  activeAdmins: number;
+  activeUsers: number;
+  isSuperAdmin?: boolean;
+}) {
+  const assignable = getAssignableRoles(args);
+  if (!assignable.includes(args.nextRole)) {
+    return { ok: false, reason: "Seu perfil não pode atribuir esse nível de acesso." };
+  }
+  return canInviteMoreUsers({
+    plan: args.plan,
+    activeUsers: args.activeUsers,
+    activeAdmins: args.activeAdmins,
+    nextRole: args.nextRole,
+  });
 }
 
 export function resolveTrialInfo(trialEndsAt: string | null, trialStartedAt?: string | null): TrialInfo {

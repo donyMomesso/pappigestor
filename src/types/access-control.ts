@@ -39,6 +39,8 @@ export interface AppSessionPayload {
     empresaUsuarioId: string | null;
     role: NivelAcesso;
     status: "ativo" | "convidado" | "inativo" | "removido";
+    permissoes?: string[];
+    rolesPermitidos?: NivelAcesso[];
   };
   empresaAtual: {
     id: string | null;

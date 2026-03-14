@@ -42,6 +42,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/react-app/components
 import { Button } from "@/react-app/components/ui/button";
 import { Badge } from "@/react-app/components/ui/badge";
 import { useAppAuth } from "@/contexts/AppAuthContext";
+import { getEmpresaId } from "@/react-app/lib/empresa";
 
 const LOGO_URL = "/logo.png";
 
@@ -184,7 +185,9 @@ function tooltipMoneyFormatter(value: unknown) {
 async function getJson<T>(url: string, empresaId?: string | null, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers);
 
-  headers.set("Content-Type", "application/json");
+  if (!headers.has("Content-Type") && init?.method && init.method !== "GET") {
+    headers.set("Content-Type", "application/json");
+  }
 
   if (empresaId) {
     headers.set("x-empresa-id", empresaId);
@@ -263,7 +266,7 @@ function buildRiskLabel(score: number) {
 }
 
 export default function DashboardPage() {
-  const { localUser } = useAppAuth();
+  const { localUser, loading: authLoading } = useAppAuth();
 
   const [data, setData] = useState<DashboardState>({
     financeiro: null,
@@ -275,12 +278,29 @@ export default function DashboardPage() {
     sugestoes: [],
   });
   const [loading, setLoading] = useState(true);
+  const [dashboardError, setDashboardError] = useState<string | null>(null);
 
-  const empresaId = localUser?.empresa_id || null;
+  const empresaId = localUser?.empresa_id || getEmpresaId() || null;
 
   const fetchDashboard = useCallback(async () => {
+    if (!empresaId) {
+      setData({
+        financeiro: null,
+        cmv: null,
+        fluxo: [],
+        insights: null,
+        estoque: [],
+        porCategoria: [],
+        sugestoes: [],
+      });
+      setDashboardError("Empresa não selecionada. Finalize o onboarding ou selecione uma empresa ativa.");
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
+      setDashboardError(null);
 
       const [dashboardRes, financeiroRes, cmvRes, fluxoRes, insightsRes, estoqueRes] =
         await Promise.allSettled([
@@ -344,6 +364,7 @@ export default function DashboardPage() {
       });
     } catch (error) {
       console.error("Erro ao carregar dashboard:", error);
+      setDashboardError("Não foi possível carregar o dashboard desta empresa.");
       setData({
         financeiro: null,
         cmv: null,
@@ -359,8 +380,9 @@ export default function DashboardPage() {
   }, [empresaId]);
 
   useEffect(() => {
+    if (authLoading) return;
     void fetchDashboard();
-  }, [fetchDashboard]);
+  }, [authLoading, fetchDashboard]);
 
   const estoqueCritico = useMemo(
     () => data.estoque.filter((item) => item.abaixo_minimo || item.abaixo_ponto_reposicao),
@@ -539,10 +561,57 @@ export default function DashboardPage() {
     return "A relação compras vs vendas está melhor equilibrada, favorecendo rentabilidade.";
   }, [comprasVsVendas]);
 
-  if (loading) {
+  if (loading || authLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-amber-50 via-yellow-50 to-orange-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 flex items-center justify-center">
         <div className="animate-spin w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  if (!empresaId) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-yellow-50 to-orange-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
+        <header className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-b border-amber-100 dark:border-gray-700 sticky top-0 z-10">
+          <div className="max-w-7xl mx-auto px-4 py-4 flex items-center gap-3">
+            <Link href="/app" className="p-2 hover:bg-amber-100 rounded-lg transition-colors">
+              <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+            </Link>
+            <div className="flex items-center gap-2">
+              <img src={LOGO_URL} alt="Pappi Gestor" className="w-10 h-10 object-contain" />
+              <div>
+                <h1 className="font-bold text-gray-800 dark:text-white">Pappi Gestor</h1>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Dashboard Executivo</p>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <main className="max-w-3xl mx-auto px-4 py-12">
+          <Card className="border-0 shadow-lg bg-white/90 dark:bg-gray-900/80">
+            <CardContent className="p-8 text-center">
+              <div className="mx-auto w-16 h-16 rounded-2xl bg-orange-100 flex items-center justify-center mb-4">
+                <AlertTriangle className="w-8 h-8 text-orange-600" />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
+                Empresa não selecionada
+              </h2>
+              <p className="text-gray-600 dark:text-gray-300 mb-6">
+                Finalize o onboarding ou vincule seu usuário a uma empresa para carregar o dashboard.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Link href="/onboarding">
+                  <Button className="bg-orange-500 hover:bg-orange-600 text-white">
+                    Finalizar onboarding
+                  </Button>
+                </Link>
+                <Button variant="outline" onClick={() => void fetchDashboard()}>
+                  Tentar novamente
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </main>
       </div>
     );
   }
@@ -552,7 +621,7 @@ export default function DashboardPage() {
       <header className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-b border-amber-100 dark:border-gray-700 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <Link href="/" className="p-2 hover:bg-amber-100 rounded-lg transition-colors">
+            <Link href="/app" className="p-2 hover:bg-amber-100 rounded-lg transition-colors">
               <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-gray-300" />
             </Link>
 
@@ -587,6 +656,12 @@ export default function DashboardPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-8">
+        {dashboardError && (
+          <div className="mb-6 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {dashboardError}
+          </div>
+        )}
+
         <div className="mb-8 grid gap-4 lg:grid-cols-3">
           <Card className="border-0 shadow-lg bg-gradient-to-br from-orange-500 to-amber-500 text-white">
             <CardContent className="p-6">

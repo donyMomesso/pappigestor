@@ -4,71 +4,71 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 20 14.3% 4.1%;
+    --background: 220 14% 97%;
+    --foreground: 0 0% 16%;
     --card: 0 0% 100%;
-    --card-foreground: 20 14.3% 4.1%;
+    --card-foreground: 0 0% 16%;
     --popover: 0 0% 100%;
     --popover-foreground: 20 14.3% 4.1%;
-    --primary: 24 95% 53%;
+    --primary: 24 100% 50%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 60 4.8% 95.9%;
-    --secondary-foreground: 24 9.8% 10%;
-    --muted: 60 4.8% 95.9%;
-    --muted-foreground: 25 5.3% 44.7%;
-    --accent: 60 4.8% 95.9%;
-    --accent-foreground: 24 9.8% 10%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 16%;
+    --muted: 220 14% 95%;
+    --muted-foreground: 220 9% 46%;
+    --accent: 278 83% 31%;
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 60 9.1% 97.8%;
-    --border: 20 5.9% 90%;
-    --input: 20 5.9% 90%;
-    --ring: 20 14.3% 4.1%;
-    --radius: 0.45rem;
-    --chart-1: 262 70% 70%;
-    --chart-2: 262 75% 60%;
-    --chart-3: 262 80% 50%;
-    --chart-4: 262 83% 45%;
-    --chart-5: 262 85% 40%;
-    --sidebar: 0 0% 98%;
-    --sidebar-foreground: 20 14.3% 4.1%;
-    --sidebar-primary: 262 83% 58%;
-    --sidebar-primary-foreground: 270 50% 95%;
-    --sidebar-accent: 60 4.8% 95.9%;
-    --sidebar-accent-foreground: 24 9.8% 10%;
-    --sidebar-border: 20 5.9% 90%;
-    --sidebar-ring: 20 14.3% 4.1%;
+    --border: 220 10% 89%;
+    --input: 220 10% 89%;
+    --ring: 24 100% 50%;
+    --radius: 1rem;
+    --chart-1: 24 100% 50%;
+    --chart-2: 278 83% 31%;
+    --chart-3: 180 100% 50%;
+    --chart-4: 0 0% 16%;
+    --chart-5: 220 9% 46%;
+    --sidebar: 0 0% 16%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 24 100% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 278 83% 31%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 0 0% 100% / 12%;
+    --sidebar-ring: 24 100% 50%;
   }
 
   .dark {
-    --background: 20 14.3% 4.1%;
+    --background: 0 0% 16%;
     --foreground: 0 0% 98%;
-    --card: 24 9.8% 10%;
+    --card: 0 0% 18%;
     --card-foreground: 0 0% 98%;
-    --popover: 24 9.8% 10%;
+    --popover: 0 0% 18%;
     --popover-foreground: 0 0% 98%;
-    --primary: 262 80% 55%;
-    --primary-foreground: 270 50% 95%;
-    --secondary: 240 3.7% 15.9%;
+    --primary: 24 100% 50%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 22%;
     --secondary-foreground: 0 0% 98%;
-    --muted: 12 6.5% 15.1%;
-    --muted-foreground: 24 5.4% 63.9%;
-    --accent: 12 6.5% 15.1%;
-    --accent-foreground: 0 0% 98%;
+    --muted: 0 0% 22%;
+    --muted-foreground: 220 9% 72%;
+    --accent: 278 83% 31%;
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 72.2% 50.6%;
     --destructive-foreground: 0 0% 98%;
     --border: 0 0% 100% / 10%;
     --input: 0 0% 100% / 15%;
-    --ring: 24 5.4% 63.9%;
-    --chart-1: 262 70% 70%;
-    --chart-2: 262 75% 60%;
-    --chart-3: 262 80% 50%;
-    --chart-4: 262 83% 45%;
-    --chart-5: 262 85% 40%;
-    --sidebar: 24 9.8% 10%;
+    --ring: 24 100% 50%;
+    --chart-1: 24 100% 50%;
+    --chart-2: 278 83% 31%;
+    --chart-3: 180 100% 50%;
+    --chart-4: 0 0% 16%;
+    --chart-5: 220 9% 46%;
+    --sidebar: 0 0% 16%;
     --sidebar-foreground: 0 0% 98%;
-    --sidebar-primary: 262 75% 60%;
-    --sidebar-primary-foreground: 270 50% 95%;
-    --sidebar-accent: 12 6.5% 15.1%;
+    --sidebar-primary: 24 100% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 278 83% 31%;
     --sidebar-accent-foreground: 0 0% 98%;
     --sidebar-border: 0 0% 100% / 10%;
     --sidebar-ring: 24 5.4% 63.9%;
@@ -82,7 +82,7 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: "Inter Variable", "Inter", system-ui, sans-serif;
+    font-family: var(--font-inter), "Inter Variable", "Inter", system-ui, sans-serif;
   }
 
   button:not([disabled]),
@@ -113,5 +113,20 @@ html, body {
   input, select, textarea, button {
     min-height: 44px;
     font-size: 16px; /* Prevents iOS zoom on focus */
+  }
+}
+
+
+@layer utilities {
+  .font-display {
+    font-family: var(--font-poppins), var(--font-inter), system-ui, sans-serif;
+  }
+
+  .pappi-gradient {
+    background-image: linear-gradient(135deg, #ff6600 0%, #6a0d91 100%);
+  }
+
+  .pappi-tech-glow {
+    box-shadow: 0 0 0 1px rgba(0,255,255,0.28), 0 0 18px rgba(0,255,255,0.12);
   }
 }

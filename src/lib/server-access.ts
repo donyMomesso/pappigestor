@@ -81,6 +81,13 @@ export function normalizeMembershipStatus(raw: unknown): "ativo" | "convidado" |
 }
 
 export async function getCompanyMembershipMetrics(admin: ReturnType<typeof getSupabaseAdmin>, companyId: string) {
+  if (!admin) {
+    return {
+      activeUsers: 0,
+      activeAdmins: 0,
+    };
+  }
+
   const { count: activeUsers } = await admin
     .from("company_users")
     .select("*", { count: "exact", head: true })
@@ -121,7 +128,7 @@ export async function ensureRoleCanBeAssigned(args: {
 
 export async function findAuthUserByEmail(admin: ReturnType<typeof getSupabaseAdmin>, email: string) {
   const needle = String(email || "").trim().toLowerCase();
-  if (!needle) return null;
+  if (!needle || !admin) return null;
 
   let page = 1;
   while (page <= 10) {
@@ -138,7 +145,7 @@ export async function findAuthUserByEmail(admin: ReturnType<typeof getSupabaseAd
 export async function readAuthUsersMap(admin: ReturnType<typeof getSupabaseAdmin>, userIds: string[]) {
   const wanted = new Set(userIds.filter(Boolean));
   const map = new Map<string, any>();
-  if (!wanted.size) return map;
+  if (!wanted.size || !admin) return map;
 
   let page = 1;
   while (page <= 15 && map.size < wanted.size) {

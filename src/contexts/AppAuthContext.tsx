@@ -247,6 +247,15 @@ export function AppAuthProvider({ children }: { children: ReactNode }) {
           ? fallback.features
           : PLANO_FEATURES[plano];
 
+      const sessionPerms =
+        Array.isArray(sessionUser?.permissoes)
+          ? sessionUser.permissoes.map(String)
+          : Array.isArray(membership?.permissoes)
+          ? membership.permissoes.map(String)
+          : Array.isArray(profile?.permissoes)
+          ? profile.permissoes.map(String)
+          : fallback?.permissoes || [];
+
       if (empresaId) setEmpresaId(empresaId);
 
       setLocalUser({

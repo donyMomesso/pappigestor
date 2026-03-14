@@ -1,7 +1,21 @@
 import type { Metadata } from "next";
+import { Inter, Poppins } from "next/font/google";
 import "./globals.css";
 
 import Providers from "./providers";
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+});
+
+const poppins = Poppins({
+  subsets: ["latin"],
+  variable: "--font-poppins",
+  weight: ["600", "700"],
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: {
@@ -25,7 +39,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR" suppressHydrationWarning>
-      <body className="min-h-dvh bg-white text-gray-950 antialiased">
+      <body
+        className={`${inter.variable} ${poppins.variable} min-h-dvh bg-[#f7f7f8] text-[#2A2A2A] antialiased`}
+      >
         <Providers>{children}</Providers>
       </body>
     </html>

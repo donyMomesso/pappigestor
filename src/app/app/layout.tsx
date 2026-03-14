@@ -297,8 +297,8 @@ function DropdownMenu({
         onClick={() => setOpen((v) => !v)}
         className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold transition-all ${
           activeGroup
-            ? "bg-orange-100 text-orange-700"
-            : "text-gray-600 hover:bg-orange-50 hover:text-orange-700"
+            ? "bg-[#FFF3EB] text-[#FF6600]"
+            : "text-gray-600 hover:bg-[#FFF3EB] hover:text-[#FF6600]"
         }`}
       >
         {group.icon}
@@ -307,11 +307,11 @@ function DropdownMenu({
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-50 mt-2 w-72 overflow-hidden rounded-2xl border border-orange-100 bg-white p-2 shadow-2xl">
+        <div className="absolute left-0 top-full z-50 mt-2 w-72 overflow-hidden rounded-2xl border border-black/5 bg-white p-2 shadow-2xl">
           <div className="mb-1 flex items-center gap-2 px-3 py-2">
-            <div className="rounded-xl bg-orange-50 p-2 text-orange-600">{group.icon}</div>
+            <div className="rounded-xl bg-[#FFF3EB] p-2 text-[#FF6600]">{group.icon}</div>
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-orange-400">
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#FF6600]/70">
                 módulo
               </p>
               <p className="text-sm font-black text-gray-900">{group.label}</p>
@@ -330,13 +330,13 @@ function DropdownMenu({
                     key={item.href}
                     href="/app/configuracoes?tab=assinatura"
                     onClick={() => setOpen(false)}
-                    className="flex items-center justify-between rounded-xl px-3 py-3 text-sm hover:bg-purple-50"
+                    className="flex items-center justify-between rounded-xl px-3 py-3 text-sm hover:bg-[#6A0D91]/8"
                   >
                     <span className="flex items-center gap-3 text-gray-500">
                       {item.icon}
                       {item.label}
                     </span>
-                    <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 px-2 py-0.5 text-[10px] font-bold text-white">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-[#6A0D91] to-[#00FFFF] px-2 py-0.5 text-[10px] font-bold text-white">
                       <Crown className="h-3 w-3" />
                       PRO
                     </span>
@@ -351,8 +351,8 @@ function DropdownMenu({
                   onClick={() => setOpen(false)}
                   className={`flex items-center justify-between rounded-xl px-3 py-3 text-sm transition-all ${
                     active
-                      ? "bg-gradient-to-r from-orange-500 via-orange-500 to-pink-500 text-white"
-                      : "text-gray-700 hover:bg-orange-50"
+                      ? "bg-gradient-to-r from-[#FF6600] via-[#FF6600] to-[#6A0D91] text-white"
+                      : "text-gray-700 hover:bg-[#FFF3EB]"
                   }`}
                 >
                   <span className="flex items-center gap-3">
@@ -362,7 +362,7 @@ function DropdownMenu({
 
                   <div className="flex items-center gap-2">
                     {isPremium && !active && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 px-2 py-0.5 text-[10px] font-bold text-white">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-[#6A0D91] to-[#00FFFF] px-2 py-0.5 text-[10px] font-bold text-white">
                         <Crown className="h-3 w-3" />
                         PRO
                       </span>
@@ -435,13 +435,13 @@ export default function ProtectedLayout({ children }: AppLayoutProps) {
   };
 
   return (
-    <div className="min-h-screen bg-[linear-gradient(to_bottom,rgba(255,247,237,0.96),rgba(255,255,255,1)),radial-gradient(circle_at_top_right,rgba(244,63,94,0.08),transparent_22%),radial-gradient(circle_at_top_left,rgba(249,115,22,0.10),transparent_28%)]">
-      <header className="sticky top-0 z-50 border-b border-orange-100/80 bg-white/92 shadow-[0_12px_40px_rgba(249,115,22,0.08)] backdrop-blur-2xl">
+    <div className="min-h-screen bg-[linear-gradient(to_bottom,rgba(247,247,248,0.98),rgba(255,255,255,1)),radial-gradient(circle_at_top_right,rgba(106,13,145,0.08),transparent_22%),radial-gradient(circle_at_top_left,rgba(255,102,0,0.10),transparent_28%)]">
+      <header className="sticky top-0 z-50 border-b border-black/5 bg-white/92 shadow-[0_12px_40px_rgba(42,42,42,0.08)] backdrop-blur-2xl">
         <div className="mx-auto max-w-7xl px-3 sm:px-5 lg:px-8">
           <div className="flex items-center justify-between gap-3 py-2 min-h-[68px]">
             <div className="flex min-w-0 items-center gap-2">
               <Link href="/app" className="flex items-center gap-2">
-                <div className="rounded-2xl bg-white p-1.5 shadow-lg shadow-orange-500/20 ring-1 ring-orange-100">
+                <div className="rounded-2xl bg-white p-1.5 shadow-lg shadow-[#6A0D91]/10 ring-1 ring-black/5">
                   <img
                     src={LOGO_URL}
                     alt="Pappi Gestor"
@@ -453,7 +453,7 @@ export default function ProtectedLayout({ children }: AppLayoutProps) {
                   <p className="truncate text-sm font-black text-gray-900 sm:text-base">
                     {empresaNome}
                   </p>
-                  <p className="hidden text-[9px] font-bold uppercase tracking-[0.22em] text-orange-500 sm:block">
+                  <p className="hidden text-[9px] font-bold uppercase tracking-[0.22em] text-[#FF6600] sm:block">
                     central inteligente
                   </p>
                 </div>
@@ -461,7 +461,7 @@ export default function ProtectedLayout({ children }: AppLayoutProps) {
             </div>
 
             <nav className="hidden items-center gap-1 xl:flex">
-              <div className="flex items-center gap-1 rounded-2xl border border-orange-100 bg-white/85 p-1.5 shadow-sm">
+              <div className="flex items-center gap-1 rounded-2xl border border-black/5 bg-white/85 p-1.5 shadow-sm">
                 {visibleMainItems.map((item) => {
                   const active = isPathActive(pathname, item.href);
                   const isPremium = !!item.feature && PREMIUM_FEATURES.includes(item.feature);
@@ -472,11 +472,11 @@ export default function ProtectedLayout({ children }: AppLayoutProps) {
                       <Link
                         key={item.href}
                         href="/app/configuracoes?tab=assinatura"
-                        className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-purple-700 transition-all hover:bg-purple-50"
+                        className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-[#6A0D91] transition-all hover:bg-[#6A0D91]/8"
                       >
                         {item.icon}
                         <span className="hidden 2xl:inline">{item.label}</span>
-                        <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 px-2 py-0.5 text-[10px] font-bold text-white">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-[#6A0D91] to-[#00FFFF] px-2 py-0.5 text-[10px] font-bold text-white">
                           <Crown className="h-3 w-3" />
                           PRO
                         </span>
@@ -490,16 +490,16 @@ export default function ProtectedLayout({ children }: AppLayoutProps) {
                       href={item.href}
                       className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition-all ${
                         active
-                          ? "bg-gradient-to-r from-orange-500 via-orange-500 to-pink-500 text-white shadow-md"
+                          ? "bg-gradient-to-r from-[#FF6600] via-[#FF6600] to-[#6A0D91] text-white shadow-md"
                           : item.highlight
-                            ? "bg-orange-100 text-orange-700 hover:bg-orange-200"
-                            : "text-gray-700 hover:bg-orange-50 hover:text-orange-700"
+                            ? "bg-[#FFF3EB] text-[#FF6600] hover:bg-[#FFE4D1]"
+                            : "text-gray-700 hover:bg-[#FFF3EB] hover:text-[#FF6600]"
                       }`}
                     >
                       {item.icon}
                       <span className="hidden 2xl:inline">{item.label}</span>
                       {isPremium && !active && (
-                        <span className="hidden 2xl:inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 px-2 py-0.5 text-[10px] font-bold text-white">
+                        <span className="hidden 2xl:inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-[#6A0D91] to-[#00FFFF] px-2 py-0.5 text-[10px] font-bold text-white">
                           <Crown className="h-3 w-3" />
                           PRO
                         </span>
@@ -508,7 +508,7 @@ export default function ProtectedLayout({ children }: AppLayoutProps) {
                   );
                 })}
 
-                <div className="mx-1 h-5 w-px bg-orange-200" />
+                <div className="mx-1 h-5 w-px bg-[#FFE4D1]" />
 
                 {navGroups.map((group) => (
                   <DropdownMenu
@@ -526,7 +526,7 @@ export default function ProtectedLayout({ children }: AppLayoutProps) {
               {hasFeature("assessor_ia") && (
                 <Link
                   href="/app/assessor-ia"
-                  className="hidden lg:inline-flex items-center gap-2 rounded-xl bg-orange-100 px-3 py-2 text-sm font-bold text-orange-700 hover:bg-orange-200"
+                  className="hidden lg:inline-flex items-center gap-2 rounded-xl bg-[#FFF3EB] px-3 py-2 text-sm font-bold text-[#FF6600] hover:bg-[#FFE4D1]"
                 >
                   <Sparkles className="h-4 w-4" />
                   IA
@@ -536,9 +536,9 @@ export default function ProtectedLayout({ children }: AppLayoutProps) {
               <div className="relative" ref={userMenuRef}>
                 <button
                   onClick={() => setUserMenuOpen((v) => !v)}
-                  className="flex items-center gap-2 rounded-xl border border-orange-100 bg-white px-2 py-1.5 shadow-sm"
+                  className="flex items-center gap-2 rounded-xl border border-black/5 bg-white px-2 py-1.5 shadow-sm"
                 >
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 via-orange-500 to-pink-500 text-sm font-black text-white">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#FF6600] via-[#FF6600] to-[#6A0D91] text-sm font-black text-white">
                     {localUser?.nome?.charAt(0).toUpperCase() || "U"}
                   </div>
 
@@ -546,7 +546,7 @@ export default function ProtectedLayout({ children }: AppLayoutProps) {
                     <p className="max-w-[120px] truncate text-xs font-black text-gray-900">
                       {localUser?.nome || "Usuário"}
                     </p>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-orange-500">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#FF6600]">
                       {localUser?.nivel_acesso || "perfil"}
                     </p>
                   </div>
@@ -555,15 +555,15 @@ export default function ProtectedLayout({ children }: AppLayoutProps) {
                 </button>
 
                 {userMenuOpen && (
-                  <div className="absolute right-0 top-full z-50 mt-2 w-72 overflow-hidden rounded-2xl border border-orange-100 bg-white shadow-2xl">
-                    <div className="bg-gradient-to-r from-orange-500 via-orange-500 to-pink-500 p-4 text-white">
+                  <div className="absolute right-0 top-full z-50 mt-2 w-72 overflow-hidden rounded-2xl border border-black/5 bg-white shadow-2xl">
+                    <div className="bg-gradient-to-r from-[#FF6600] via-[#FF6600] to-[#6A0D91] p-4 text-white">
                       <div className="flex items-center gap-3">
                         <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/15 text-lg font-black">
                           {localUser?.nome?.charAt(0).toUpperCase() || "U"}
                         </div>
                         <div className="min-w-0">
                           <p className="truncate text-sm font-black">{localUser?.nome || "Usuário"}</p>
-                          <p className="truncate text-xs text-orange-100">{localUser?.email || ""}</p>
+                          <p className="truncate text-xs text-white/80">{localUser?.email || ""}</p>
                         </div>
                       </div>
 
@@ -581,7 +581,7 @@ export default function ProtectedLayout({ children }: AppLayoutProps) {
                       <Link
                         href="/app/configuracoes"
                         onClick={() => setUserMenuOpen(false)}
-                        className="flex items-center justify-between rounded-xl px-4 py-3 text-sm font-medium text-gray-700 hover:bg-orange-50"
+                        className="flex items-center justify-between rounded-xl px-4 py-3 text-sm font-medium text-gray-700 hover:bg-[#FFF3EB]"
                       >
                         <span className="flex items-center gap-3">
                           <Settings className="h-4 w-4" />
@@ -607,7 +607,7 @@ export default function ProtectedLayout({ children }: AppLayoutProps) {
 
               <button
                 onClick={() => setMobileOpen((v) => !v)}
-                className="rounded-xl border border-orange-100 bg-white p-2.5 shadow-sm xl:hidden"
+                className="rounded-xl border border-black/5 bg-white p-2.5 shadow-sm xl:hidden"
                 aria-label="Abrir menu"
               >
                 {mobileOpen ? (
@@ -621,7 +621,7 @@ export default function ProtectedLayout({ children }: AppLayoutProps) {
         </div>
 
         {mobileOpen && (
-          <div className="border-t border-orange-100 bg-white xl:hidden">
+          <div className="border-t border-black/5 bg-white xl:hidden">
             <div className="mx-auto max-w-7xl px-3 py-3 sm:px-5 lg:px-8">
               <div className="space-y-2">
                 {visibleMainItems.map((item) => {
@@ -635,13 +635,13 @@ export default function ProtectedLayout({ children }: AppLayoutProps) {
                         key={item.href}
                         href="/app/configuracoes?tab=assinatura"
                         onClick={() => setMobileOpen(false)}
-                        className="flex items-center justify-between rounded-xl border border-purple-200 bg-purple-50 px-4 py-3 text-sm font-semibold text-purple-700"
+                        className="flex items-center justify-between rounded-xl border border-[#6A0D91]/18 bg-[#6A0D91]/8 px-4 py-3 text-sm font-semibold text-[#6A0D91]"
                       >
                         <span className="flex items-center gap-3">
                           {item.icon}
                           {item.label}
                         </span>
-                        <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 px-2 py-0.5 text-[10px] font-bold text-white">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-[#6A0D91] to-[#00FFFF] px-2 py-0.5 text-[10px] font-bold text-white">
                           <Crown className="h-3 w-3" />
                           PRO
                         </span>
@@ -656,8 +656,8 @@ export default function ProtectedLayout({ children }: AppLayoutProps) {
                       onClick={() => setMobileOpen(false)}
                       className={`flex items-center justify-between rounded-xl px-4 py-3 text-sm font-semibold ${
                         active
-                          ? "bg-gradient-to-r from-orange-500 via-orange-500 to-pink-500 text-white"
-                          : "bg-orange-50 text-gray-800"
+                          ? "bg-gradient-to-r from-[#FF6600] via-[#FF6600] to-[#6A0D91] text-white"
+                          : "bg-[#FFF3EB] text-gray-800"
                       }`}
                     >
                       <span className="flex items-center gap-3">
@@ -665,7 +665,7 @@ export default function ProtectedLayout({ children }: AppLayoutProps) {
                         {item.label}
                       </span>
                       {isPremium && !active && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 px-2 py-0.5 text-[10px] font-bold text-white">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-[#6A0D91] to-[#00FFFF] px-2 py-0.5 text-[10px] font-bold text-white">
                           <Crown className="h-3 w-3" />
                           PRO
                         </span>
@@ -683,14 +683,14 @@ export default function ProtectedLayout({ children }: AppLayoutProps) {
                   return (
                     <div
                       key={group.label}
-                      className="overflow-hidden rounded-2xl border border-orange-100 bg-white shadow-sm"
+                      className="overflow-hidden rounded-2xl border border-black/5 bg-white shadow-sm"
                     >
-                      <div className="flex items-center gap-2 border-b border-orange-100 px-4 py-3">
-                        <div className="rounded-xl bg-orange-50 p-2 text-orange-600">
+                      <div className="flex items-center gap-2 border-b border-black/5 px-4 py-3">
+                        <div className="rounded-xl bg-[#FFF3EB] p-2 text-[#FF6600]">
                           {group.icon}
                         </div>
                         <div>
-                          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-orange-400">
+                          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#FF6600]/70">
                             módulo
                           </p>
                           <p className="text-sm font-black text-gray-900">{group.label}</p>
@@ -709,13 +709,13 @@ export default function ProtectedLayout({ children }: AppLayoutProps) {
                                 key={item.href}
                                 href="/app/configuracoes?tab=assinatura"
                                 onClick={() => setMobileOpen(false)}
-                                className="flex items-center justify-between rounded-xl px-3 py-3 text-sm text-gray-500 hover:bg-purple-50"
+                                className="flex items-center justify-between rounded-xl px-3 py-3 text-sm text-gray-500 hover:bg-[#6A0D91]/8"
                               >
                                 <span className="flex items-center gap-3">
                                   {item.icon}
                                   {item.label}
                                 </span>
-                                <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 px-2 py-0.5 text-[10px] font-bold text-white">
+                                <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-[#6A0D91] to-[#00FFFF] px-2 py-0.5 text-[10px] font-bold text-white">
                                   <Crown className="h-3 w-3" />
                                   PRO
                                 </span>
@@ -730,8 +730,8 @@ export default function ProtectedLayout({ children }: AppLayoutProps) {
                               onClick={() => setMobileOpen(false)}
                               className={`flex items-center justify-between rounded-xl px-3 py-3 text-sm ${
                                 active
-                                  ? "bg-gradient-to-r from-orange-500 via-orange-500 to-pink-500 text-white"
-                                  : "text-gray-700 hover:bg-orange-50"
+                                  ? "bg-gradient-to-r from-[#FF6600] via-[#FF6600] to-[#6A0D91] text-white"
+                                  : "text-gray-700 hover:bg-[#FFF3EB]"
                               }`}
                             >
                               <span className="flex items-center gap-3">
@@ -741,7 +741,7 @@ export default function ProtectedLayout({ children }: AppLayoutProps) {
 
                               <div className="flex items-center gap-2">
                                 {isPremium && !active && (
-                                  <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 px-2 py-0.5 text-[10px] font-bold text-white">
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-[#6A0D91] to-[#00FFFF] px-2 py-0.5 text-[10px] font-bold text-white">
                                     <Crown className="h-3 w-3" />
                                     PRO
                                   </span>
@@ -770,8 +770,8 @@ export default function ProtectedLayout({ children }: AppLayoutProps) {
           href="/app/assessor-ia"
           className="group fixed bottom-5 right-5 z-50 md:bottom-7 md:right-7"
         >
-          <div className="absolute inset-0 rounded-2xl bg-orange-500 blur-2xl opacity-20 transition-all group-hover:opacity-35" />
-          <button className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500 via-orange-500 to-pink-500 text-white shadow-xl shadow-orange-500/25 transition-all hover:scale-105 active:scale-95">
+          <div className="absolute inset-0 rounded-2xl bg-[#FF6600] blur-2xl opacity-20 transition-all group-hover:opacity-35" />
+          <button className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[#FF6600] via-[#FF6600] to-[#6A0D91] text-white shadow-xl shadow-[#FF6600]/25 transition-all hover:scale-105 active:scale-95">
             <Sparkles className="h-6 w-6 animate-pulse" />
             <span className="absolute -right-1 -top-1 h-3.5 w-3.5 rounded-full border-2 border-white bg-emerald-500" />
           </button>

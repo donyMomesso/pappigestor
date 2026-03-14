@@ -241,13 +241,17 @@ function buildAiHealthScore(params: {
 function buildAiParticipation(params: {
   insights: FinanceiroInsights | null;
   sugestoes: SugestaoIA[];
+  estoqueCriticoCount: number;
+  fluxoCount: number;
 }) {
-  let score = 22;
+  let score = 28;
 
   if (params.insights?.summary) score += 8;
   if ((params.insights?.alerts?.length || 0) > 0) score += 8;
   if ((params.insights?.actions?.length || 0) > 0) score += 8;
-  if ((params.sugestoes?.length || 0) > 0) score += 10;
+  if ((params.sugestoes?.length || 0) > 0) score += 12;
+  if (params.estoqueCriticoCount > 0) score += 6;
+  if (params.fluxoCount > 0) score += 4;
 
   return Math.max(0, Math.min(100, score));
 }
@@ -421,16 +425,21 @@ export default function DashboardPage() {
 
   const melhorSugestao = data.sugestoes[0];
   const principalInsight = data.insights?.alerts?.[0];
+
   const aiHealthScore = buildAiHealthScore({
     cmv: data.cmv,
     financeiro: data.financeiro,
     estoqueCriticoCount: estoqueCritico.length,
     insights: data.insights,
   });
+
   const aiParticipation = buildAiParticipation({
     insights: data.insights,
     sugestoes: data.sugestoes,
+    estoqueCriticoCount: estoqueCritico.length,
+    fluxoCount: data.fluxo.length,
   });
+
   const riskLabel = buildRiskLabel(aiHealthScore);
 
   const aiExecutiveSummary = useMemo(() => {
@@ -455,10 +464,10 @@ export default function DashboardPage() {
     }
 
     if (parts.length === 0) {
-      return "A IA ainda está montando leitura executiva. Conforme mais dados entrarem no sistema, o diagnóstico fica mais inteligente.";
+      return "A Pappi IA ainda está montando a leitura executiva. Conforme mais dados entrarem no sistema, o diagnóstico fica mais inteligente.";
     }
 
-    return `A IA identificou ${parts.join(", ")}. Priorize caixa, estoque e compras para proteger margem e previsibilidade.`;
+    return `A Pappi IA identificou ${parts.join(", ")}. Priorize caixa, estoque e compras para proteger margem e previsibilidade.`;
   }, [data.cmv, data.financeiro, data.insights, estoqueCritico.length]);
 
   const aiOpportunities = useMemo(() => {
@@ -501,7 +510,7 @@ export default function DashboardPage() {
       return "Revisar custo de compras para melhorar margem.";
     }
 
-    return "Expandir a leitura da IA com mais histórico de vendas, compras e estoque.";
+    return "Expandir a leitura da Pappi IA com mais histórico de vendas, compras e estoque.";
   }, [
     melhorSugestao?.titulo,
     data.insights?.actions,
@@ -509,6 +518,26 @@ export default function DashboardPage() {
     data.financeiro?.pagarAtrasado,
     comprasVsVendas,
   ]);
+
+  const aiStockInterpretation = useMemo(() => {
+    if (estoqueCritico.length >= 8) {
+      return "A Pappi IA detecta risco alto de ruptura. Reposição imediata pode proteger venda e experiência do cliente.";
+    }
+    if (estoqueCritico.length >= 3) {
+      return "Há itens sensíveis no estoque. Vale priorizar compra por impacto e giro.";
+    }
+    return "Estoque relativamente estável. Existe espaço para compras mais estratégicas e menos reativas.";
+  }, [estoqueCritico.length]);
+
+  const aiMarginInterpretation = useMemo(() => {
+    if (comprasVsVendas > 50) {
+      return "A pressão de compras sobre vendas está alta. A Pappi IA sugere revisar fornecedores, mix e desperdício.";
+    }
+    if (comprasVsVendas > 35) {
+      return "A relação compras vs vendas está em atenção moderada. Ainda há espaço para ganho de margem.";
+    }
+    return "A relação compras vs vendas está melhor equilibrada, favorecendo rentabilidade.";
+  }, [comprasVsVendas]);
 
   if (loading) {
     return (
@@ -539,12 +568,12 @@ export default function DashboardPage() {
           <div className="hidden md:flex items-center gap-2">
             <Badge className="bg-orange-500 hover:bg-orange-500 text-white">SaaS</Badge>
             {data.insights?.aiEnabled ? (
-              <Badge className="bg-fuchsia-600 hover:bg-fuchsia-600 text-white">IA ativa</Badge>
+              <Badge className="bg-fuchsia-600 hover:bg-fuchsia-600 text-white">Pappi IA ativa</Badge>
             ) : (
-              <Badge variant="outline">IA local</Badge>
+              <Badge variant="outline">Pappi IA local</Badge>
             )}
             <Badge variant="outline" className="border-fuchsia-200 text-fuchsia-700">
-              IA ~ {aiParticipation}%
+              Pappi IA ~ {aiParticipation}%
             </Badge>
             <Button
               variant="outline"
@@ -563,9 +592,9 @@ export default function DashboardPage() {
             <CardContent className="p-6">
               <div className="flex items-center gap-2 mb-2">
                 <Sparkles className="w-5 h-5" />
-                <p className="text-sm text-white/85">Resumo inteligente</p>
+                <p className="text-sm text-white/85">Pappi IA</p>
               </div>
-              <h2 className="text-2xl font-bold mb-2">Sua operação em um só lugar</h2>
+              <h2 className="text-2xl font-bold mb-2">Inteligência operacional do seu negócio</h2>
               <p className="text-sm text-white/90 leading-6">{aiExecutiveSummary}</p>
             </CardContent>
           </Card>
@@ -593,7 +622,7 @@ export default function DashboardPage() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <p className="text-sm text-gray-500 mb-1">Score de saúde IA</p>
+                  <p className="text-sm text-gray-500 mb-1">Score Pappi IA</p>
                   <p className="text-3xl font-bold text-fuchsia-600">{aiHealthScore}%</p>
                   <p className={`text-xs mt-2 font-medium ${riskLabel.color}`}>{riskLabel.label}</p>
                 </div>
@@ -697,6 +726,7 @@ export default function DashboardPage() {
                   <TrendingDown className="w-7 h-7 text-green-600" />
                 </div>
               </div>
+              <p className="text-xs text-gray-500 mt-3">{aiMarginInterpretation}</p>
             </CardContent>
           </Card>
 
@@ -765,7 +795,7 @@ export default function DashboardPage() {
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
                 <Brain className="w-5 h-5 text-fuchsia-600" />
-                Diagnóstico da IA
+                Diagnóstico Pappi IA
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -778,14 +808,14 @@ export default function DashboardPage() {
                 <p className="text-xs text-orange-700 font-medium mb-1">Leitura operacional</p>
                 <p className="text-sm text-gray-800">
                   {principalInsight?.description ||
-                    "A IA ainda está consolidando padrões. Quanto mais histórico, mais precisa fica a leitura."}
+                    "A Pappi IA ainda está consolidando padrões. Quanto mais histórico, mais precisa fica a leitura."}
                 </p>
               </div>
 
               <div className="rounded-xl border border-amber-100 bg-amber-50/70 p-3">
-                <p className="text-xs text-amber-700 font-medium mb-1">Participação da IA nesta página</p>
+                <p className="text-xs text-amber-700 font-medium mb-1">Participação da Pappi IA</p>
                 <p className="text-sm text-gray-800">
-                  Aproximadamente <strong>{aiParticipation}%</strong> da experiência já está orientada por IA.
+                  Aproximadamente <strong>{aiParticipation}%</strong> da experiência desta página já é orientada por IA.
                 </p>
               </div>
             </CardContent>
@@ -822,7 +852,7 @@ export default function DashboardPage() {
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-orange-500" />
-                Oportunidades da IA
+                Oportunidades da Pappi IA
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -940,6 +970,11 @@ export default function DashboardPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
+              <div className="rounded-xl border border-red-100 bg-red-50/60 p-3">
+                <p className="text-xs text-red-700 font-medium mb-1">Leitura da Pappi IA</p>
+                <p className="text-sm text-gray-800">{aiStockInterpretation}</p>
+              </div>
+
               {estoqueCritico.length > 0 ? (
                 estoqueCritico.slice(0, 5).map((item) => (
                   <div key={item.id} className="rounded-xl border border-red-100 bg-red-50 p-3">
@@ -961,7 +996,7 @@ export default function DashboardPage() {
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
                 <Brain className="w-5 h-5 text-fuchsia-600" />
-                Recomendação da IA
+                Recomendação da Pappi IA
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -1093,7 +1128,7 @@ export default function DashboardPage() {
               <CardContent className="p-4 flex items-center gap-3">
                 <Brain className="w-5 h-5 text-orange-600" />
                 <div>
-                  <p className="font-semibold">Assessor IA</p>
+                  <p className="font-semibold">Pappi IA</p>
                   <p className="text-xs text-gray-500">Recomendações e insights</p>
                 </div>
               </CardContent>

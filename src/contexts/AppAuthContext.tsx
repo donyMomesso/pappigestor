@@ -248,28 +248,26 @@ export function AppAuthProvider({ children }: { children: ReactNode }) {
           : PLANO_FEATURES[plano];
 
       const sessionPerms =
-        Array.isArray(sessionUser?.permissoes)
-          ? sessionUser.permissoes.map(String)
-          : Array.isArray(membership?.permissoes)
-          ? membership.permissoes.map(String)
-          : Array.isArray(profile?.permissoes)
-          ? profile.permissoes.map(String)
-          : fallback?.permissoes || [];
+  Array.isArray(sessionUser?.permissoes)
+    ? sessionUser.permissoes.map(String)
+    : Array.isArray(membership?.permissoes)
+    ? membership.permissoes.map(String)
+    : Array.isArray(profile?.permissoes)
+    ? profile.permissoes.map(String)
+    : fallback?.permissoes || [];
 
-      if (empresaId) setEmpresaId(empresaId);
-
-      setLocalUser({
-        id: String((session.user as { id?: string })?.id || sessionUser?.id || fallback?.id || baseEmail),
-        email: baseEmail,
-        nome: String(sessionUser?.nome || profile?.nome || baseName),
-        nivel_acesso: role,
-        empresa_id: empresaId,
-        nome_empresa: nomeEmpresa,
-        plano,
-        permissoes: sessionPerms.length ? sessionPerms : fallback?.permissoes || [],
-        features,
-        foto: String(sessionUser?.foto || baseImage),
-      });
+setLocalUser({
+  id: String((session.user as { id?: string })?.id || sessionUser?.id || fallback?.id || baseEmail),
+  email: baseEmail,
+  nome: String(sessionUser?.nome || profile?.nome || baseName),
+  nivel_acesso: role,
+  empresa_id: empresaId,
+  nome_empresa: nomeEmpresa,
+  plano,
+  permissoes: sessionPerms,
+  features,
+  foto: String(sessionUser?.foto || baseImage),
+});
       setError(null);
     } catch (err) {
       console.error(err);

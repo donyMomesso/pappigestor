@@ -74,94 +74,127 @@ export async function POST(req: Request) {
       referrerCompanyId = ((refCompany as CompanyRefRow | null)?.id ?? null) as string | null;
     }
 
-    const trialStartedAt = new Date();
-    const trialEndsAt = new Date(
-      trialStartedAt.getTime() + 15 * 24 * 60 * 60 * 1000
-    );
-
-    const { data: company, error: companyError } = await db
+    // Evita criar empresa duplicada pelo mesmo CNPJ
+    const { data: existingCompany } = await db
       .from("companies")
-      .insert([
+      .select("id, name, referral_code")
+      .eq("cnpj", cnpj)
+      .maybeSingle();
+
+    let companyId: string | null = null;
+    let companyReferralCode: string | null = null;
+
+    if (existingCompany?.id) {
+      companyId = String(existingCompany.id);
+      companyReferralCode = String(existingCompany.referral_code || "") || null;
+    } else {
+      const trialStartedAt = new Date();
+      const trialEndsAt = new Date(
+        trialStartedAt.getTime() + 15 * 24 * 60 * 60 * 1000
+      );
+
+      const { data: company, error: companyError } = await db
+        .from("companies")
+        .insert([
+          {
+            name,
+            razao_social: razaoSocial,
+            cnpj,
+            created_by: user.id,
+            plano: plan,
+            status: "ativa",
+            status_assinatura: "teste_gratis",
+            trial_started_at: trialStartedAt.toISOString(),
+            trial_ends_at: trialEndsAt.toISOString(),
+            referral_code: makeReferralCode(name, user.id),
+            referrer_company_id: referrerCompanyId,
+          },
+        ])
+        .select("id, referral_code")
+        .single();
+
+      const companyRow = company as { id?: string; referral_code?: string } | null;
+
+      if (companyError || !companyRow?.id) {
+        return NextResponse.json(
+          { error: companyError?.message || "Falha ao criar empresa" },
+          { status: 400 }
+        );
+      }
+
+      companyId = String(companyRow.id);
+      companyReferralCode = companyRow?.referral_code ?? null;
+
+      if (admin && referrerCompanyId) {
+        const { error: referralRpcError } = await admin.rpc(
+          "increment_referral_credit",
+          {
+            p_company_id: referrerCompanyId,
+            p_amount_cents: 5000,
+          }
+        );
+
+        if (referralRpcError) {
+          const { data: current } = await admin
+            .from("companies")
+            .select(
+              "referral_credit_balance_cents, referral_credit_earned_cents"
+            )
+            .eq("id", referrerCompanyId)
+            .maybeSingle();
+
+          const currentRow = current as CompanyRefRow | null;
+
+          const { error: fallbackError } = await admin
+            .from("companies")
+            .update({
+              referral_credit_balance_cents:
+                Number(currentRow?.referral_credit_balance_cents ?? 0) + 5000,
+              referral_credit_earned_cents:
+                Number(currentRow?.referral_credit_earned_cents ?? 0) + 5000,
+            })
+            .eq("id", referrerCompanyId);
+
+          if (fallbackError) {
+            console.error(
+              "Erro ao aplicar crédito de indicação no fallback:",
+              fallbackError.message
+            );
+          }
+        }
+      }
+    }
+
+    if (!companyId) {
+      return NextResponse.json(
+        { error: "Não foi possível determinar a empresa criada." },
+        { status: 400 }
+      );
+    }
+
+    // Evita duplicidade de vínculo
+    const { data: existingMembership } = await db
+      .from("company_users")
+      .select("id")
+      .eq("company_id", companyId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (!existingMembership?.id) {
+      const { error: linkError } = await db.from("company_users").insert([
         {
-          name,
-          razao_social: razaoSocial,
-          cnpj,
-          created_by: user.id,
-          plano: plan,
-          status: "ativa",
-          status_assinatura: "teste_gratis",
-          trial_started_at: trialStartedAt.toISOString(),
-          trial_ends_at: trialEndsAt.toISOString(),
-          referral_code: makeReferralCode(name, user.id),
-          referrer_company_id: referrerCompanyId,
+          company_id: companyId,
+          user_id: user.id,
+          role: "admin_empresa",
+          status: "ativo",
         },
-      ])
-      .select("id, referral_code")
-      .single();
+      ]);
 
-    const companyRow = (company as { id?: string; referral_code?: string } | null);
-
-    if (companyError || !companyRow?.id) {
-      return NextResponse.json(
-        { error: companyError?.message || "Falha ao criar empresa" },
-        { status: 400 }
-      );
-    }
-
-    const companyId = String(companyRow.id);
-
-    const { error: linkError } = await db.from("company_users").insert([
-      {
-        company_id: companyId,
-        user_id: user.id,
-        role: "admin_empresa",
-        status: "ativo",
-      },
-    ]);
-
-    if (linkError) {
-      return NextResponse.json(
-        { error: linkError.message },
-        { status: 400 }
-      );
-    }
-
-    if (admin && referrerCompanyId) {
-      const { error: referralRpcError } = await admin.rpc(
-        "increment_referral_credit",
-        {
-          p_company_id: referrerCompanyId,
-          p_amount_cents: 5000,
-        }
-      );
-
-      if (referralRpcError) {
-        const { data: current } = await admin
-          .from("companies")
-          .select(
-            "referral_credit_balance_cents, referral_credit_earned_cents"
-          )
-          .eq("id", referrerCompanyId)
-          .maybeSingle();
-
-        const currentRow = current as CompanyRefRow | null;
-
-        const { error: fallbackError } = await admin
-          .from("companies")
-          .update({
-            referral_credit_balance_cents:
-              Number(currentRow?.referral_credit_balance_cents ?? 0) + 5000,
-            referral_credit_earned_cents:
-              Number(currentRow?.referral_credit_earned_cents ?? 0) + 5000,
-          })
-          .eq("id", referrerCompanyId);
-
-        if (fallbackError) {
-          console.error(
-            "Erro ao aplicar crédito de indicação no fallback:",
-            fallbackError.message
-          );
-        }
+      if (linkError) {
+        return NextResponse.json(
+          { error: linkError.message },
+          { status: 400 }
+        );
       }
     }
 
@@ -171,6 +204,8 @@ export async function POST(req: Request) {
         empresa_id: companyId,
         plano: plan,
         nivel_acesso: "dono",
+        pId: companyId,
+        pizzariaId: companyId,
       },
     });
 
@@ -181,11 +216,24 @@ export async function POST(req: Request) {
       );
     }
 
+    const trialEndsAt = new Date(
+      Date.now() + 15 * 24 * 60 * 60 * 1000
+    ).toISOString();
+
     return NextResponse.json({
       ok: true,
       companyId,
-      referralCode: companyRow?.referral_code ?? null,
-      trialEndsAt: trialEndsAt.toISOString(),
+      company: {
+        id: companyId,
+        name,
+        cnpj,
+      },
+      membership: {
+        role: "dono",
+        status: "ativo",
+      },
+      referralCode: companyReferralCode,
+      trialEndsAt,
     });
   } catch (error: unknown) {
     return NextResponse.json(
@@ -196,4 +244,4 @@ export async function POST(req: Request) {
       { status: 500 }
     );
   }
-}
+  }

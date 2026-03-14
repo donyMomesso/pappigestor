@@ -1,5 +1,24 @@
 declare const require: any;
 
+type D1Result<T = Record<string, unknown>> = {
+  results?: T[];
+  meta?: {
+    changes?: number;
+  };
+};
+
+type D1PreparedStatement = {
+  bind: (...values: unknown[]) => D1PreparedStatement;
+  first: <T = Record<string, unknown>>() => Promise<T | null>;
+  all: <T = Record<string, unknown>>() => Promise<D1Result<T>>;
+  run: () => Promise<D1Result>;
+};
+
+type D1Database = {
+  prepare: (query: string) => D1PreparedStatement;
+  exec?: (query: string) => Promise<unknown>;
+};
+
 import { Hono } from "hono";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
@@ -17,7 +36,12 @@ type Variables = {
   userPermissions?: string;
 };
 
-type ItemListaStatus = "pendente" | "em_cotacao" | "aprovado" | "cancelado" | "baixado";
+type ItemListaStatus =
+  | "pendente"
+  | "em_cotacao"
+  | "aprovado"
+  | "cancelado"
+  | "baixado";
 
 type CompraPayload = {
   categoria?: string;
@@ -52,12 +76,38 @@ type CompraPayload = {
   lancamento_id?: string | number | null;
 };
 
+type PerfilUsuarioRow = {
+  id?: string;
+  funcao?: string;
+  permissoes?: string;
+  status?: string;
+  email?: string;
+  pizzaria_id?: string;
+  nome?: string;
+  nome_empresa?: string;
+  p_status?: string;
+};
+
+type FornecedorRow = {
+  id: string;
+};
+
+type EstoquePosicaoRow = {
+  id: string;
+  quantidade_atual: number;
+};
+
+type JsonBody = Record<string, unknown>;
+
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
 app.use("*", cors());
 
 app.use("/api/*", async (c, next) => {
-  if (c.req.path.includes("/auth/login") || c.req.path.includes("/empresas/minhas")) {
+  if (
+    c.req.path.includes("/auth/login") ||
+    c.req.path.includes("/empresas/minhas")
+  ) {
     return await next();
   }
 
@@ -90,7 +140,7 @@ app.use("/api/*", async (c, next) => {
   `
   )
     .bind(empresaId, userEmail)
-    .first();
+    .first<PerfilUsuarioRow>();
 
   if (!link) {
     return c.json(
@@ -100,18 +150,18 @@ app.use("/api/*", async (c, next) => {
   }
 
   c.set("empresaId", empresaId);
-  c.set("userRole", String((link as any).funcao || "comum"));
+  c.set("userRole", String(link.funcao || "comum"));
   c.set("userEmail", userEmail);
-  c.set("userPermissions", String((link as any).permissoes || "[]"));
+  c.set("userPermissions", String(link.permissoes || "[]"));
 
   await next();
 });
 
-function parsePermissions(raw: any): string[] {
+function parsePermissions(raw: unknown): string[] {
   try {
     if (!raw) return [];
     if (Array.isArray(raw)) return raw.map(String);
-    return JSON.parse(String(raw));
+    return JSON.parse(String(raw)) as string[];
   } catch {
     return [];
   }
@@ -140,21 +190,29 @@ function asText(value: unknown, fallback = "") {
   return String(value ?? fallback).trim();
 }
 
-async function first<T = Record<string, unknown>>(stmt: D1PreparedStatement): Promise<T | null> {
-  return (await stmt.first()) as T | null;
+async function first<T = Record<string, unknown>>(
+  stmt: D1PreparedStatement
+): Promise<T | null> {
+  return (await stmt.first<T>()) as T | null;
 }
 
-async function allRows<T = Record<string, unknown>>(stmt: D1PreparedStatement): Promise<T[]> {
+async function allRows<T = Record<string, unknown>>(
+  stmt: D1PreparedStatement
+): Promise<T[]> {
   const result = await stmt.all<T>();
   return (result.results ?? []) as T[];
 }
 
-async function getOrCreateFornecedor(c: any, nome: string, cnpj?: string | null) {
+async function getOrCreateFornecedor(
+  c: any,
+  nome: string,
+  cnpj?: string | null
+) {
   const empresaId = c.get("empresaId");
   const nomeLimpo = nome.trim();
   if (!nomeLimpo) return null;
 
-  const existente = await first<{ id: string }>(
+  const existente = await first<FornecedorRow>(
     c.env.DB.prepare(
       `SELECT id FROM fornecedores WHERE pizzaria_id = ? AND LOWER(nome_fantasia) = LOWER(?) LIMIT 1`
     ).bind(empresaId, nomeLimpo)
@@ -179,12 +237,12 @@ async function getOrCreateFornecedor(c: any, nome: string, cnpj?: string | null)
 
 app.post("/api/empresas/minhas", async (c) => {
   try {
-    const body = (await c.req.json().catch(() => ({}))) as any;
-    const email = String(body?.email ?? "").trim().toLowerCase();
+    const body = (await c.req.json().catch(() => ({}))) as JsonBody;
+    const email = String(body.email ?? "").trim().toLowerCase();
 
     if (!email) return c.json({ error: "Email é obrigatório." }, 400);
 
-    const { results } = await c.env.DB.prepare(
+    const result = await c.env.DB.prepare(
       `
       SELECT p.id, p.nome, p.plano, p.status
       FROM perfis_usuarios u
@@ -196,16 +254,22 @@ app.post("/api/empresas/minhas", async (c) => {
       .bind(email)
       .all();
 
-    return c.json({ empresas: results ?? [] });
-  } catch (e: any) {
-    return c.json({ error: "Erro ao listar unidades associadas.", details: e?.message }, 500);
+    return c.json({ empresas: result.results ?? [] });
+  } catch (e: unknown) {
+    return c.json(
+      {
+        error: "Erro ao listar unidades associadas.",
+        details: e instanceof Error ? e.message : null,
+      },
+      500
+    );
   }
 });
 
 app.post("/api/auth/login", async (c) => {
   try {
-    const body = (await c.req.json().catch(() => ({}))) as any;
-    const email = String(body?.email ?? "").trim().toLowerCase();
+    const body = (await c.req.json().catch(() => ({}))) as JsonBody;
+    const email = String(body.email ?? "").trim().toLowerCase();
 
     if (!email) return c.json({ error: "Email é obrigatório." }, 400);
 
@@ -219,19 +283,19 @@ app.post("/api/auth/login", async (c) => {
     `
     )
       .bind(email)
-      .first();
+      .first<PerfilUsuarioRow>();
 
-    if (!user || (user as any).p_status !== "ativo") {
+    if (!user || user.p_status !== "ativo") {
       return c.json({ error: "Acesso negado ou conta inativa." }, 403);
     }
 
     return c.json({
-      empresa_id: (user as any).pizzaria_id,
-      nome_empresa: (user as any).nome_empresa,
-      role: (user as any).funcao,
-      nome: (user as any).nome,
+      empresa_id: user.pizzaria_id,
+      nome_empresa: user.nome_empresa,
+      role: user.funcao,
+      nome: user.nome,
     });
-  } catch (e: any) {
+  } catch {
     return c.json({ error: "Erro interno durante o login." }, 500);
   }
 });
@@ -261,9 +325,9 @@ app.get("/api/produtos", async (c) => {
 
 app.post("/api/produtos", requirePerm("compras:editar"), async (c) => {
   const empresaId = c.get("empresaId");
-  const body = (await c.req.json().catch(() => ({}))) as any;
+  const body = (await c.req.json().catch(() => ({}))) as JsonBody;
 
-  const nome = asText(body?.nome_produto);
+  const nome = asText(body.nome_produto);
   if (!nome) return c.json({ error: "nome_produto obrigatório" }, 400);
 
   const dup = await first<{ id: string }>(
@@ -288,16 +352,16 @@ app.post("/api/produtos", requirePerm("compras:editar"), async (c) => {
       id,
       empresaId,
       nome,
-      asText(body?.categoria_produto, "Outros"),
-      asText(body?.unidade_medida, "un"),
-      body?.ultimo_preco_pago == null ? null : asNumber(body.ultimo_preco_pago),
-      body?.fornecedor_preferencial_id ? String(body.fornecedor_preferencial_id) : null,
-      body?.codigo_barras ? String(body.codigo_barras) : null,
-      body?.marca ? String(body.marca) : null,
-      body?.descricao ? String(body.descricao) : null,
-      body?.peso_embalagem ? String(body.peso_embalagem) : null,
-      body?.preco_referencia == null ? null : asNumber(body.preco_referencia),
-      body?.catalogo_base_id ? String(body.catalogo_base_id) : null
+      asText(body.categoria_produto, "Outros"),
+      asText(body.unidade_medida, "un"),
+      body.ultimo_preco_pago == null ? null : asNumber(body.ultimo_preco_pago),
+      body.fornecedor_preferencial_id ? String(body.fornecedor_preferencial_id) : null,
+      body.codigo_barras ? String(body.codigo_barras) : null,
+      body.marca ? String(body.marca) : null,
+      body.descricao ? String(body.descricao) : null,
+      body.peso_embalagem ? String(body.peso_embalagem) : null,
+      body.preco_referencia == null ? null : asNumber(body.preco_referencia),
+      body.catalogo_base_id ? String(body.catalogo_base_id) : null
     )
     .run();
 
@@ -312,7 +376,9 @@ app.post("/api/produtos", requirePerm("compras:editar"), async (c) => {
     .bind(estoqueId, empresaId, id)
     .run();
 
-  const produto = await first(c.env.DB.prepare(`SELECT * FROM produtos WHERE id = ?`).bind(id));
+  const produto = await first(
+    c.env.DB.prepare(`SELECT * FROM produtos WHERE id = ?`).bind(id)
+  );
   return c.json(produto, 201);
 });
 
@@ -336,6 +402,7 @@ app.get("/api/lista-compras", async (c) => {
   const empresaId = c.get("empresaId");
   const statusQuery = asText(c.req.query("status"), "");
   const binds: unknown[] = [empresaId];
+
   let sql = `
     SELECT lc.id, lc.produto_id, lc.quantidade_solicitada, lc.status_solicitacao, lc.data_solicitacao,
            lc.usuario_solicitante_id, lc.observacao, lc.baixado_em,
@@ -350,6 +417,7 @@ app.get("/api/lista-compras", async (c) => {
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean);
+
     if (statuses.length) {
       sql += ` AND lc.status_solicitacao IN (${statuses.map(() => "?").join(",")})`;
       binds.push(...statuses);
@@ -364,14 +432,16 @@ app.get("/api/lista-compras", async (c) => {
 app.post("/api/lista-compras", requirePerm("compras:editar"), async (c) => {
   const empresaId = c.get("empresaId");
   const userEmail = c.get("userEmail") || "sistema@local";
-  const body = (await c.req.json().catch(() => ({}))) as any;
-  const produtoId = asText(body?.produto_id);
-  const qtd = asNumber(body?.quantidade_solicitada ?? body?.quantidade ?? 1, 1);
+  const body = (await c.req.json().catch(() => ({}))) as JsonBody;
+  const produtoId = asText(body.produto_id);
+  const qtd = asNumber(body.quantidade_solicitada ?? body.quantidade ?? 1, 1);
 
   if (!produtoId) return c.json({ error: "produto_id obrigatório" }, 400);
 
   const produto = await first<{ id: string }>(
-    c.env.DB.prepare(`SELECT id FROM produtos WHERE pizzaria_id = ? AND id = ? LIMIT 1`).bind(empresaId, produtoId)
+    c.env.DB.prepare(
+      `SELECT id FROM produtos WHERE pizzaria_id = ? AND id = ? LIMIT 1`
+    ).bind(empresaId, produtoId)
   );
   if (!produto?.id) return c.json({ error: "Produto não encontrado" }, 404);
 
@@ -395,9 +465,9 @@ app.post("/api/lista-compras", requirePerm("compras:editar"), async (c) => {
       empresaId,
       produtoId,
       qtd,
-      asText(body?.status_solicitacao || body?.status, "pendente"),
+      asText(body.status_solicitacao || body.status, "pendente"),
       usuario?.id || null,
-      body?.observacao ? String(body.observacao) : null
+      body.observacao ? String(body.observacao) : null
     )
     .run();
 
@@ -416,8 +486,9 @@ app.post("/api/lista-compras", requirePerm("compras:editar"), async (c) => {
 
 app.post("/api/lista-compras/dar-baixa", requirePerm("compras:editar"), async (c) => {
   const empresaId = c.get("empresaId");
-  const body = (await c.req.json().catch(() => ({}))) as any;
-  const ids = Array.isArray(body?.ids) ? body.ids.map(String).filter(Boolean) : [];
+  const body = (await c.req.json().catch(() => ({}))) as JsonBody;
+  const rawIds = body.ids;
+  const ids = Array.isArray(rawIds) ? rawIds.map(String).filter(Boolean) : [];
 
   if (!ids.length) return c.json({ error: "Nenhum item informado" }, 400);
 
@@ -431,27 +502,27 @@ app.post("/api/lista-compras/dar-baixa", requirePerm("compras:editar"), async (c
   ).bind(empresaId, ...ids);
 
   const result = await stmt.run();
-  return c.json({ ok: true, atualizados: result.meta.changes ?? 0, ids });
+  return c.json({ ok: true, atualizados: result.meta?.changes ?? 0, ids });
 });
 
 app.patch("/api/lista-compras/:id", requirePerm("compras:editar"), async (c) => {
   const empresaId = c.get("empresaId");
   const id = c.req.param("id");
-  const body = (await c.req.json().catch(() => ({}))) as any;
+  const body = (await c.req.json().catch(() => ({}))) as JsonBody;
   const updates: string[] = [];
   const binds: unknown[] = [];
 
-  if (body?.quantidade_solicitada != null) {
+  if (body.quantidade_solicitada != null) {
     updates.push(`quantidade_solicitada = ?`);
     binds.push(asNumber(body.quantidade_solicitada, 1));
   }
 
-  if (body?.status_solicitacao) {
+  if (body.status_solicitacao) {
     updates.push(`status_solicitacao = ?`);
     binds.push(String(body.status_solicitacao) as ItemListaStatus);
   }
 
-  if (body?.observacao !== undefined) {
+  if (body.observacao !== undefined) {
     updates.push(`observacao = ?`);
     binds.push(body.observacao ? String(body.observacao) : null);
   }
@@ -467,15 +538,24 @@ app.patch("/api/lista-compras/:id", requirePerm("compras:editar"), async (c) => 
     .bind(...binds)
     .run();
 
-  const row = await first(c.env.DB.prepare(`SELECT * FROM lista_compras WHERE pizzaria_id = ? AND id = ?`).bind(empresaId, id));
+  const row = await first(
+    c.env.DB.prepare(
+      `SELECT * FROM lista_compras WHERE pizzaria_id = ? AND id = ?`
+    ).bind(empresaId, id)
+  );
   return c.json(row);
 });
 
 app.delete("/api/lista-compras/:id", requirePerm("compras:editar"), async (c) => {
   const empresaId = c.get("empresaId");
   const id = c.req.param("id");
-  const result = await c.env.DB.prepare(`DELETE FROM lista_compras WHERE pizzaria_id = ? AND id = ?`).bind(empresaId, id).run();
-  return c.json({ ok: true, deleted: (result.meta.changes ?? 0) > 0 });
+  const result = await c.env.DB.prepare(
+    `DELETE FROM lista_compras WHERE pizzaria_id = ? AND id = ?`
+  )
+    .bind(empresaId, id)
+    .run();
+
+  return c.json({ ok: true, deleted: (result.meta?.changes ?? 0) > 0 });
 });
 
 app.post("/api/compra-mercado", requirePerm("compras:editar"), async (c) => {
@@ -488,10 +568,17 @@ app.post("/api/compra-mercado", requirePerm("compras:editar"), async (c) => {
   }
 
   const fornecedorNome = asText(body?.fornecedor?.nome, "Fornecedor sem nome");
-  const fornecedor = await getOrCreateFornecedor(c, fornecedorNome, body?.fornecedor?.cnpj || null);
+  const fornecedor = await getOrCreateFornecedor(
+    c,
+    fornecedorNome,
+    body?.fornecedor?.cnpj || null
+  );
 
   const compraId = uid("comp");
-  const total = asNumber(body?.totais?.total, itens.reduce((acc, item) => acc + asNumber(item.valor_total), 0));
+  const total = asNumber(
+    body?.totais?.total,
+    itens.reduce((acc, item) => acc + asNumber(item.valor_total), 0)
+  );
   const subtotal = asNumber(body?.totais?.subtotal, total);
   const desconto = asNumber(body?.totais?.desconto, 0);
   const acrescimo = asNumber(body?.totais?.acrescimo, 0);
@@ -565,10 +652,18 @@ app.post("/api/compra-mercado", requirePerm("compras:editar"), async (c) => {
         ) VALUES (?, ?, ?, 'entrada', 'compra_mercado', ?, ?, ?, ?, CURRENT_TIMESTAMP)
       `
       )
-        .bind(uid("mov"), empresaId, produtoId, compraId, quantidade, valorUnitario, fornecedorNome)
+        .bind(
+          uid("mov"),
+          empresaId,
+          produtoId,
+          compraId,
+          quantidade,
+          valorUnitario,
+          fornecedorNome
+        )
         .run();
 
-      const posicao = await first<{ id: string; quantidade_atual: number }>(
+      const posicao = await first<EstoquePosicaoRow>(
         c.env.DB.prepare(
           `SELECT id, quantidade_atual FROM estoque_posicao WHERE pizzaria_id = ? AND produto_id = ? LIMIT 1`
         ).bind(empresaId, produtoId)
@@ -610,7 +705,10 @@ app.post("/api/compra-mercado", requirePerm("compras:editar"), async (c) => {
     itensRegistrados += 1;
   }
 
-  const listaIds = Array.isArray(body.lista_ids_baixar) ? body.lista_ids_baixar.map(String).filter(Boolean) : [];
+  const listaIds = Array.isArray(body.lista_ids_baixar)
+    ? body.lista_ids_baixar.map(String).filter(Boolean)
+    : [];
+
   if (listaIds.length) {
     const placeholders = listaIds.map(() => "?").join(",");
     await c.env.DB.prepare(
@@ -651,8 +749,8 @@ app.get("/api/compras-mercado", async (c) => {
 });
 
 app.post("/api/nfce/ler-direto", async (c) => {
-  const body = (await c.req.json().catch(() => ({}))) as any;
-  const url = asText(body?.url);
+  const body = (await c.req.json().catch(() => ({}))) as JsonBody;
+  const url = asText(body.url);
   if (!url) return c.json({ error: "url obrigatória" }, 400);
 
   const chave = (url.match(/(?:p=|chNFe=)(\d{44})/) || [])[1] || null;
@@ -660,7 +758,8 @@ app.post("/api/nfce/ler-direto", async (c) => {
     origem: "qr-url",
     url_consulta: url,
     chave_acesso: chave,
-    sugestao: "Use OCR/IA como fallback quando a SEFAZ não permitir leitura automática.",
+    sugestao:
+      "Use OCR/IA como fallback quando a SEFAZ não permitir leitura automática.",
   });
 });
 
@@ -670,28 +769,42 @@ app.post("/api/ia/ler-nota", async (c) => {
   }
 
   const contentType = c.req.header("content-type") || "";
-  let prompt = "Extraia chave de acesso, emitente, itens, quantidades, valores e total de um cupom fiscal brasileiro em JSON.";
+  let prompt =
+    "Extraia chave de acesso, emitente, itens, quantidades, valores e total de um cupom fiscal brasileiro em JSON.";
 
   try {
     const genAI = new GoogleGenerativeAI(c.env.GOOGLE_AI_API_KEY);
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     if (contentType.includes("application/json")) {
-      const body = (await c.req.json().catch(() => ({}))) as any;
-      if (body?.extrair_apenas === "chave_acesso") {
-        prompt = "Extraia apenas a chave de acesso de 44 dígitos da nota em JSON: { chave_acesso }.";
+      const body = (await c.req.json().catch(() => ({}))) as JsonBody;
+
+      if (body.extrair_apenas === "chave_acesso") {
+        prompt =
+          "Extraia apenas a chave de acesso de 44 dígitos da nota em JSON: { chave_acesso }.";
       }
-      const imageUrl = asText(body?.image_url);
+
+      const imageUrl = asText(body.image_url);
       const result = await model.generateContent([
         prompt,
         `Imagem/URL de referência: ${imageUrl || "não informado"}`,
       ]);
+
       return c.json({ raw: result.response.text() });
     }
 
-    return c.json({ error: "Envie JSON com image_url nesta versão do worker." }, 400);
-  } catch (e: any) {
-    return c.json({ error: "Falha ao processar nota com IA.", details: e?.message }, 500);
+    return c.json(
+      { error: "Envie JSON com image_url nesta versão do worker." },
+      400
+    );
+  } catch (e: unknown) {
+    return c.json(
+      {
+        error: "Falha ao processar nota com IA.",
+        details: e instanceof Error ? e.message : null,
+      },
+      500
+    );
   }
 });
 

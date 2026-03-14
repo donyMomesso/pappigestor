@@ -1,4 +1,4 @@
-export interface ProdutoFoodService {
+﻿export interface ProdutoFoodService {
   id: string;
   nome: string;
   categoria: string;
@@ -603,4 +603,58 @@ export function buscarSugestoesFoodService(
 
 export function listarProdutosPorCategoria(categoria: string) {
   return PRODUTOS_FOOD_SERVICE.filter((p) => p.categoria === categoria);
+}
+
+export interface ItemListaCompraInterpretado {
+  texto_original: string;
+  produto_padrao: string;
+  quantidade: number;
+  unidade: string;
+  unidade_padrao: string;
+  categoria: string;
+  embalagem: string;
+  catalogo_id: string | null;
+  confianca: number;
+}
+
+export function sugerirProdutosFoodService(termo: string, limite = 10) {
+  return buscarSugestoesFoodService(termo, limite);
+}
+
+export interface ItemListaCompraInterpretado {
+  texto_original: string;
+  produto_padrao: string;
+  quantidade: number;
+  unidade: string;
+  unidade_padrao: string;
+  categoria: string;
+  embalagem: string;
+  catalogo_id: string | null;
+  confianca: number;
+}
+
+export function unificarListaCompraTexto(texto: string): ItemListaCompraInterpretado[] {
+  return String(texto || "")
+    .split(/\r?\n/)
+    .map((linha) => linha.trim())
+    .filter(Boolean)
+    .map((linha) => {
+      const match = linha.match(/^(\d+(?:[.,]\d+)?)\s*([a-zA-ZÀ-ÿ]+)?\s+(.+)$/);
+      const quantidade = match ? Number(match[1].replace(",", ".")) : 1;
+      const unidade = (match?.[2] || "UN").toUpperCase();
+      const descricao = (match?.[3] || linha).trim();
+      const sugestao = buscarProdutoFoodService(descricao);
+
+      return {
+        texto_original: linha,
+        produto_padrao: sugestao?.nome || descricao,
+        quantidade,
+        unidade,
+        unidade_padrao: unidade,
+        categoria: sugestao?.categoria || "Outros",
+        embalagem: sugestao?.embalagem || "",
+        catalogo_id: sugestao?.id || null,
+        confianca: sugestao ? 0.9 : 0.4,
+      };
+    });
 }

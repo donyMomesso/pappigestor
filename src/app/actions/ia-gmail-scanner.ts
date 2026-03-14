@@ -25,8 +25,18 @@ export async function escanearNotasNoGmail() {
       { headers: { Authorization: `Bearer ${token}` } }
     );
 
-    const data = await res.json();
-    const messages = data.messages || [];
+    type GmailMessage = {
+  id: string;
+  threadId?: string;
+};
+
+type GmailListResponse = {
+  messages?: GmailMessage[];
+};
+
+const raw = await res.json();
+const data = (raw ?? {}) as GmailListResponse;
+const messages: GmailMessage[] = Array.isArray(data.messages) ? data.messages : [];
 
     if (messages.length === 0) {
       return { success: true, notas: [] };

@@ -1,51 +1,49 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "../../_db";
-import { getSupabaseAdmin, resolveEmpresaId } from "@/lib/pappi-server";
+import { NextResponse } from "next/server";
+import { getDb, getPizzariaId } from "../../_db";
 
 export const runtime = "nodejs";
 
-export async function POST(req: NextRequest) {
-  try {
-    const empresaId = await resolveEmpresaId(req);
-    if (!empresaId) {
-      return NextResponse.json({ error: "Empresa não identificada" }, { status: 400 });
-    }
+type ItemListaDb = {
+  id: string | number;
+  status_solicitacao?: string;
+  data_baixa?: string | null;
+};
 
-    const body = await req.json().catch(() => ({}));
+export async function POST(req: Request) {
+  try {
+    const pId = getPizzariaId(new Headers(req.headers));
+    const db = getDb(pId);
+    const body = await req.json();
     const ids = Array.isArray(body?.ids)
-      ? body.ids.map((id: unknown) => String(id).trim()).filter(Boolean)
+      ? body.ids.map((id: unknown) => String(id))
       : [];
 
-    if (ids.length === 0) {
-      return NextResponse.json({ error: "Nenhum item informado para baixa" }, { status: 400 });
+    if (!ids.length) {
+      return NextResponse.json(
+        { error: "ids é obrigatório" },
+        { status: 400 }
+      );
     }
 
-    const supabase = getSupabaseAdmin();
-    const { data, error } = await supabase
-      .from("lista_compras")
-      .update({
-        status_solicitacao: "comprado",
-        updated_at: new Date().toISOString(),
-      })
-      .eq("empresa_id", empresaId)
-      .in("id", ids)
-      .select("id");
-
-    if (!error) {
-      return NextResponse.json({ ok: true, atualizados: data?.length ?? ids.length, ids });
-    }
-
-    const db = getDb(empresaId);
     let atualizados = 0;
-    for (const item of db.itens) {
-      if (ids.includes(String(item.id))) {
-        item.status_solicitacao = "aprovado";
-        atualizados++;
-      }
+
+    for (const id of ids) {
+      const item = db.itens.find(
+        (i: unknown) => String((i as { id?: string | number })?.id) === id
+      ) as ItemListaDb | undefined;
+
+      if (!item) continue;
+
+      item.status_solicitacao = "aprovado";
+      item.data_baixa = new Date().toISOString();
+      atualizados += 1;
     }
 
-    return NextResponse.json({ ok: true, atualizados, ids });
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message || "Erro ao dar baixa" }, { status: 400 });
+    return NextResponse.json({ ok: true, atualizados });
+  } catch (e: unknown) {
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : "Erro" },
+      { status: 400 }
+    );
   }
 }

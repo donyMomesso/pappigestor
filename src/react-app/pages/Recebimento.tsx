@@ -38,18 +38,13 @@ import {
   DialogFooter,
 } from "@/react-app/components/ui/dialog";
 import { useAppAuth } from "@/contexts/AppAuthContext";
-
-// ✅ IMPORTA OS TIPOS CERTOS (Lancamento + Item)
 import type { Lancamento, ItemLancamento } from "@/shared/types";
 
 const LOGO_URL =
   "https://019c7b56-2054-7d0b-9c55-e7a603c40ba8.mochausercontent.com/1771799343659.png";
 
-// ✅ Agora o tipo aqui contém os campos que seu componente USA
 interface LancamentoComItens extends Lancamento {
   itens: ItemLancamento[];
-
-  // usados na tela:
   fornecedor?: string;
   data_pedido?: string | null;
   data_pagamento?: string | null;
@@ -61,11 +56,9 @@ export default function RecebimentoPage() {
   const [selectedLancamento, setSelectedLancamento] =
     useState<LancamentoComItens | null>(null);
 
-  // ✅ item.id pode ser string/number/undefined -> usa Record<string,string>
   const [quantidades, setQuantidades] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
-  // Nota Fiscal e Boleto
   const [notaFiscal, setNotaFiscal] = useState({
     numero_nota: "",
     data_emissao: "",
@@ -73,6 +66,7 @@ export default function RecebimentoPage() {
     arquivo: null as File | null,
     arquivo_url: "",
   });
+
   const [boleto, setBoleto] = useState({
     valor_real: "",
     vencimento_real: "",
@@ -85,12 +79,10 @@ export default function RecebimentoPage() {
   const [readingWithIA, setReadingWithIA] = useState(false);
   const [scanningBarcode, setScanningBarcode] = useState(false);
 
-  // ✅ ids no seu backend podem ser string -> deixa string
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  // Dialogs de feedback
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [showErrorDialog, setShowErrorDialog] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
@@ -98,14 +90,23 @@ export default function RecebimentoPage() {
 
   const { localUser } = useAppAuth();
 
-  const empresaId =
-    localUser?.empresa_id ||
-    localStorage.getItem("empresa_id") ||
-    localStorage.getItem("pId") ||
-    localStorage.getItem("pizzariaId") ||
-    "";
+  const [empresaId, setEmpresaId] = useState("");
+  const [userEmail, setUserEmail] = useState("");
 
-  const userEmail = localUser?.email || localStorage.getItem("userEmail") || "";
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const empresaIdStorage =
+      window.localStorage.getItem("empresa_id") ||
+      window.localStorage.getItem("pId") ||
+      window.localStorage.getItem("pizzariaId") ||
+      "";
+
+    const userEmailStorage = window.localStorage.getItem("userEmail") || "";
+
+    setEmpresaId(localUser?.empresa_id || empresaIdStorage);
+    setUserEmail(localUser?.email || userEmailStorage);
+  }, [localUser]);
 
   const getAuthHeaders = (extra?: Record<string, string>): HeadersInit => ({
     "x-empresa-id": empresaId,
@@ -114,28 +115,33 @@ export default function RecebimentoPage() {
   });
 
   useEffect(() => {
+    if (!empresaId && !userEmail) return;
     fetchLancamentos();
-  }, []);
+  }, [empresaId, userEmail]);
 
-  // ✅ chave segura para mapear quantidade, mesmo se item.id vier undefined
   const itemKey = (item: ItemLancamento) =>
     String(item.id ?? item.produto ?? "item");
 
   const fetchLancamentos = async () => {
     try {
-      const res = await fetch("/api/lancamentos", { headers: getAuthHeaders() });
+      setLoading(true);
+
+      const res = await fetch("/api/lancamentos", {
+        headers: getAuthHeaders(),
+      });
+
       const data = await res.json();
 
       const lancamentosComItens: LancamentoComItens[] = await Promise.all(
         (Array.isArray(data) ? data : []).map(async (l: Lancamento) => {
-          const detalhes = await fetch(`/api/lancamentos/${l.id}`, { headers: getAuthHeaders() }).then((r) =>
-            r.json()
-          );
+          const detalhes = await fetch(`/api/lancamentos/${l.id}`, {
+            headers: getAuthHeaders(),
+          }).then((r) => r.json());
+
           return detalhes as LancamentoComItens;
         })
       );
 
-      // ✅ agora data_pagamento existe no tipo
       const pendentes = lancamentosComItens.filter(
         (l) => !l.data_pagamento && !l.vencimento_real
       );
@@ -155,16 +161,11 @@ export default function RecebimentoPage() {
     const qtds: Record<string, string> = {};
     lancamento.itens?.forEach((item) => {
       const k = itemKey(item);
-      const v =
-        item.quantidade_recebida ??
-        item.qtd ??
-        undefined;
-
+      const v = item.quantidade_recebida ?? item.qtd ?? undefined;
       qtds[k] = typeof v === "number" ? String(v) : "";
     });
     setQuantidades(qtds);
 
-    // Reset forms
     setNotaFiscal({
       numero_nota: "",
       data_emissao: new Date().toISOString().split("T")[0],
@@ -320,7 +321,9 @@ export default function RecebimentoPage() {
           }));
           alert("Chave de acesso extraída com sucesso!");
         } else {
-          alert("Não foi possível ler o código. Tente novamente ou digite manualmente.");
+          alert(
+            "Não foi possível ler o código. Tente novamente ou digite manualmente."
+          );
         }
       }
     } catch (error) {
@@ -335,10 +338,7 @@ export default function RecebimentoPage() {
     const k = itemKey(item);
     const recebido = quantidades[k] ? parseFloat(quantidades[k]) : null;
 
-    const pedida =
-      item.quantidade_pedida ??
-      item.qtd ??
-      0;
+    const pedida = item.quantidade_pedida ?? item.qtd ?? 0;
 
     if (recebido === null || recebido === 0) return "pendente";
     if (recebido === pedida) return "ok";
@@ -353,9 +353,7 @@ export default function RecebimentoPage() {
     const erros: string[] = [];
 
     try {
-      // 1) Atualizar quantidades dos itens
       for (const item of selectedLancamento.itens || []) {
-        // ✅ se não tiver id, não dá pra patch /api/itens/:id
         if (item.id === undefined || item.id === null) continue;
 
         const k = itemKey(item);
@@ -370,8 +368,12 @@ export default function RecebimentoPage() {
             });
 
             if (!res.ok) {
-              const err = await res.json().catch(() => ({ error: "Erro desconhecido" }));
-              erros.push(`Item ${item.produto}: ${err.error || "Erro ao atualizar"}`);
+              const err = await res
+                .json()
+                .catch(() => ({ error: "Erro desconhecido" }));
+              erros.push(
+                `Item ${item.produto}: ${err.error || "Erro ao atualizar"}`
+              );
             }
           } catch {
             erros.push(`Item ${item.produto}: Erro de conexão`);
@@ -379,7 +381,6 @@ export default function RecebimentoPage() {
         }
       }
 
-      // 2) Registrar Nota Fiscal
       let notaFiscalRegistrada: any = null;
       if (notaFiscal.numero_nota) {
         try {
@@ -392,13 +393,17 @@ export default function RecebimentoPage() {
               numero_nota: notaFiscal.numero_nota,
               data_emissao: notaFiscal.data_emissao || null,
               chave_acesso: notaFiscal.chave_acesso || null,
-              valor_total: boleto.valor_real ? parseFloat(boleto.valor_real) : null,
+              valor_total: boleto.valor_real
+                ? parseFloat(boleto.valor_real)
+                : null,
               arquivo_url: notaFiscal.arquivo_url || null,
             }),
           });
 
           if (!res.ok) {
-            const err = await res.json().catch(() => ({ error: "Erro desconhecido" }));
+            const err = await res
+              .json()
+              .catch(() => ({ error: "Erro desconhecido" }));
             erros.push(`Nota Fiscal: ${err.error || "Erro ao registrar"}`);
           } else {
             notaFiscalRegistrada = await res.json();
@@ -408,7 +413,6 @@ export default function RecebimentoPage() {
         }
       }
 
-      // 3) Registrar Boleto + vínculo no financeiro
       if (boleto.valor_real && boleto.vencimento_real) {
         try {
           const res = await fetch(`/api/boletos-dda`, {
@@ -422,12 +426,16 @@ export default function RecebimentoPage() {
               arquivo_url: boleto.arquivo_url || null,
               lancamento_id: selectedLancamento.id,
               nota_fiscal_id: notaFiscalRegistrada?.id || null,
-              observacao: notaFiscal.numero_nota ? `NF ${notaFiscal.numero_nota} vinculada no recebimento` : "Boleto vinculado no recebimento",
+              observacao: notaFiscal.numero_nota
+                ? `NF ${notaFiscal.numero_nota} vinculada no recebimento`
+                : "Boleto vinculado no recebimento",
             }),
           });
 
           if (!res.ok) {
-            const err = await res.json().catch(() => ({ error: "Erro desconhecido" }));
+            const err = await res
+              .json()
+              .catch(() => ({ error: "Erro desconhecido" }));
             erros.push(`Boleto: ${err.error || "Erro ao registrar"}`);
           }
         } catch {
@@ -466,10 +474,12 @@ export default function RecebimentoPage() {
     return d.toLocaleDateString("pt-BR");
   };
 
-  // ✅ não briga com o tipo NivelAcesso (deixa string)
   const nivel = String((localUser as any)?.nivel_acesso ?? "");
   const isAdmin =
-    nivel === "admin_empresa" || nivel === "super_admin" || nivel === "admin" || nivel === "master";
+    nivel === "admin_empresa" ||
+    nivel === "super_admin" ||
+    nivel === "admin" ||
+    nivel === "master";
 
   const handleDeleteClick = (e: React.MouseEvent, lancamentoId?: string) => {
     e.stopPropagation();
@@ -519,7 +529,6 @@ export default function RecebimentoPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50">
-      {/* Header */}
       <header className="bg-white/80 backdrop-blur-sm border-b border-green-100 sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-3">
           <Link to="/" className="p-2 hover:bg-green-100 rounded-lg transition-colors">
@@ -538,7 +547,6 @@ export default function RecebimentoPage() {
       <main className="max-w-4xl mx-auto px-4 py-8">
         {selectedLancamento ? (
           <div className="space-y-6">
-            {/* Card de Conferência de Itens */}
             <Card className="border-0 shadow-xl shadow-green-500/10">
               <CardHeader className="border-b bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-t-xl">
                 <CardTitle className="flex items-center gap-2">
@@ -690,7 +698,6 @@ export default function RecebimentoPage() {
               </CardContent>
             </Card>
 
-            {/* Card de Nota Fiscal */}
             <Card className="border-0 shadow-xl shadow-blue-500/10">
               <CardHeader className="border-b bg-gradient-to-r from-blue-500 to-indigo-600 text-white">
                 <CardTitle className="flex items-center gap-2">
@@ -852,7 +859,6 @@ export default function RecebimentoPage() {
               </CardContent>
             </Card>
 
-            {/* Card de Boleto */}
             <Card className="border-0 shadow-xl shadow-orange-500/10">
               <CardHeader className="border-b bg-gradient-to-r from-orange-500 to-red-500 text-white">
                 <CardTitle className="flex items-center gap-2">
@@ -878,7 +884,10 @@ export default function RecebimentoPage() {
                           <AlertCircle className="w-3 h-3" />
                           Diferença de{" "}
                           {formatCurrency(
-                            Math.abs(parseFloat(boleto.valor_real) - selectedLancamento.valor_previsto)
+                            Math.abs(
+                              parseFloat(boleto.valor_real) -
+                                selectedLancamento.valor_previsto
+                            )
                           )}
                         </p>
                       )}
@@ -968,9 +977,12 @@ export default function RecebimentoPage() {
               </CardContent>
             </Card>
 
-            {/* Botões */}
             <div className="flex gap-3">
-              <Button variant="outline" onClick={() => setSelectedLancamento(null)} className="flex-1">
+              <Button
+                variant="outline"
+                onClick={() => setSelectedLancamento(null)}
+                className="flex-1"
+              >
                 Voltar
               </Button>
               <Button
@@ -1062,7 +1074,6 @@ export default function RecebimentoPage() {
         )}
       </main>
 
-      {/* Dialog exclusão */}
       <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -1076,11 +1087,17 @@ export default function RecebimentoPage() {
           </DialogHeader>
 
           <div className="py-4">
-            <p className="text-sm text-gray-600">Tem certeza que deseja excluir este lançamento?</p>
+            <p className="text-sm text-gray-600">
+              Tem certeza que deseja excluir este lançamento?
+            </p>
           </div>
 
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)} disabled={deleting}>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteConfirmOpen(false)}
+              disabled={deleting}
+            >
               Cancelar
             </Button>
             <Button
@@ -1105,7 +1122,6 @@ export default function RecebimentoPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog sucesso */}
       <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -1132,7 +1148,6 @@ export default function RecebimentoPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog erro */}
       <Dialog open={showErrorDialog} onOpenChange={setShowErrorDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>

@@ -230,14 +230,23 @@ export default function FinanceiroPage() {
     vencimento_real: "",
   });
 
-  const empresaId =
-    localUser?.empresa_id ||
-    localStorage.getItem("empresa_id") ||
-    localStorage.getItem("pId") ||
-    localStorage.getItem("pizzariaId") ||
-    "";
+  const [empresaId, setEmpresaId] = useState<string>("");
+  const [userEmail, setUserEmail] = useState<string>("");
 
-  const userEmail = localUser?.email || localStorage.getItem("userEmail") || "";
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const empresaIdStorage =
+      window.localStorage.getItem("empresa_id") ||
+      window.localStorage.getItem("pId") ||
+      window.localStorage.getItem("pizzariaId") ||
+      "";
+
+    const userEmailStorage = window.localStorage.getItem("userEmail") || "";
+
+    setEmpresaId(localUser?.empresa_id || empresaIdStorage);
+    setUserEmail(localUser?.email || userEmailStorage);
+  }, [localUser]);
 
   function getAuthHeaders(extra?: Record<string, string>): HeadersInit {
     return {
@@ -248,6 +257,11 @@ export default function FinanceiroPage() {
   }
 
   useEffect(() => {
+    if (!empresaId && !userEmail) {
+      setLoading(false);
+      return;
+    }
+
     void fetchData();
     void fetchBoletosDDA();
     void fetchDashboardAndInsights();
@@ -255,9 +269,10 @@ export default function FinanceiroPage() {
   }, [empresaId, userEmail]);
 
   useEffect(() => {
+    if (!empresaId && !userEmail) return;
     void fetchBoletosDDA();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ddaFilter]);
+  }, [ddaFilter, empresaId, userEmail]);
 
   async function fetchData(): Promise<void> {
     try {

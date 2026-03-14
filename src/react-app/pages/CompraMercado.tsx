@@ -100,8 +100,8 @@ interface CompraRegistrada {
 }
 
 interface ItemListaCompras {
-  id: string | number;
-  produto_id: string | number;
+  id: number;
+  produto_id: number;
   quantidade_solicitada: number;
   status_solicitacao: string;
   produto_nome: string;
@@ -125,20 +125,6 @@ type ApiCompraMercadoResp = ApiErr & Partial<CompraRegistrada>;
 /** ✅ resolve seu TS: response.json() como unknown */
 async function safeJson<T>(res: Response): Promise<T> {
   return (await res.json()) as T;
-}
-
-
-function getEmpresaHeaders(): HeadersInit {
-  if (typeof window === "undefined") return {};
-  const empresaId = localStorage.getItem("empresa_id") || localStorage.getItem("pId") || "";
-  const email = localStorage.getItem("user_email") || localStorage.getItem("email") || "";
-  return empresaId
-    ? {
-        "x-empresa-id": empresaId,
-        "x-pizzaria-id": empresaId,
-        ...(email ? { "x-user-email": email } : {}),
-      }
-    : {};
 }
 
 // Função para calcular similaridade entre strings
@@ -186,7 +172,7 @@ export default function CompraMercado() {
   const [historicoCompras, setHistoricoCompras] = useState<any[]>([]);
 
   const [matchesEncontrados, setMatchesEncontrados] = useState<ItemMatch[]>([]);
-  const [matchesSelecionados, setMatchesSelecionados] = useState<Set<string>>(new Set());
+  const [matchesSelecionados, setMatchesSelecionados] = useState<Set<number>>(new Set());
   const [showMatchesDialog, setShowMatchesDialog] = useState(false);
   const [dandoBaixa, setDandoBaixa] = useState(false);
 
@@ -202,7 +188,7 @@ export default function CompraMercado() {
       if (!pId) return;
 
       const response = await fetch("/api/lancamentos?categoria=Mercado&limit=5", {
-        headers: { ...getEmpresaHeaders(), "x-pizzaria-id": pId },
+        headers: { "x-pizzaria-id": pId },
         cache: "no-store",
       });
 
@@ -226,7 +212,7 @@ export default function CompraMercado() {
       if (!pId) return;
 
       const response = await fetch("/api/lista-compras?status=pendente,em_cotacao", {
-        headers: { ...getEmpresaHeaders(), "x-pizzaria-id": pId },
+        headers: { "x-pizzaria-id": pId },
         cache: "no-store",
       });
       if (!response.ok) return;
@@ -246,20 +232,20 @@ export default function CompraMercado() {
       matches.sort((a, b) => b.similaridade - a.similaridade);
 
       const uniqueMatches: ItemMatch[] = [];
-      const listaIdsUsados = new Set<string>();
+      const listaIdsUsados = new Set<number>();
 
       for (const match of matches) {
-        if (!listaIdsUsados.has(String(match.itemLista.id))) {
+        if (!listaIdsUsados.has(match.itemLista.id)) {
           uniqueMatches.push(match);
-          listaIdsUsados.add(String(match.itemLista.id));
+          listaIdsUsados.add(match.itemLista.id);
         }
       }
 
       setMatchesEncontrados(uniqueMatches);
 
       if (uniqueMatches.length > 0) {
-        const preSelected = new Set<string>();
-        for (const match of uniqueMatches) if (match.similaridade >= 0.5) preSelected.add(String(match.itemLista.id));
+        const preSelected = new Set<number>();
+        for (const match of uniqueMatches) if (match.similaridade >= 0.5) preSelected.add(match.itemLista.id);
         setMatchesSelecionados(preSelected);
       }
     } catch (err) {
@@ -282,7 +268,7 @@ export default function CompraMercado() {
 
       const response = await fetch("/api/lista-compras/dar-baixa", {
         method: "POST",
-        headers: { ...getEmpresaHeaders(), "Content-Type": "application/json", "x-pizzaria-id": pId },
+        headers: { "Content-Type": "application/json", "x-pizzaria-id": pId },
         body: JSON.stringify({ ids: Array.from(matchesSelecionados) }),
       });
 
@@ -302,12 +288,11 @@ export default function CompraMercado() {
     }
   };
 
-  const toggleMatchSelecionado = (listaId: string | number) => {
-    const key = String(listaId);
+  const toggleMatchSelecionado = (listaId: number) => {
     setMatchesSelecionados((prev) => {
       const newSet = new Set(prev);
-      if (newSet.has(key)) newSet.delete(key);
-      else newSet.add(key);
+      if (newSet.has(listaId)) newSet.delete(listaId);
+      else newSet.add(listaId);
       return newSet;
     });
   };
@@ -421,7 +406,7 @@ export default function CompraMercado() {
     try {
       let response = await fetch("/api/nfce/ler-direto", {
         method: "POST",
-        headers: { ...getEmpresaHeaders(), "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url }),
       });
 
@@ -430,7 +415,7 @@ export default function CompraMercado() {
       if (!response.ok && data?.sugestao) {
         response = await fetch("/api/nfce/ler", {
           method: "POST",
-          headers: { ...getEmpresaHeaders(), "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ url }),
         });
         data = await safeJson<ApiNfceResp>(response).catch(() => ({} as ApiNfceResp));
@@ -464,7 +449,6 @@ export default function CompraMercado() {
 
       const response = await fetch("/api/ia/ler-nota", {
         method: "POST",
-        headers: getEmpresaHeaders(),
         body: formData,
       });
 
@@ -524,28 +508,46 @@ export default function CompraMercado() {
   };
 
   const salvarCompra = async () => {
-    if (!dadosNfce) return;
+    if (!dadosNfce) {
+      setError("Nenhum dado da nota foi carregado.");
+      return;
+    }
 
     setSalvando(true);
     setError(null);
 
     try {
-      const pId = localStorage.getItem("pId") || "";
-      if (!pId) throw new Error("Selecione a pizzaria (pId) antes de salvar.");
+      const empresaId =
+        localStorage.getItem("empresa_id") ||
+        localStorage.getItem("pId") ||
+        "";
+
+      if (!empresaId) {
+        throw new Error("Empresa não selecionada. Defina empresa_id ou pId no localStorage.");
+      }
 
       const response = await fetch("/api/compra-mercado", {
         method: "POST",
-        headers: { ...getEmpresaHeaders(), "Content-Type": "application/json", "x-pizzaria-id": pId },
+        headers: {
+          "Content-Type": "application/json",
+          "x-empresa-id": empresaId,
+          "x-pizzaria-id": empresaId,
+        },
         body: JSON.stringify({ dados_nfce: dadosNfce, categoria }),
       });
 
-      const data = await safeJson<ApiCompraMercadoResp>(response).catch(() => ({} as ApiCompraMercadoResp));
+      const data = await safeJson<ApiCompraMercadoResp>(response).catch(
+        () => ({} as ApiCompraMercadoResp)
+      );
 
-      if (!response.ok) throw new Error(data?.error || "Erro ao salvar compra");
+      if (!response.ok) {
+        throw new Error(
+          data?.error ||
+            `Erro ao salvar compra (status ${response.status}). Verifique a rota /api/compra-mercado.`
+        );
+      }
 
-      // data aqui pode vir como objeto “compra registrada”
-      setCompraRegistrada(data as unknown as CompraRegistrada);
-
+      setCompraRegistrada(data as CompraRegistrada);
       setShowConfirmDialog(false);
       setDadosNfce(null);
       fetchHistorico();
@@ -553,6 +555,7 @@ export default function CompraMercado() {
       if (matchesEncontrados.length > 0) setShowMatchesDialog(true);
       else setShowSuccessDialog(true);
     } catch (err) {
+      console.error("Erro em salvarCompra:", err);
       setError(err instanceof Error ? err.message : "Erro ao salvar compra");
     } finally {
       setSalvando(false);
@@ -987,7 +990,7 @@ export default function CompraMercado() {
                 <div
                   key={idx}
                   className={`p-3 rounded-lg border transition-colors cursor-pointer ${
-                    matchesSelecionados.has(String(match.itemLista.id))
+                    matchesSelecionados.has(match.itemLista.id)
                       ? "border-green-500 bg-green-50 dark:bg-green-900/20"
                       : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
                   }`}
@@ -995,7 +998,7 @@ export default function CompraMercado() {
                 >
                   <div className="flex items-start gap-3">
                     <Checkbox
-                      checked={matchesSelecionados.has(String(match.itemLista.id))}
+                      checked={matchesSelecionados.has(match.itemLista.id)}
                       onCheckedChange={() => toggleMatchSelecionado(match.itemLista.id)}
                       className="mt-1"
                     />

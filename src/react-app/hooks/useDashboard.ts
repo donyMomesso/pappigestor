@@ -30,17 +30,51 @@ type RecebimentoRow = {
   conferido?: boolean | null;
 };
 
-type MesSerie = { name: string; receitas: number; despesas: number };
-type EstoquePizza = { name: string; value: number };
+type MesSerie = {
+  name: string;
+  receitas: number;
+  despesas: number;
+};
 
-function toNumber(v: any) {
+type EstoquePizza = {
+  name: string;
+  value: number;
+};
+
+type ItemCritico = {
+  id?: string;
+  nome: string;
+  atual: number;
+  minimo: number;
+};
+
+type DashboardKpis = {
+  receitaTotal: number;
+  despesaTotal: number;
+  lucro: number;
+  margem: number;
+  itensCriticos: number;
+  recebimentosPendentes: number;
+};
+
+type DashboardAlerta = {
+  tipo: "warn" | "danger";
+  texto: string;
+};
+
+function toNumber(v: unknown) {
   if (v === null || v === undefined) return 0;
-  if (typeof v === "number") return Number.isFinite(v) ? v : 0;
+
+  if (typeof v === "number") {
+    return Number.isFinite(v) ? v : 0;
+  }
+
   if (typeof v === "string") {
     const s = v.trim().replace(/\./g, "").replace(",", ".");
     const n = Number(s);
     return Number.isFinite(n) ? n : 0;
   }
+
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
 }
@@ -56,16 +90,18 @@ function monthLabel(d: Date) {
 function lastMonths(count: number) {
   const out: Date[] = [];
   const now = new Date();
+
   for (let i = count - 1; i >= 0; i--) {
     const dt = new Date(now.getFullYear(), now.getMonth() - i, 1);
     out.push(dt);
   }
+
   return out;
 }
 
-function safeDate(raw: any): Date | null {
+function safeDate(raw: unknown): Date | null {
   if (!raw) return null;
-  const dt = new Date(raw);
+  const dt = new Date(String(raw));
   return Number.isNaN(dt.getTime()) ? null : dt;
 }
 
@@ -83,17 +119,22 @@ function isRecebimentoPendente(row: RecebimentoRow) {
   return false;
 }
 
+function moneyPreview(v: number) {
+  return (v ?? 0).toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
+}
+
 export function useDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [seriesMensal, setSeriesMensal] = useState<MesSerie[]>([]);
   const [estoquePizza, setEstoquePizza] = useState<EstoquePizza[]>([]);
-  const [itensCriticos, setItensCriticos] = useState<
-    Array<{ id?: string; nome: string; atual: number; minimo: number }>
-  >([]);
+  const [itensCriticos, setItensCriticos] = useState<ItemCritico[]>([]);
 
-  const [kpis, setKpis] = useState({
+  const [kpis, setKpis] = useState<DashboardKpis>({
     receitaTotal: 0,
     despesaTotal: 0,
     lucro: 0,
@@ -107,6 +148,7 @@ export function useDashboard() {
     setError(null);
 
     const supabase = getSupabaseClient();
+
     if (!supabase) {
       const fake = lastMonths(6).map((d) => ({
         name: monthLabel(d),
@@ -132,7 +174,6 @@ export function useDashboard() {
         itensCriticos: 4,
         recebimentosPendentes: 1,
       });
-
       setLoading(false);
       return;
     }
@@ -147,13 +188,14 @@ export function useDashboard() {
       let prodQuery = supabase.from("produtos").select("*");
       if (empresaId) prodQuery = prodQuery.eq("empresa_id", empresaId);
 
-      // tentativa segura: se a tabela ainda não existir, não derruba o dashboard
       let recebimentosRows: RecebimentoRow[] = [];
+
       try {
         let recebQuery = supabase.from("recebimentos").select("*");
         if (empresaId) recebQuery = recebQuery.eq("empresa_id", empresaId);
 
         const { data: recebData, error: recebErr } = await recebQuery;
+
         if (!recebErr) {
           recebimentosRows = (recebData ?? []) as RecebimentoRow[];
         }
@@ -161,8 +203,10 @@ export function useDashboard() {
         recebimentosRows = [];
       }
 
-      const [{ data: fin, error: finErr }, { data: prods, error: prodErr }] =
-        await Promise.all([finQuery, prodQuery]);
+      const [
+        { data: fin, error: finErr },
+        { data: prods, error: prodErr },
+      ] = await Promise.all([finQuery, prodQuery]);
 
       if (finErr) throw finErr;
       if (prodErr) throw prodErr;
@@ -189,31 +233,32 @@ export function useDashboard() {
         if (!dt) continue;
 
         const key = monthKey(new Date(dt.getFullYear(), dt.getMonth(), 1));
-        const b = buckets.get(key);
-        if (!b) continue;
+        const bucket = buckets.get(key);
+        if (!bucket) continue;
 
         const valor = toNumber(row.valor);
-        const tipo = String(row.tipo || "").toLowerCase();
+        const tipo = String(row.tipo ?? "").toLowerCase();
 
-        if (tipo === "receita") b.receitas += valor;
-        if (tipo === "despesa") b.despesas += valor;
+        if (tipo === "receita") bucket.receitas += valor;
+        if (tipo === "despesa") bucket.despesas += valor;
       }
 
       const serie: MesSerie[] = months.map((d) => {
-        const b = buckets.get(monthKey(d))!;
+        const bucket = buckets.get(monthKey(d));
+
         return {
-          name: b.label,
-          receitas: Math.round(b.receitas),
-          despesas: Math.round(b.despesas),
+          name: monthLabel(d),
+          receitas: Math.round(bucket?.receitas ?? 0),
+          despesas: Math.round(bucket?.despesas ?? 0),
         };
       });
 
       const receitaTotal = finRows
-        .filter((t) => String(t.tipo || "").toLowerCase() === "receita")
+        .filter((t) => String(t.tipo ?? "").toLowerCase() === "receita")
         .reduce((acc, t) => acc + toNumber(t.valor), 0);
 
       const despesaTotal = finRows
-        .filter((t) => String(t.tipo || "").toLowerCase() === "despesa")
+        .filter((t) => String(t.tipo ?? "").toLowerCase() === "despesa")
         .reduce((acc, t) => acc + toNumber(t.valor), 0);
 
       const lucro = receitaTotal - despesaTotal;
@@ -231,14 +276,14 @@ export function useDashboard() {
         .slice(0, 8);
 
       const totalOk = prodRows.filter((p) => {
-        const a = toNumber(p.estoque_atual);
-        const m = toNumber(p.estoque_minimo);
-        if (m <= 0) return true;
-        return a > m;
+        const atual = toNumber(p.estoque_atual);
+        const minimo = toNumber(p.estoque_minimo);
+
+        if (minimo <= 0) return true;
+        return atual > minimo;
       }).length;
 
       const totalCrit = Math.max(0, prodRows.length - totalOk);
-
       const totalRecebimentosPendentes = recebimentosRows.filter(isRecebimentoPendente).length;
 
       setSeriesMensal(serie);
@@ -247,7 +292,6 @@ export function useDashboard() {
         { name: "Ok", value: totalOk },
         { name: "Crítico", value: totalCrit },
       ]);
-
       setKpis({
         receitaTotal: Math.round(receitaTotal),
         despesaTotal: Math.round(despesaTotal),
@@ -256,20 +300,28 @@ export function useDashboard() {
         itensCriticos: totalCrit,
         recebimentosPendentes: totalRecebimentosPendentes,
       });
-    } catch (e: any) {
-      console.error(e);
-      setError(e?.message || "Erro ao carregar dashboard");
+    } catch (err: unknown) {
+      console.error(err);
+
+      const message =
+        err instanceof Error
+          ? err.message
+          : typeof err === "string"
+            ? err
+            : "Erro ao carregar dashboard";
+
+      setError(message);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    refresh();
+    void refresh();
   }, [refresh]);
 
-  const alertas = useMemo(() => {
-    const alerts: Array<{ tipo: "warn" | "danger"; texto: string }> = [];
+  const alertas = useMemo<DashboardAlerta[]>(() => {
+    const alerts: DashboardAlerta[] = [];
 
     if (kpis.itensCriticos > 0) {
       alerts.push({
@@ -305,11 +357,4 @@ export function useDashboard() {
     kpis,
     alertas,
   };
-}
-
-function moneyPreview(v: number) {
-  return (v ?? 0).toLocaleString("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  });
 }

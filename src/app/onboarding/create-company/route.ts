@@ -10,14 +10,25 @@ function makeReferralCode(companyName: string, userId: string) {
     .replace(/[^a-zA-Z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "")
     .toUpperCase();
+
   return base.slice(0, 18) || `PAPPI-${userId.slice(0, 6).toUpperCase()}`;
 }
+
+type CompanyRefRow = {
+  id?: string | null;
+  referral_credit_balance_cents?: number | null;
+  referral_credit_earned_cents?: number | null;
+};
 
 export async function POST(req: Request) {
   try {
     const supabase = await createClient();
+
     if (!supabase) {
-      return NextResponse.json({ error: "Supabase não configurado" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Supabase não configurado" },
+        { status: 500 }
+      );
     }
 
     const {
@@ -26,35 +37,47 @@ export async function POST(req: Request) {
     } = await supabase.auth.getUser();
 
     if (userError || !user) {
-      return NextResponse.json({ error: "Sessão inválida" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Sessão inválida" },
+        { status: 401 }
+      );
     }
 
-    const body = await req.json().catch(() => ({}));
+    const body = await req.json().catch(() => ({} as Record<string, unknown>));
+
     const name = String(body?.nomeFantasia || "").trim();
     const razaoSocial = String(body?.razaoSocial || "").trim();
     const cnpj = String(body?.cnpj || "").replace(/\D/g, "");
-    const referralCode = String(body?.referralCode || "").trim().toUpperCase() || null;
+    const referralCode =
+      String(body?.referralCode || "").trim().toUpperCase() || null;
     const plan = normalizePlan(body?.plano || "basico");
 
     if (!name || !razaoSocial || cnpj.length !== 14) {
-      return NextResponse.json({ error: "Dados da empresa inválidos." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Dados da empresa inválidos." },
+        { status: 400 }
+      );
     }
 
     const admin = getSupabaseAdmin();
     const db = admin ?? supabase;
 
     let referrerCompanyId: string | null = null;
+
     if (referralCode) {
       const { data: refCompany } = await db
         .from("companies")
         .select("id")
         .eq("referral_code", referralCode)
         .maybeSingle();
-      referrerCompanyId = (refCompany as any)?.id ?? null;
+
+      referrerCompanyId = ((refCompany as CompanyRefRow | null)?.id ?? null) as string | null;
     }
 
     const trialStartedAt = new Date();
-    const trialEndsAt = new Date(trialStartedAt.getTime() + 15 * 24 * 60 * 60 * 1000);
+    const trialEndsAt = new Date(
+      trialStartedAt.getTime() + 15 * 24 * 60 * 60 * 1000
+    );
 
     const { data: company, error: companyError } = await db
       .from("companies")
@@ -76,11 +99,16 @@ export async function POST(req: Request) {
       .select("id, referral_code")
       .single();
 
-    if (companyError || !(company as any)?.id) {
-      return NextResponse.json({ error: companyError?.message || "Falha ao criar empresa" }, { status: 400 });
+    const companyRow = (company as { id?: string; referral_code?: string } | null);
+
+    if (companyError || !companyRow?.id) {
+      return NextResponse.json(
+        { error: companyError?.message || "Falha ao criar empresa" },
+        { status: 400 }
+      );
     }
 
-    const companyId = String((company as any).id);
+    const companyId = String(companyRow.id);
 
     const { error: linkError } = await db.from("company_users").insert([
       {
@@ -92,28 +120,49 @@ export async function POST(req: Request) {
     ]);
 
     if (linkError) {
-      return NextResponse.json({ error: linkError.message }, { status: 400 });
+      return NextResponse.json(
+        { error: linkError.message },
+        { status: 400 }
+      );
     }
 
     if (admin && referrerCompanyId) {
-      await admin.rpc("increment_referral_credit", {
-        p_company_id: referrerCompanyId,
-        p_amount_cents: 5000,
-      }).catch(async () => {
+      const { error: referralRpcError } = await admin.rpc(
+        "increment_referral_credit",
+        {
+          p_company_id: referrerCompanyId,
+          p_amount_cents: 5000,
+        }
+      );
+
+      if (referralRpcError) {
         const { data: current } = await admin
           .from("companies")
-          .select("referral_credit_balance_cents, referral_credit_earned_cents")
+          .select(
+            "referral_credit_balance_cents, referral_credit_earned_cents"
+          )
           .eq("id", referrerCompanyId)
           .maybeSingle();
 
-        await admin
+        const currentRow = current as CompanyRefRow | null;
+
+        const { error: fallbackError } = await admin
           .from("companies")
           .update({
-            referral_credit_balance_cents: Number((current as any)?.referral_credit_balance_cents ?? 0) + 5000,
-            referral_credit_earned_cents: Number((current as any)?.referral_credit_earned_cents ?? 0) + 5000,
+            referral_credit_balance_cents:
+              Number(currentRow?.referral_credit_balance_cents ?? 0) + 5000,
+            referral_credit_earned_cents:
+              Number(currentRow?.referral_credit_earned_cents ?? 0) + 5000,
           })
           .eq("id", referrerCompanyId);
-      });
+
+        if (fallbackError) {
+          console.error(
+            "Erro ao aplicar crédito de indicação no fallback:",
+            fallbackError.message
+          );
+        }
+      }
     }
 
     const { error: updErr } = await supabase.auth.updateUser({
@@ -126,19 +175,25 @@ export async function POST(req: Request) {
     });
 
     if (updErr) {
-      return NextResponse.json({ error: updErr.message }, { status: 400 });
+      return NextResponse.json(
+        { error: updErr.message },
+        { status: 400 }
+      );
     }
 
     return NextResponse.json({
       ok: true,
       companyId,
-      referralCode: (company as any)?.referral_code ?? null,
+      referralCode: companyRow?.referral_code ?? null,
       trialEndsAt: trialEndsAt.toISOString(),
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { error: "Falha ao criar empresa", details: error?.message ?? null },
-      { status: 500 },
+      {
+        error: "Falha ao criar empresa",
+        details: error instanceof Error ? error.message : null,
+      },
+      { status: 500 }
     );
   }
 }

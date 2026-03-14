@@ -1,6 +1,8 @@
+"use client";
+
 import { useAppAuthOptional } from "@/contexts/AppAuthContext";
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useRouter, useParams } from "next/navigation";
 import { Button } from "@/react-app/components/ui/button";
 import { Card, CardContent } from "@/react-app/components/ui/card";
 import { Loader2, CheckCircle, XCircle, Mail } from "lucide-react";
@@ -20,9 +22,10 @@ const NIVEL_LABELS: Record<string, string> = {
 };
 
 export default function AceitarConvitePage() {
-  const { token } = useParams<{ token?: string }>();
-  const navigate = useNavigate();
-  const auth = useAppAuthOptional(); // mantém o hook, mesmo se não usar tudo
+  const params = useParams<{ token?: string | string[] }>();
+  const token = Array.isArray(params?.token) ? params.token[0] : params?.token;
+  const router = useRouter();
+  const auth = useAppAuthOptional();
 
   const [isLoading, setIsLoading] = useState(true);
   const [convite, setConvite] = useState<ConviteInfo | null>(null);
@@ -39,19 +42,29 @@ export default function AceitarConvitePage() {
           return;
         }
 
-        const res = await fetch(`/api/convites/verificar/${token}`);
+        const res = await fetch(`/api/convites/verificar/${token}`, {
+          cache: "no-store",
+        });
+
+        let data: Partial<ConviteInfo> & { error?: string } = {};
+        try {
+          data = (await res.json()) as Partial<ConviteInfo> & { error?: string };
+        } catch {
+          data = {};
+        }
 
         if (res.ok) {
-          const data = await res.json();
-          setConvite(data);
+          setConvite({
+            email: String(data.email || ""),
+            nivel_acesso: String(data.nivel_acesso || ""),
+            empresa_nome: String(data.empresa_nome || ""),
+          });
 
-          // Salvar token no sessionStorage para usar após login
           sessionStorage.setItem("convite_token", token);
         } else {
-          const data = await res.json();
           setError(data.error || "Convite inválido");
         }
-      } catch (err) {
+      } catch {
         setError("Erro ao verificar convite");
       } finally {
         setIsLoading(false);
@@ -65,8 +78,8 @@ export default function AceitarConvitePage() {
     if (!token) return;
 
     setIsAccepting(true);
+    setError(null);
 
-    // Primeiro tenta aceitar (caso já esteja logado)
     try {
       const res = await fetch(`/api/convites/aceitar/${token}`, {
         method: "POST",
@@ -74,33 +87,30 @@ export default function AceitarConvitePage() {
 
       if (res.ok) {
         setAccepted(true);
-        setTimeout(() => navigate("/"), 2000);
+        setTimeout(() => router.push("/"), 2000);
         return;
       }
 
-      let data: any = {};
+      let data: { error?: string; alreadyExists?: boolean } = {};
       try {
-        data = await res.json();
+        data = (await res.json()) as { error?: string; alreadyExists?: boolean };
       } catch {
-        // ignore
+        data = {};
       }
 
       if (res.status === 401) {
-        // Não autenticado - redirecionar para login
-        navigate("/login");
+        router.push("/login");
         return;
       }
 
       if (data.alreadyExists) {
-        // Usuário já existe - redirecionar
-        navigate("/");
+        router.push("/");
         return;
       }
 
       setError(data.error || "Erro ao aceitar convite");
-    } catch (err) {
-      // Provavelmente não autenticado
-      navigate("/login");
+    } catch {
+      router.push("/login");
     } finally {
       setIsAccepting(false);
     }
@@ -127,7 +137,7 @@ export default function AceitarConvitePage() {
             <XCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
             <h1 className="text-xl font-bold text-gray-900 mb-2">Convite Inválido</h1>
             <p className="text-gray-600 mb-6">{error}</p>
-            <Button onClick={() => navigate("/login")} className="bg-orange-600 hover:bg-orange-700">
+            <Button onClick={() => router.push("/login")} className="bg-orange-600 hover:bg-orange-700">
               Ir para Login
             </Button>
           </CardContent>
@@ -178,8 +188,8 @@ export default function AceitarConvitePage() {
           </div>
 
           <p className="text-sm text-gray-500 text-center mb-6">
-            Ao aceitar, você fará login com sua conta Google ({convite?.email})
-            e terá acesso ao sistema com as permissões definidas.
+            Ao aceitar, você fará login com sua conta Google ({convite?.email}) e terá acesso ao
+            sistema com as permissões definidas.
           </p>
 
           <Button

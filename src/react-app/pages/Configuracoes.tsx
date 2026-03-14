@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/react-app/components/ui/button";
@@ -43,8 +43,6 @@ import {
   EyeOff,
 } from "lucide-react";
 
-// ============== INTERFACES ==============
-
 interface EmpresaConfig {
   id: number;
   razao_social: string;
@@ -86,7 +84,17 @@ interface PlanCardProps {
   loading?: boolean;
 }
 
-// ============== CONSTANTES ==============
+type SectionId = "empresa" | "ia" | "openfinance" | "assinatura";
+
+type FormDataState = {
+  limite_aprovacao_pagamento: string;
+  limite_aprovacao_compra: string;
+  whatsapp_admin: string;
+  openai_api_key: string;
+  gemini_api_key: string;
+  provedor_ia: "gemini" | "openai";
+  modelo_ia: string;
+};
 
 const STATUS_CONFIG: Record<
   string,
@@ -126,7 +134,15 @@ const RECURSOS_PROFISSIONAL = [
   "Dashboard avançado",
 ];
 
-const SECTIONS = [
+const SECTIONS: Array<{
+  id: SectionId;
+  title: string;
+  description: string;
+  icon: React.ComponentType<{ className?: string }>;
+  gradient: string;
+  shadowColor: string;
+  bgLight: string;
+}> = [
   {
     id: "empresa",
     title: "Minha Empresa",
@@ -165,12 +181,36 @@ const SECTIONS = [
   },
 ];
 
+const INITIAL_FORM_DATA: FormDataState = {
+  limite_aprovacao_pagamento: "",
+  limite_aprovacao_compra: "",
+  whatsapp_admin: "",
+  openai_api_key: "",
+  gemini_api_key: "",
+  provedor_ia: "gemini",
+  modelo_ia: "gemini-1.5-flash",
+};
+
 export default function ConfiguracoesPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[60vh] items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-orange-600" />
+        </div>
+      }
+    >
+      <ConfiguracoesContent />
+    </Suspense>
+  );
+}
+
+function ConfiguracoesContent() {
   const searchParams = useSearchParams();
   const urlStatus = searchParams.get("status");
-  const initialTab = searchParams.get("tab") || null;
+  const initialTab = searchParams.get("tab") as SectionId | null;
 
-  const [activeSection, setActiveSection] = useState<string | null>(initialTab);
+  const [activeSection, setActiveSection] = useState<SectionId | null>(initialTab);
   const [loading, setLoading] = useState(true);
   const [config, setConfig] = useState<EmpresaConfig | null>(null);
   const [saving, setSaving] = useState(false);
@@ -178,19 +218,12 @@ export default function ConfiguracoesPage() {
   const [showApiKey, setShowApiKey] = useState(false);
   const [assinaturaStatus, setAssinaturaStatus] = useState<AssinaturaStatus | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-
-  const [formData, setFormData] = useState({
-    limite_aprovacao_pagamento: "",
-    limite_aprovacao_compra: "",
-    whatsapp_admin: "",
-    openai_api_key: "",
-    gemini_api_key: "",
-    provedor_ia: "gemini" as "gemini" | "openai",
-    modelo_ia: "gemini-1.5-flash",
-  });
+  const [formData, setFormData] = useState<FormDataState>(INITIAL_FORM_DATA);
 
   useEffect(() => {
-    Promise.all([fetchConfig(), fetchAssinaturaStatus()]).finally(() => setLoading(false));
+    void Promise.all([fetchConfig(), fetchAssinaturaStatus()]).finally(() =>
+      setLoading(false),
+    );
   }, []);
 
   useEffect(() => {
@@ -199,40 +232,40 @@ export default function ConfiguracoesPage() {
     }
   }, [initialTab]);
 
-  const fetchConfig = async () => {
+  async function fetchConfig() {
     try {
-      const res = await fetch("/api/empresa-config");
-      if (res.ok) {
-        const data = (await res.json()) as EmpresaConfig;
-        setConfig(data);
-        setFormData({
-          limite_aprovacao_pagamento: data.limite_aprovacao_pagamento?.toString() || "",
-          limite_aprovacao_compra: data.limite_aprovacao_compra?.toString() || "",
-          whatsapp_admin: data.whatsapp_admin || "",
-          openai_api_key: data.openai_api_key || "",
-          gemini_api_key: data.gemini_api_key || "",
-          provedor_ia: data.provedor_ia || "gemini",
-          modelo_ia: data.modelo_ia || "gemini-1.5-flash",
-        });
-      }
+      const res = await fetch("/api/empresa-config", { cache: "no-store" });
+      if (!res.ok) return;
+
+      const data = (await res.json()) as EmpresaConfig;
+      setConfig(data);
+      setFormData({
+        limite_aprovacao_pagamento: data.limite_aprovacao_pagamento?.toString() || "",
+        limite_aprovacao_compra: data.limite_aprovacao_compra?.toString() || "",
+        whatsapp_admin: data.whatsapp_admin || "",
+        openai_api_key: data.openai_api_key || "",
+        gemini_api_key: data.gemini_api_key || "",
+        provedor_ia: data.provedor_ia || "gemini",
+        modelo_ia: data.modelo_ia || "gemini-1.5-flash",
+      });
     } catch (error) {
       console.error("Erro ao carregar configurações:", error);
     }
-  };
+  }
 
-  const fetchAssinaturaStatus = async () => {
+  async function fetchAssinaturaStatus() {
     try {
-      const res = await fetch("/api/assinatura/status");
-      if (res.ok) {
-        const data = (await res.json()) as AssinaturaStatus;
-        setAssinaturaStatus(data);
-      }
+      const res = await fetch("/api/assinatura/status", { cache: "no-store" });
+      if (!res.ok) return;
+
+      const data = (await res.json()) as AssinaturaStatus;
+      setAssinaturaStatus(data);
     } catch (error) {
       console.error("Erro ao buscar status:", error);
     }
-  };
+  }
 
-  const handleSaveConfig = async () => {
+  async function handleSaveConfig() {
     setSaving(true);
     setSaved(false);
 
@@ -255,21 +288,22 @@ export default function ConfiguracoesPage() {
         }),
       });
 
-      if (res.ok) {
-        setSaved(true);
-        setTimeout(() => setSaved(false), 3000);
-      } else {
+      if (!res.ok) {
         alert("Erro ao salvar configurações");
+        return;
       }
+
+      setSaved(true);
+      window.setTimeout(() => setSaved(false), 3000);
     } catch (error) {
       console.error("Erro ao salvar configurações:", error);
       alert("Erro ao salvar configurações");
     } finally {
       setSaving(false);
     }
-  };
+  }
 
-  const handleAssinar = async (plano: string) => {
+  async function handleAssinar(plano: string) {
     setActionLoading(`assinar_${plano}`);
     try {
       const res = await fetch("/api/stripe/checkout", {
@@ -282,23 +316,40 @@ export default function ConfiguracoesPage() {
       if (data.url) {
         window.location.href = data.url;
       }
+    } catch (error) {
+      console.error("Erro ao iniciar checkout:", error);
     } finally {
       setActionLoading(null);
     }
-  };
+  }
 
-  const handleGerenciar = async () => {
+  async function handleGerenciar() {
     setActionLoading("gerenciar");
     try {
-      const res = await fetch("/api/stripe/portal");
+      const res = await fetch("/api/stripe/portal", { cache: "no-store" });
       const data = (await res.json()) as StripeUrlResponse;
       if (data.url) {
         window.location.href = data.url;
       }
+    } catch (error) {
+      console.error("Erro ao abrir portal Stripe:", error);
     } finally {
       setActionLoading(null);
     }
-  };
+  }
+
+  const assinaturaConfig = useMemo(() => {
+    if (!assinaturaStatus) return STATUS_CONFIG.teste_gratis;
+    return STATUS_CONFIG[assinaturaStatus.status] || STATUS_CONFIG.teste_gratis;
+  }, [assinaturaStatus]);
+
+  const diasRestantes = useMemo(() => {
+    if (!assinaturaStatus?.data_vencimento) return 0;
+    return Math.ceil(
+      (new Date(assinaturaStatus.data_vencimento).getTime() - new Date().getTime()) /
+        (1000 * 60 * 60 * 24),
+    );
+  }, [assinaturaStatus?.data_vencimento]);
 
   if (loading) {
     return (
@@ -307,17 +358,6 @@ export default function ConfiguracoesPage() {
       </div>
     );
   }
-
-  const assinaturaConfig = assinaturaStatus
-    ? STATUS_CONFIG[assinaturaStatus.status] || STATUS_CONFIG.teste_gratis
-    : STATUS_CONFIG.teste_gratis;
-
-  const diasRestantes = assinaturaStatus?.data_vencimento
-    ? Math.ceil(
-        (new Date(assinaturaStatus.data_vencimento).getTime() - new Date().getTime()) /
-          (1000 * 60 * 60 * 24),
-      )
-    : 0;
 
   const StatusIcon = assinaturaConfig.icon;
 
@@ -386,10 +426,10 @@ export default function ConfiguracoesPage() {
               step="0.01"
               value={formData.limite_aprovacao_pagamento}
               onChange={(e) =>
-                setFormData({
-                  ...formData,
+                setFormData((prev) => ({
+                  ...prev,
                   limite_aprovacao_pagamento: e.target.value,
-                })
+                }))
               }
               className="mt-1"
             />
@@ -402,10 +442,10 @@ export default function ConfiguracoesPage() {
               step="0.01"
               value={formData.limite_aprovacao_compra}
               onChange={(e) =>
-                setFormData({
-                  ...formData,
+                setFormData((prev) => ({
+                  ...prev,
                   limite_aprovacao_compra: e.target.value,
-                })
+                }))
               }
               className="mt-1"
             />
@@ -428,10 +468,10 @@ export default function ConfiguracoesPage() {
             placeholder="5511999999999"
             value={formData.whatsapp_admin}
             onChange={(e) =>
-              setFormData({
-                ...formData,
+              setFormData((prev) => ({
+                ...prev,
                 whatsapp_admin: e.target.value,
-              })
+              }))
             }
             className="mt-1"
           />
@@ -481,11 +521,11 @@ export default function ConfiguracoesPage() {
             <button
               type="button"
               onClick={() =>
-                setFormData({
-                  ...formData,
+                setFormData((prev) => ({
+                  ...prev,
                   provedor_ia: "gemini",
                   modelo_ia: "gemini-1.5-flash",
-                })
+                }))
               }
               className={`flex flex-col gap-1 rounded-2xl border-2 p-4 text-left transition-all ${
                 formData.provedor_ia === "gemini"
@@ -508,11 +548,11 @@ export default function ConfiguracoesPage() {
             <button
               type="button"
               onClick={() =>
-                setFormData({
-                  ...formData,
+                setFormData((prev) => ({
+                  ...prev,
                   provedor_ia: "openai",
                   modelo_ia: "gpt-4o",
-                })
+                }))
               }
               className={`flex flex-col gap-1 rounded-2xl border-2 p-4 text-left transition-all ${
                 formData.provedor_ia === "openai"
@@ -539,7 +579,7 @@ export default function ConfiguracoesPage() {
               <Select
                 value={formData.modelo_ia || ""}
                 onValueChange={(value: string) =>
-                  setFormData({ ...formData, modelo_ia: value })
+                  setFormData((prev) => ({ ...prev, modelo_ia: value }))
                 }
               >
                 <SelectTrigger className="mt-1 w-full bg-white">
@@ -595,20 +635,20 @@ export default function ConfiguracoesPage() {
                   }
                   onChange={(e) =>
                     formData.provedor_ia === "gemini"
-                      ? setFormData({
-                          ...formData,
+                      ? setFormData((prev) => ({
+                          ...prev,
                           gemini_api_key: e.target.value,
-                        })
-                      : setFormData({
-                          ...formData,
+                        }))
+                      : setFormData((prev) => ({
+                          ...prev,
                           openai_api_key: e.target.value,
-                        })
+                        }))
                   }
                   className="bg-white pr-10"
                 />
                 <button
                   type="button"
-                  onClick={() => setShowApiKey(!showApiKey)}
+                  onClick={() => setShowApiKey((prev) => !prev)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
                 >
                   {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -624,11 +664,7 @@ export default function ConfiguracoesPage() {
         disabled={saving}
         className="h-12 w-full rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 font-bold uppercase italic tracking-widest text-white shadow-lg hover:from-purple-700 hover:to-pink-700"
       >
-        {saving ? (
-          <Loader2 className="mr-2 animate-spin" />
-        ) : (
-          <Sparkles className="mr-2" />
-        )}
+        {saving ? <Loader2 className="mr-2 animate-spin" /> : <Sparkles className="mr-2" />}
         Salvar Configurações IA
       </Button>
     </div>

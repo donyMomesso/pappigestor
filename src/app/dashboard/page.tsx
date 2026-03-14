@@ -24,12 +24,11 @@ import {
   CircleDollarSign,
   ClipboardCheck,
   Brain,
-  CheckCircle2,
   Clock3,
 } from "lucide-react";
 
-function moneyBRL(v: number) {
-  return (v ?? 0).toLocaleString("pt-BR", {
+function moneyBRL(v?: number | null) {
+  return Number(v ?? 0).toLocaleString("pt-BR", {
     style: "currency",
     currency: "BRL",
   });
@@ -37,34 +36,71 @@ function moneyBRL(v: number) {
 
 type DashboardMode = "normal" | "estoque" | "financeiro" | "recebimento";
 
+type DashboardKpis = {
+  receitaTotal?: number;
+  despesaTotal?: number;
+  lucro?: number;
+  margem?: number;
+  itensCriticos?: number;
+  recebimentosPendentes?: number;
+};
+
+type DashboardAlert = {
+  texto?: string;
+};
+
 export default function DashboardPage() {
   const router = useRouter();
   const { localUser } = useAppAuth();
-  const dashboard = useDashboard();
-  const { data: abcData, loading: abcLoading } = useABC();
 
-  const loading = dashboard?.loading ?? false;
-  const error = dashboard?.error ?? null;
-  const refresh = dashboard?.refresh ?? (() => {});
-  const rawKpis = dashboard?.kpis;
+  const dashboard = useDashboard();
+  const { data: abcData = [], loading: abcLoading } = useABC();
+
+const loading = Boolean(dashboard?.loading);
+const dashboardError: unknown = dashboard?.error;
+
+const error =
+  typeof dashboardError === "string"
+    ? dashboardError
+    : typeof dashboardError === "object" &&
+        dashboardError !== null &&
+        "message" in dashboardError
+      ? String((dashboardError as { message?: unknown }).message ?? "Erro ao carregar dashboard")
+      : null;
+
+  const refresh = async () => {
+    try {
+      await dashboard?.refresh?.();
+    } catch (err) {
+      console.error("Erro ao atualizar dashboard:", err);
+    }
+  };
+
+  const rawKpis = (dashboard?.kpis ?? {}) as DashboardKpis;
+  const rawAlertas = (dashboard?.alertas ?? []) as DashboardAlert[];
 
   const firstName = useMemo(
-    () => localUser?.nome?.split(" ")[0] || "gestor",
+    () => localUser?.nome?.trim()?.split(" ")?.[0] || "gestor",
     [localUser?.nome],
   );
 
-  const kpis = {
-    receitaTotal: rawKpis?.receitaTotal ?? 0,
-    despesaTotal: rawKpis?.despesaTotal ?? 0,
-    lucro: rawKpis?.lucro ?? 0,
-    margem: rawKpis?.margem ?? 0,
-    itensCriticos: rawKpis?.itensCriticos ?? 0,
-    recebimentosPendentes:
-      (rawKpis as typeof rawKpis & { recebimentosPendentes?: number })
-        ?.recebimentosPendentes ?? 0,
-  };
+  const kpis = useMemo(
+    () => ({
+      receitaTotal: Number(rawKpis.receitaTotal ?? 0),
+      despesaTotal: Number(rawKpis.despesaTotal ?? 0),
+      lucro: Number(rawKpis.lucro ?? 0),
+      margem: Number(rawKpis.margem ?? 0),
+      itensCriticos: Number(rawKpis.itensCriticos ?? 0),
+      recebimentosPendentes: Number(rawKpis.recebimentosPendentes ?? 0),
+    }),
+    [rawKpis],
+  );
 
-  const alertas = dashboard?.alertas ?? [];
+  const alertas = useMemo(
+    () =>
+      rawAlertas.filter((a) => a && typeof a.texto === "string" && a.texto.trim().length > 0),
+    [rawAlertas],
+  );
 
   const dashboardMode: DashboardMode = useMemo(() => {
     if (kpis.itensCriticos > 0) return "estoque";
@@ -184,9 +220,7 @@ export default function DashboardPage() {
       items.push({
         icon: <CircleDollarSign className="w-5 h-5" />,
         title: "Financeiro sob pressão",
-        description: `O lucro atual está em ${moneyBRL(
-          kpis.lucro,
-        )}. Vale revisar despesas e vencimentos agora.`,
+        description: `O lucro atual está em ${moneyBRL(kpis.lucro)}. Vale revisar despesas e vencimentos agora.`,
         button: "Abrir financeiro",
         action: () => router.push("/app/financeiro"),
         tone: "danger",
@@ -256,9 +290,7 @@ export default function DashboardPage() {
     if (kpis.lucro < 0) {
       return {
         title: "A IA viu pressão no lucro",
-        text: `Seu lucro está em ${moneyBRL(
-          kpis.lucro,
-        )}. Pode ser um bom momento para revisar despesas e categorias com maior peso.`,
+        text: `Seu lucro está em ${moneyBRL(kpis.lucro)}. Pode ser um bom momento para revisar despesas e categorias com maior peso.`,
       };
     }
 
@@ -276,9 +308,7 @@ export default function DashboardPage() {
   }, [kpis.itensCriticos, kpis.lucro, kpis.recebimentosPendentes]);
 
   const maxABC =
-    abcData && abcData.length > 0
-      ? Math.max(...abcData.map((item: ABCCategoria) => item.valor), 1)
-      : 1;
+    abcData.length > 0 ? Math.max(...abcData.map((item: ABCCategoria) => item.valor), 1) : 1;
 
   return (
     <div className="space-y-10 animate-in fade-in duration-700">
@@ -422,7 +452,7 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
           {attentionItems.map((item, index) => (
             <AttentionCard
-              key={index}
+              key={`${item.title}-${index}`}
               icon={item.icon}
               title={item.title}
               description={item.description}
@@ -465,7 +495,7 @@ export default function DashboardPage() {
           title="Receita Total"
           value={moneyBRL(kpis.receitaTotal)}
           trend={loading ? "Carregando..." : "Últimos lançamentos"}
-          isPositive={true}
+          isPositive
           loading={loading}
         />
         <StatCard
@@ -485,13 +515,7 @@ export default function DashboardPage() {
         <StatCard
           title="Estoque Crítico"
           value={String(kpis.itensCriticos)}
-          trend={
-            loading
-              ? "..."
-              : kpis.itensCriticos > 0
-                ? "Atenção imediata"
-                : "Operação estável"
-          }
+          trend={loading ? "..." : kpis.itensCriticos > 0 ? "Atenção imediata" : "Operação estável"}
           isPositive={kpis.itensCriticos === 0 ? true : null}
           loading={loading}
         />
@@ -556,7 +580,7 @@ export default function DashboardPage() {
             <div className="h-64 flex items-center justify-center">
               <Loader2 className="animate-spin text-orange-500" size={28} />
             </div>
-          ) : (abcData ?? []).length === 0 ? (
+          ) : abcData.length === 0 ? (
             <div className="h-64 flex items-center justify-center text-center">
               <div>
                 <p className="text-sm font-bold text-gray-500">
@@ -569,12 +593,12 @@ export default function DashboardPage() {
             </div>
           ) : (
             <div className="h-64 flex items-end gap-4 px-4">
-              {(abcData ?? []).slice(0, 6).map((item: ABCCategoria, i: number) => {
+              {abcData.slice(0, 6).map((item: ABCCategoria, i: number) => {
                 const height = (item.valor / maxABC) * 100;
 
                 return (
                   <div
-                    key={i}
+                    key={`${item.categoria}-${i}`}
                     className="flex-1 bg-gradient-to-t from-orange-500 to-pink-500 rounded-t-2xl relative group transition-all hover:opacity-90"
                     style={{ height: `${Math.max(10, height)}%` }}
                     title={`${item.categoria}: ${moneyBRL(item.valor)}`}
@@ -589,9 +613,9 @@ export default function DashboardPage() {
           )}
 
           <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {(abcData ?? []).slice(0, 6).map((item: ABCCategoria, i: number) => (
+            {abcData.slice(0, 6).map((item: ABCCategoria, i: number) => (
               <div
-                key={i}
+                key={`${item.categoria}-legend-${i}`}
                 className="rounded-2xl bg-gray-50 border border-gray-100 px-4 py-3 flex items-center justify-between"
               >
                 <span className="text-xs font-black uppercase italic text-gray-600">
@@ -631,7 +655,9 @@ export default function DashboardPage() {
             ) : alertas.length === 0 ? (
               <AlertItem text="Nenhum alerta crítico agora. Tudo sob controle ✅" />
             ) : (
-              alertas.slice(0, 4).map((a, idx) => <AlertItem key={idx} text={a.texto} />)
+              alertas.slice(0, 4).map((a, idx) => (
+                <AlertItem key={`alerta-${idx}`} text={a.texto || ""} />
+              ))
             )}
           </div>
 

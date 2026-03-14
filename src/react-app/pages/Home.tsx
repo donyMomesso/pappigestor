@@ -665,10 +665,7 @@ export default function HomePage() {
 
   return (
     <div className="space-y-5">
-      <div className="rounded-2xl bg-red-600 p-4 text-white text-xl font-black">
-        TESTE HOME NOVA PAPPI
-      </div>
-
+  
       <section className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-orange-500 via-red-500 to-pink-600 p-5 text-white shadow-[0_20px_60px_rgba(249,115,22,0.28)]">
         <div className="absolute -right-10 -top-10 h-28 w-28 rounded-full bg-white/10 blur-2xl" />
         <div className="absolute -bottom-10 -left-10 h-28 w-28 rounded-full bg-white/10 blur-2xl" />

@@ -85,7 +85,7 @@ export async function POST(req: Request) {
         firstCompany?.nome_empresa ||
         firstCompany?.name ||
         "Minha Empresa",
-      role: login?.data?.role || "operador",
+      role: login?.data?.role || "dono",
     });
   } catch (e: any) {
     return NextResponse.json(

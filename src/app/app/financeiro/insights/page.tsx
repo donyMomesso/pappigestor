@@ -5,16 +5,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/react-app/components
 
 export default function Page() {
   return (
-    <div className="space-y-6">
-      <Card className="border-zinc-200 shadow-sm">
-        <CardHeader>
-          <CardTitle>Central de insights</CardTitle>
-          <p className="text-sm text-zinc-500">
-            Resumo executivo, alertas e próximas ações recomendadas com base nos dados do financeiro.
-          </p>
-        </CardHeader>
-      </Card>
+    <div className="space-y-4">
       <FinanceiroOverview />
+      <Card>
+        <CardHeader>
+          <CardTitle>Insights Financeiros</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-zinc-600">
+            Este espaço está pronto para receber alertas de vencimento, conciliação e análises por IA.
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
 }

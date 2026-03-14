@@ -29,4 +29,7 @@
     "**/*.mts"
 , "src/react-app/pages/Estoque.tsx"  ],
   "exclude": ["node_modules"]
+
+  
+
 }

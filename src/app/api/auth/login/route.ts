@@ -88,7 +88,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Email ausente" }, { status: 400 });
     }
 
-    // 1) Tenta worker primeiro
     const login = await proxyWorker(email).catch(() => null);
     if (login?.ok && login.data?.empresa_id) {
       return NextResponse.json(login.data);
@@ -118,7 +117,6 @@ export async function POST(req: Request) {
       });
     }
 
-    // 2) Fallback local no Supabase
     const supabase = await createClient();
     const admin = getSupabaseAdmin();
 

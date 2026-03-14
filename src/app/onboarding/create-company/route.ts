@@ -74,7 +74,6 @@ export async function POST(req: Request) {
       referrerCompanyId = ((refCompany as CompanyRefRow | null)?.id ?? null) as string | null;
     }
 
-    // Evita criar empresa duplicada pelo mesmo CNPJ
     const { data: existingCompany } = await db
       .from("companies")
       .select("id, name, referral_code")
@@ -83,6 +82,7 @@ export async function POST(req: Request) {
 
     let companyId: string | null = null;
     let companyReferralCode: string | null = null;
+    let trialEndsAtIso: string | null = null;
 
     if (existingCompany?.id) {
       companyId = String(existingCompany.id);
@@ -92,6 +92,7 @@ export async function POST(req: Request) {
       const trialEndsAt = new Date(
         trialStartedAt.getTime() + 15 * 24 * 60 * 60 * 1000
       );
+      trialEndsAtIso = trialEndsAt.toISOString();
 
       const { data: company, error: companyError } = await db
         .from("companies")
@@ -105,7 +106,7 @@ export async function POST(req: Request) {
             status: "ativa",
             status_assinatura: "teste_gratis",
             trial_started_at: trialStartedAt.toISOString(),
-            trial_ends_at: trialEndsAt.toISOString(),
+            trial_ends_at: trialEndsAtIso,
             referral_code: makeReferralCode(name, user.id),
             referrer_company_id: referrerCompanyId,
           },
@@ -172,7 +173,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // Evita duplicidade de vínculo
     const { data: existingMembership } = await db
       .from("company_users")
       .select("id")
@@ -216,10 +216,6 @@ export async function POST(req: Request) {
       );
     }
 
-    const trialEndsAt = new Date(
-      Date.now() + 15 * 24 * 60 * 60 * 1000
-    ).toISOString();
-
     return NextResponse.json({
       ok: true,
       companyId,
@@ -233,7 +229,7 @@ export async function POST(req: Request) {
         status: "ativo",
       },
       referralCode: companyReferralCode,
-      trialEndsAt,
+      trialEndsAt: trialEndsAtIso,
     });
   } catch (error: unknown) {
     return NextResponse.json(
@@ -244,4 +240,4 @@ export async function POST(req: Request) {
       { status: 500 }
     );
   }
-  }
+}

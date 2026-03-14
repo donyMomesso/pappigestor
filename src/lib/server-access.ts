@@ -10,6 +10,8 @@ import {
 } from "@/lib/access-control";
 import type { NivelAcesso, PlanoEmpresa } from "@/types/auth";
 
+type SupabaseAdminClient = ReturnType<typeof getSupabaseAdmin>;
+
 export interface ServerActorContext {
   userId: string;
   email: string;
@@ -20,9 +22,24 @@ export interface ServerActorContext {
   isSuperAdmin: boolean;
 }
 
-export async function requireActorContext(): Promise<{ ctx: ServerActorContext | null; admin: ReturnType<typeof getSupabaseAdmin>; error?: string; status?: number; supabase?: Awaited<ReturnType<typeof createClient>> }> {
+export async function requireActorContext(): Promise<{
+  ctx: ServerActorContext | null;
+  admin: SupabaseAdminClient;
+  error?: string;
+  status?: number;
+  supabase?: Awaited<ReturnType<typeof createClient>>;
+}> {
   const supabase = await createClient();
-  if (!supabase) return { ctx: null, admin: null, error: "Supabase não configurado", status: 500, supabase };
+
+  if (!supabase) {
+    return {
+      ctx: null,
+      admin: null,
+      error: "Supabase não configurado",
+      status: 500,
+      supabase,
+    };
+  }
 
   const {
     data: { user },
@@ -30,11 +47,26 @@ export async function requireActorContext(): Promise<{ ctx: ServerActorContext |
   } = await supabase.auth.getUser();
 
   if (userError || !user) {
-    return { ctx: null, admin: null, error: "Não autenticado", status: 401, supabase };
+    return {
+      ctx: null,
+      admin: null,
+      error: "Não autenticado",
+      status: 401,
+      supabase,
+    };
   }
 
   const admin = getSupabaseAdmin();
-  if (!admin) return { ctx: null, admin: null, error: "Admin indisponível", status: 500, supabase };
+
+  if (!admin) {
+    return {
+      ctx: null,
+      admin: null,
+      error: "Admin indisponível",
+      status: 500,
+      supabase,
+    };
+  }
 
   const { data: membership } = await admin
     .from("company_users")
@@ -43,17 +75,32 @@ export async function requireActorContext(): Promise<{ ctx: ServerActorContext |
     .limit(1)
     .maybeSingle();
 
-  const companyId = String((membership as any)?.company_id || user.user_metadata?.empresa_id || "").trim() || null;
-  const actorRole = normalizeRole((membership as any)?.role || user.user_metadata?.nivel_acesso || "dono");
-  const isSuperAdmin = actorRole === "admin" && String((membership as any)?.role || "").trim().toLowerCase() === "super_admin";
+  const companyId =
+    String(
+      (membership as any)?.company_id ||
+        user.user_metadata?.empresa_id ||
+        ""
+    ).trim() || null;
+
+  const actorRole = normalizeRole(
+    (membership as any)?.role ||
+      user.user_metadata?.nivel_acesso ||
+      "dono"
+  );
+
+  const rawRole = String((membership as any)?.role || "").trim().toLowerCase();
+
+  const isSuperAdmin = rawRole === "super_admin";
 
   let company: Record<string, any> | null = null;
+
   if (companyId) {
     const { data } = await admin
       .from("companies")
       .select("id, name, plano")
       .eq("id", companyId)
       .maybeSingle();
+
     company = (data as Record<string, any> | null) ?? null;
   }
 
@@ -62,8 +109,12 @@ export async function requireActorContext(): Promise<{ ctx: ServerActorContext |
       userId: user.id,
       email: String(user.email || "").toLowerCase(),
       companyId,
-      companyName: String(company?.name || user.user_metadata?.nome_empresa || "Minha Empresa"),
-      companyPlan: normalizePlan(company?.plano || user.user_metadata?.plano || "basico"),
+      companyName: String(
+        company?.name || user.user_metadata?.nome_empresa || "Minha Empresa"
+      ),
+      companyPlan: normalizePlan(
+        company?.plano || user.user_metadata?.plano || "basico"
+      ),
       actorRole,
       isSuperAdmin,
     },
@@ -72,15 +123,30 @@ export async function requireActorContext(): Promise<{ ctx: ServerActorContext |
   };
 }
 
-export function normalizeMembershipStatus(raw: unknown): "ativo" | "convidado" | "inativo" | "removido" {
+export function normalizeMembershipStatus(
+  raw: unknown
+): "ativo" | "convidado" | "inativo" | "removido" {
   const value = String(raw || "ativo").trim().toLowerCase();
-  if (["pending", "pendente", "convidado", "invited"].includes(value)) return "convidado";
-  if (["inactive", "inativo", "disabled"].includes(value)) return "inativo";
-  if (["removed", "removido", "deleted"].includes(value)) return "removido";
+
+  if (["pending", "pendente", "convidado", "invited"].includes(value)) {
+    return "convidado";
+  }
+
+  if (["inactive", "inativo", "disabled"].includes(value)) {
+    return "inativo";
+  }
+
+  if (["removed", "removido", "deleted"].includes(value)) {
+    return "removido";
+  }
+
   return "ativo";
 }
 
-export async function getCompanyMembershipMetrics(admin: ReturnType<typeof getSupabaseAdmin>, companyId: string) {
+export async function getCompanyMembershipMetrics(
+  admin: SupabaseAdminClient,
+  companyId: string
+) {
   if (!admin) {
     return {
       activeUsers: 0,
@@ -108,7 +174,7 @@ export async function getCompanyMembershipMetrics(admin: ReturnType<typeof getSu
 }
 
 export async function ensureRoleCanBeAssigned(args: {
-  admin: ReturnType<typeof getSupabaseAdmin>;
+  admin: SupabaseAdminClient;
   companyId: string;
   companyPlan: PlanoEmpresa;
   actorRole: NivelAcesso;
@@ -116,6 +182,7 @@ export async function ensureRoleCanBeAssigned(args: {
   nextRole: NivelAcesso;
 }) {
   const metrics = await getCompanyMembershipMetrics(args.admin, args.companyId);
+
   return canAssignRole({
     plan: args.companyPlan,
     currentRole: args.actorRole,
@@ -126,34 +193,71 @@ export async function ensureRoleCanBeAssigned(args: {
   });
 }
 
-export async function findAuthUserByEmail(admin: ReturnType<typeof getSupabaseAdmin>, email: string) {
+export async function findAuthUserByEmail(
+  admin: SupabaseAdminClient,
+  email: string
+) {
   const needle = String(email || "").trim().toLowerCase();
-  if (!needle || !admin) return null;
+
+  if (!needle || !admin) {
+    return null;
+  }
 
   let page = 1;
+
   while (page <= 10) {
-    const result = await admin.auth.admin.listUsers({ page, perPage: 200 });
-    const found = result.data.users.find((item) => String(item.email || "").toLowerCase() === needle);
-    if (found) return found;
-    if (!result.data?.users?.length || result.data.users.length < 200) break;
+    const result = await admin.auth.admin.listUsers({
+      page,
+      perPage: 200,
+    });
+
+    const found = result.data.users.find(
+      (item) => String(item.email || "").toLowerCase() === needle
+    );
+
+    if (found) {
+      return found;
+    }
+
+    if (!result.data?.users?.length || result.data.users.length < 200) {
+      break;
+    }
+
     page += 1;
   }
 
   return null;
 }
 
-export async function readAuthUsersMap(admin: ReturnType<typeof getSupabaseAdmin>, userIds: string[]) {
+export async function readAuthUsersMap(
+  admin: SupabaseAdminClient,
+  userIds: string[]
+) {
   const wanted = new Set(userIds.filter(Boolean));
   const map = new Map<string, any>();
-  if (!wanted.size || !admin) return map;
+
+  if (!wanted.size || !admin) {
+    return map;
+  }
 
   let page = 1;
+
   while (page <= 15 && map.size < wanted.size) {
-    const result = await admin.auth.admin.listUsers({ page, perPage: 200 });
+    const result = await admin.auth.admin.listUsers({
+      page,
+      perPage: 200,
+    });
+
     for (const item of result.data.users) {
-      if (wanted.has(item.id)) map.set(item.id, item);
+      if (wanted.has(item.id)) {
+        map.set(item.id, item);
+      }
     }
-    if (!result.data?.users?.length || result.data.users.length < 200) break;
+
+    if (!result.data?.users?.length || result.data.users.length < 200) {
+      break;
+    }
+
     page += 1;
   }
 
@@ -166,6 +270,7 @@ export function buildPermissionList(role: NivelAcesso) {
 
 export function companyPlanSummary(plan: PlanoEmpresa) {
   const limits = getPlanLimits(plan);
+
   return {
     plan,
     limits,

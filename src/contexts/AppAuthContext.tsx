@@ -17,7 +17,7 @@ import type {
   PlanoEmpresa,
 } from "@/react-app/types/auth";
 import { PLANO_FEATURES } from "@/react-app/types/auth";
-import { setEmpresaId } from "@/react-app/lib/empresa";
+import { getEmpresaId, setEmpresaId, clearEmpresaId } from "@/react-app/lib/empresa";
 
 type MatchMode = "ANY" | "ALL";
 
@@ -100,11 +100,7 @@ function loadLocalUserFromStorage(): LocalUser | null {
         .trim()
         .toLowerCase();
     const nome = localStorage.getItem("userName") || "Usuário";
-    const empresa_id =
-      localStorage.getItem("empresa_id") ||
-      localStorage.getItem("pId") ||
-      localStorage.getItem("pizzariaId") ||
-      null;
+    const empresa_id = getEmpresaId() || null;
 
     if (!id && !email && !empresa_id) return null;
 
@@ -144,9 +140,6 @@ function persistLocalUserToStorage(user: LocalUser | null) {
     "user_email",
     "email",
     "userName",
-    "empresa_id",
-    "pId",
-    "pizzariaId",
     "nome_empresa",
     "empresa_nome",
     "plano",
@@ -158,6 +151,7 @@ function persistLocalUserToStorage(user: LocalUser | null) {
 
   if (!user) {
     keys.forEach((key) => localStorage.removeItem(key));
+    clearEmpresaId();
     return;
   }
 
@@ -166,9 +160,6 @@ function persistLocalUserToStorage(user: LocalUser | null) {
   localStorage.setItem("user_email", String(user.email ?? ""));
   localStorage.setItem("email", String(user.email ?? ""));
   localStorage.setItem("userName", String(user.nome ?? ""));
-  localStorage.setItem("empresa_id", String(user.empresa_id ?? ""));
-  localStorage.setItem("pId", String(user.empresa_id ?? ""));
-  localStorage.setItem("pizzariaId", String(user.empresa_id ?? ""));
   localStorage.setItem("nome_empresa", String(user.nome_empresa ?? ""));
   localStorage.setItem("empresa_nome", String(user.nome_empresa ?? ""));
   localStorage.setItem("plano", String(user.plano ?? "profissional"));
@@ -176,6 +167,12 @@ function persistLocalUserToStorage(user: LocalUser | null) {
   localStorage.setItem("permissoes", JSON.stringify(user.permissoes ?? []));
   localStorage.setItem("features", JSON.stringify(user.features ?? []));
   localStorage.setItem("userAvatar", String(user.foto ?? ""));
+
+  if (user.empresa_id) {
+    setEmpresaId(String(user.empresa_id));
+  } else {
+    clearEmpresaId();
+  }
 }
 
 export function AppAuthProvider({ children }: { children: ReactNode }) {
@@ -187,7 +184,10 @@ export function AppAuthProvider({ children }: { children: ReactNode }) {
   const setLocalUser = useCallback(
     (value: React.SetStateAction<LocalUser | null>) => {
       setLocalUserState((prev) => {
-        const next = typeof value === "function" ? (value as (p: LocalUser | null) => LocalUser | null)(prev) : value;
+        const next =
+          typeof value === "function"
+            ? (value as (p: LocalUser | null) => LocalUser | null)(prev)
+            : value;
         persistLocalUserToStorage(next);
         return next;
       });
@@ -206,13 +206,19 @@ export function AppAuthProvider({ children }: { children: ReactNode }) {
     }
 
     const fallback = loadLocalUserFromStorage();
-    const baseEmail = String(session.user.email || fallback?.email || "").trim().toLowerCase();
+    const baseEmail = String(session.user.email || fallback?.email || "")
+      .trim()
+      .toLowerCase();
     const baseName = String(session.user.name || fallback?.nome || "Usuário");
     const baseImage = String(session.user.image || fallback?.foto || "");
 
     try {
       let appSession: Record<string, unknown> | null = null;
-      const appSessionResponse = await fetch("/api/app/session", { cache: "no-store" }).catch(() => null);
+
+      const appSessionResponse = await fetch("/api/app/session", {
+        cache: "no-store",
+      }).catch(() => null);
+
       if (appSessionResponse?.ok) {
         appSession = await appSessionResponse.json().catch(() => null);
       }
@@ -229,63 +235,108 @@ export function AppAuthProvider({ children }: { children: ReactNode }) {
         profile = await response.json().catch(() => null);
       }
 
-      const empresaAtual = (appSession?.empresaAtual as Record<string, unknown> | undefined) ?? null;
-      const sessionUser = (appSession?.user as Record<string, unknown> | undefined) ?? null;
-      const membership = (appSession?.membership as Record<string, unknown> | undefined) ?? null;
+      const empresaAtual =
+        (appSession?.empresaAtual as Record<string, unknown> | undefined) ?? null;
+      const sessionUser =
+        (appSession?.user as Record<string, unknown> | undefined) ?? null;
+      const membership =
+        (appSession?.membership as Record<string, unknown> | undefined) ?? null;
 
       const empresaId =
-        String(empresaAtual?.id || profile?.empresa_id || fallback?.empresa_id || "").trim() || null;
-      const role = normalizeRole(membership?.role || profile?.role || fallback?.nivel_acesso || "operador");
-      const plano = normalizePlan(empresaAtual?.plano || profile?.plano || fallback?.plano || "profissional");
-      const nomeEmpresa =
-        String(empresaAtual?.nome || profile?.nome_empresa || fallback?.nome_empresa || "Minha Empresa");
-      const sessionFeatures = Array.isArray(empresaAtual?.features) ? (empresaAtual?.features as Feature[]) : [];
+        String(
+          empresaAtual?.id ||
+            profile?.empresa_id ||
+            fallback?.empresa_id ||
+            ""
+        ).trim() || null;
+
+      const role = normalizeRole(
+        membership?.role || profile?.role || fallback?.nivel_acesso || "operador"
+      );
+
+      const plano = normalizePlan(
+        empresaAtual?.plano || profile?.plano || fallback?.plano || "profissional"
+      );
+
+      const nomeEmpresa = String(
+        empresaAtual?.nome ||
+          profile?.nome_empresa ||
+          fallback?.nome_empresa ||
+          "Minha Empresa"
+      );
+
+      const sessionFeatures = Array.isArray(empresaAtual?.features)
+        ? (empresaAtual?.features as Feature[])
+        : [];
+
+      const profileFeatures = Array.isArray(profile?.features)
+        ? (profile?.features as Feature[])
+        : [];
+
       const features =
         sessionFeatures.length
           ? sessionFeatures
+          : profileFeatures.length
+          ? profileFeatures
           : fallback?.features && fallback.features.length
           ? fallback.features
           : PLANO_FEATURES[plano];
 
-      const sessionPerms =
-  Array.isArray(sessionUser?.permissoes)
-    ? sessionUser.permissoes.map(String)
-    : Array.isArray(membership?.permissoes)
-    ? membership.permissoes.map(String)
-    : Array.isArray(profile?.permissoes)
-    ? profile.permissoes.map(String)
-    : fallback?.permissoes || [];
+      const sessionPerms = Array.isArray(sessionUser?.permissoes)
+        ? sessionUser.permissoes.map(String)
+        : Array.isArray(membership?.permissoes)
+        ? membership.permissoes.map(String)
+        : Array.isArray(profile?.permissoes)
+        ? profile.permissoes.map(String)
+        : fallback?.permissoes || [];
 
-setLocalUser({
-  id: String((session.user as { id?: string })?.id || sessionUser?.id || fallback?.id || baseEmail),
-  email: baseEmail,
-  nome: String(sessionUser?.nome || profile?.nome || baseName),
-  nivel_acesso: role,
-  empresa_id: empresaId,
-  nome_empresa: nomeEmpresa,
-  plano,
-  permissoes: sessionPerms,
-  features,
-  foto: String(sessionUser?.foto || baseImage),
-});
+      const nextUser: LocalUser = {
+        id: String(
+          (session.user as { id?: string })?.id ||
+            sessionUser?.id ||
+            fallback?.id ||
+            baseEmail
+        ),
+        email: baseEmail,
+        nome: String(sessionUser?.nome || profile?.nome || baseName),
+        nivel_acesso: role,
+        empresa_id: empresaId,
+        nome_empresa: nomeEmpresa,
+        plano,
+        permissoes: sessionPerms,
+        features,
+        foto: String(sessionUser?.foto || baseImage),
+      };
+
+      if (empresaId) {
+        setEmpresaId(empresaId);
+      }
+
+      setLocalUser(nextUser);
       setError(null);
     } catch (err) {
       console.error(err);
       setError(err instanceof Error ? err.message : "Erro ao carregar usuário");
-      setLocalUser(
+
+      const recoveryUser =
         fallback || {
           id: String((session.user as { id?: string })?.id || baseEmail),
           email: baseEmail,
           nome: baseName,
-          nivel_acesso: "operador",
-          empresa_id: null,
+          nivel_acesso: "operador" as NivelAcesso,
+          empresa_id: getEmpresaId() || null,
           nome_empresa: "Minha Empresa",
-          plano: "profissional",
+          plano: "profissional" as PlanoEmpresa,
           permissoes: [],
           features: PLANO_FEATURES.profissional,
           foto: baseImage,
-        }
-      );
+        };
+
+      if (recoveryUser.empresa_id) {
+        setEmpresaId(String(recoveryUser.empresa_id));
+      }
+
+      setLocalUser(recoveryUser);
     } finally {
       setHydrated(true);
     }
@@ -303,13 +354,16 @@ setLocalUser({
   }, [refreshUser]);
 
   const userPerms = localUser?.permissoes ?? [];
-  const isSuperAdmin = localUser?.nivel_acesso === "admin" || userPerms.includes("super_admin");
+  const isSuperAdmin =
+    localUser?.nivel_acesso === "admin" || userPerms.includes("super_admin");
 
   const hasRole = useCallback(
     (allowed: NivelAcesso | NivelAcesso[], mode: MatchMode = "ANY") => {
       if (!localUser) return false;
       if (isSuperAdmin) return true;
+
       const required = toList(allowed);
+
       return mode === "ALL"
         ? required.length === 1 && required[0] === localUser.nivel_acesso
         : required.includes(localUser.nivel_acesso);
@@ -321,9 +375,13 @@ setLocalUser({
     (permission: string | string[], mode: MatchMode = "ANY") => {
       if (!localUser) return false;
       if (isSuperAdmin || localUser.nivel_acesso === "dono") return true;
+
       const required = toList(permission);
       if (!required.length) return true;
-      return mode === "ALL" ? hasAll(userPerms, required) : hasAny(userPerms, required);
+
+      return mode === "ALL"
+        ? hasAll(userPerms, required)
+        : hasAny(userPerms, required);
     },
     [isSuperAdmin, localUser, userPerms]
   );
@@ -339,6 +397,7 @@ setLocalUser({
 
   const logout = useCallback(async () => {
     setLocalUser(null);
+    clearEmpresaId();
     await nextAuthSignOut({ callbackUrl: "/login" });
   }, [setLocalUser]);
 
@@ -358,7 +417,19 @@ setLocalUser({
       isSuperAdmin,
       isSubscriptionExpired: () => false,
     }),
-    [error, hasFeature, hasPermission, hasRole, hydrated, isSuperAdmin, localUser, logout, refreshUser, setLocalUser, status]
+    [
+      error,
+      hasFeature,
+      hasPermission,
+      hasRole,
+      hydrated,
+      isSuperAdmin,
+      localUser,
+      logout,
+      refreshUser,
+      setLocalUser,
+      status,
+    ]
   );
 
   return <AppAuthContext.Provider value={value}>{children}</AppAuthContext.Provider>;

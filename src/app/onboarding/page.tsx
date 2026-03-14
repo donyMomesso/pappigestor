@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getSupabaseClient } from "@/lib/supabaseClient";
+import { setEmpresaId } from "@/react-app/lib/empresa";
 import { Button } from "@/react-app/components/ui/button";
 import { Input } from "@/react-app/components/ui/input";
 import {
@@ -22,6 +23,21 @@ import {
 type BrasilApiCnpjResponse = {
   razao_social?: string;
   nome_fantasia?: string;
+};
+
+type CreateCompanyResponse = {
+  ok?: boolean;
+  error?: string;
+  company?: {
+    id?: string;
+    name?: string;
+    cnpj?: string;
+  };
+  companyId?: string;
+  membership?: {
+    role?: string;
+    status?: string;
+  };
 };
 
 export default function OnboardingPage() {
@@ -57,7 +73,7 @@ export default function OnboardingPage() {
           "Você entra entendendo melhor a operação e pronto para crescer com mais controle.",
       },
     ],
-    [],
+    []
   );
 
   const nextSteps = useMemo(
@@ -67,36 +83,40 @@ export default function OnboardingPage() {
       "Vinculamos você como responsável principal",
       "Liberamos sua entrada no dashboard",
     ],
-    [],
+    []
   );
 
   useEffect(() => {
     (async () => {
-      const supabase = getSupabaseClient();
+      try {
+        const supabase = getSupabaseClient();
 
-      if (!supabase) {
-        setMsg("Supabase não configurado. Configure as ENV na Vercel ou no ambiente local.");
+        if (!supabase) {
+          setMsg("Supabase não configurado. Configure as ENV na Vercel ou no ambiente local.");
+          router.replace("/login");
+          return;
+        }
+
+        const { data, error } = await supabase.auth.getSession();
+
+        if (error || !data.session) {
+          router.replace("/login");
+          return;
+        }
+
+        const session = data.session;
+        const empresaId = String(session.user.user_metadata?.empresa_id || "").trim();
+
+        if (empresaId) {
+          setEmpresaId(empresaId);
+          router.replace("/app/dashboard");
+          return;
+        }
+
+        setLoading(false);
+      } catch {
         router.replace("/login");
-        return;
       }
-
-      const { data, error } = await supabase.auth.getSession();
-
-      if (error || !data.session) {
-        router.replace("/login");
-        return;
-      }
-
-      const session = data.session;
-      const empresaId = session.user.user_metadata?.empresa_id as string | undefined;
-
-      if (empresaId) {
-        localStorage.setItem("empresa_id", empresaId);
-        router.replace("/app/dashboard");
-        return;
-      }
-
-      setLoading(false);
     })();
   }, [router]);
 
@@ -127,16 +147,22 @@ export default function OnboardingPage() {
     setMsg(null);
 
     try {
-      const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjLimpo}`);
+      const res = await fetch(`/api/cnpj/${cnpjLimpo}`, {
+        method: "GET",
+        cache: "no-store",
+      });
+
+      const data = (await res.json().catch(() => null)) as BrasilApiCnpjResponse | { error?: string } | null;
 
       if (!res.ok) {
-        throw new Error("CNPJ inválido ou não encontrado.");
+        throw new Error(
+          (data && "error" in data && data.error) || "CNPJ inválido ou não encontrado."
+        );
       }
 
-      const data = (await res.json()) as BrasilApiCnpjResponse;
-
-      const rz = (data.razao_social || "").trim();
-      const nf = (data.nome_fantasia || data.razao_social || "").trim();
+      const apiData = data as BrasilApiCnpjResponse;
+      const rz = String(apiData.razao_social || "").trim();
+      const nf = String(apiData.nome_fantasia || apiData.razao_social || "").trim();
 
       if (!rz || !nf) {
         throw new Error("Não consegui localizar Razão Social e Nome Fantasia.");
@@ -144,8 +170,10 @@ export default function OnboardingPage() {
 
       setRazaoSocial(rz);
       setNomeFantasia(nf);
-    } catch (err: any) {
-      setMsg(err?.message || "Falha ao consultar CNPJ.");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Falha ao consultar CNPJ.";
+      setMsg(message);
       setRazaoSocial("");
       setNomeFantasia("");
     } finally {
@@ -156,14 +184,6 @@ export default function OnboardingPage() {
   async function criarEmpresa(e: React.FormEvent) {
     e.preventDefault();
 
-    const supabase = getSupabaseClient();
-
-    if (!supabase) {
-      setMsg("Supabase não configurado. Configure as ENV.");
-      router.replace("/login");
-      return;
-    }
-
     if (!razaoSocial || !nomeFantasia) {
       setMsg("Primeiro informe um CNPJ válido para preparar sua empresa.");
       return;
@@ -172,66 +192,52 @@ export default function OnboardingPage() {
     setIsSubmitting(true);
     setMsg(null);
 
-    const { data: sessData, error: sessErr } = await supabase.auth.getSession();
-    const session = sessData?.session;
-
-    if (sessErr || !session) {
-      setMsg("Sessão expirada. Faça login novamente.");
-      setIsSubmitting(false);
-      router.replace("/login");
-      return;
-    }
-
-    const { data: company, error: companyErr } = await supabase
-      .from("companies")
-      .insert([
-        {
-          name: nomeFantasia.trim(),
-          razao_social: razaoSocial,
-          cnpj: cnpj.replace(/\D/g, ""),
-          created_by: session.user.id,
+    try {
+      const res = await fetch("/onboarding/create-company", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      ])
-      .select("id")
-      .single();
+        cache: "no-store",
+        body: JSON.stringify({
+          cnpj: cnpj.replace(/\D/g, ""),
+          razaoSocial: razaoSocial.trim(),
+          nomeFantasia: nomeFantasia.trim(),
+        }),
+      });
 
-    if (companyErr || !company?.id) {
-      setMsg("Erro no banco de dados: " + (companyErr?.message || "Falha ao criar empresa."));
+      const payload = (await res.json().catch(() => null)) as CreateCompanyResponse | null;
+
+      if (!res.ok) {
+        throw new Error(payload?.error || "Falha ao criar e vincular a empresa.");
+      }
+
+      const empresaId =
+        String(payload?.company?.id || payload?.companyId || "").trim() || null;
+
+      if (!empresaId) {
+        throw new Error("Empresa criada, mas o sistema não retornou o identificador da empresa.");
+      }
+
+      setEmpresaId(empresaId);
+      localStorage.setItem("empresa_id", empresaId);
+      localStorage.setItem("pId", empresaId);
+      localStorage.setItem("pizzariaId", empresaId);
+
+      if (nomeFantasia.trim()) {
+        localStorage.setItem("nome_empresa", nomeFantasia.trim());
+        localStorage.setItem("empresa_nome", nomeFantasia.trim());
+      }
+
+      router.replace("/app/dashboard");
+      router.refresh();
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Erro ao finalizar a criação da empresa.";
+      setMsg(message);
+    } finally {
       setIsSubmitting(false);
-      return;
     }
-
-    const { error: linkErr } = await supabase.from("company_users").insert([
-      {
-        company_id: company.id,
-        user_id: session.user.id,
-        role: "admin_empresa",
-      },
-    ]);
-
-    if (linkErr) {
-      setMsg("Erro ao vincular usuário: " + linkErr.message);
-      setIsSubmitting(false);
-      return;
-    }
-
-    const { error: updErr } = await supabase.auth.updateUser({
-      data: {
-        nome_empresa: nomeFantasia.trim(),
-        empresa_id: company.id,
-        plano: "grátis",
-        nivel_acesso: "admin",
-      },
-    });
-
-    if (updErr) {
-      setMsg("Erro ao atualizar usuário: " + updErr.message);
-      setIsSubmitting(false);
-      return;
-    }
-
-    localStorage.setItem("empresa_id", company.id);
-    router.replace("/app/dashboard");
   }
 
   if (loading) {
@@ -258,7 +264,6 @@ export default function OnboardingPage() {
 
   return (
     <main className="min-h-screen bg-white flex flex-col lg:flex-row overflow-hidden">
-      {/* LADO ESQUERDO */}
       <section className="relative flex-1 bg-gradient-to-br from-orange-600 via-orange-500 to-pink-600 text-white px-6 py-10 sm:px-10 sm:py-12 lg:px-14 lg:py-16 overflow-hidden">
         <div className="relative z-10 h-full flex flex-col justify-between">
           <div className="flex items-center justify-between gap-4">
@@ -326,7 +331,6 @@ export default function OnboardingPage() {
         </div>
       </section>
 
-      {/* LADO DIREITO */}
       <section className="w-full lg:w-[720px] bg-white px-4 py-8 sm:px-8 sm:py-10 lg:px-12 lg:py-14 overflow-y-auto">
         <div className="w-full max-w-xl mx-auto space-y-8">
           <div className="space-y-4 text-center lg:text-left">

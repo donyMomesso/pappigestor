@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, Poppins } from "next/font/google";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 
 import Providers from "./providers";
@@ -43,6 +44,7 @@ export default function RootLayout({
         className={`${inter.variable} ${poppins.variable} min-h-dvh bg-[#f7f7f8] text-[#2A2A2A] antialiased`}
       >
         <Providers>{children}</Providers>
+        <SpeedInsights />
       </body>
     </html>
   );

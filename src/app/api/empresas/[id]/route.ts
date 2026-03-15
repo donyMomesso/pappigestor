@@ -18,12 +18,23 @@ export async function PUT(
       );
     }
 
+    const payload = {
+      name: String(body?.name || "").trim(),
+      cnpj: body?.cnpj ? String(body.cnpj).trim() : null,
+      plano: body?.plano ? String(body.plano).trim() : "basico",
+      status: body?.status ? String(body.status).trim() : "ativa",
+    };
+
+    if (!payload.name) {
+      return NextResponse.json(
+        { error: "Nome da empresa é obrigatório" },
+        { status: 400 }
+      );
+    }
+
     const { data, error } = await admin
       .from("companies")
-      .update({
-        name: body.name,
-        cnpj: body.cnpj,
-      })
+      .update(payload)
       .eq("id", id)
       .select()
       .single();
